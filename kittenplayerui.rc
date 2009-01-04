@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui SYSTEM "kpartgui.dtd">
+<gui name="kittenplayer" version="2">
+	<ToolBar name="mainToolBar" iconSize="16" iconText='icononly'>
+		<text>Main Toolbar</text>
+		<Action name="add_files" />
+		<Action name="add_dir" />
+	</ToolBar>
+	<MenuBar>
+		<Menu name="file" >
+			<text>&amp;Library</text>
+			<Action name="add_files" />
+			<Action name="add_dir" />
+		</Menu>
+	</MenuBar>
+</gui>
+<!-- kate: space-indent off; replace-tabs off; -->
