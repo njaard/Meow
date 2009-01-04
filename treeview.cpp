@@ -106,8 +106,11 @@ public:
 	
 	virtual void mouseReleaseEvent(QMouseEvent *event)
 	{
-		unsigned int len = player->currentLength();
-		player->setPosition(event->pos().x()*len / width());
+		if (event->button() == Qt::LeftButton)
+		{
+			unsigned int len = player->currentLength();
+			player->setPosition(event->pos().x()*len / width());
+		}
 	}
 
 	virtual void paintEvent(QPaintEvent *)
@@ -144,8 +147,14 @@ KittenPlayer::TreeView::TreeView(QWidget *parent, Player *player)
 	: QTreeWidget(parent), player(player)
 {
 	currentlyProcessingAutomaticExpansion = false;
-	connect(this, SIGNAL(itemActivated(QTreeWidgetItem*,int)), SLOT(playAt(QTreeWidgetItem*,int)));
-	connect(this, SIGNAL(itemExpanded(QTreeWidgetItem*)), SLOT(manuallyExpanded(QTreeWidgetItem*)));
+	connect(
+			this, SIGNAL(kdeActivated(QTreeWidgetItem*)),
+			SLOT(playAt(QTreeWidgetItem*))
+		);
+	connect(
+			this, SIGNAL(itemExpanded(QTreeWidgetItem*)), 
+			SLOT(manuallyExpanded(QTreeWidgetItem*))
+		);
 	connect(player, SIGNAL(finished()), SLOT(nextSong()));
 	
 	headerItem()->setHidden(true);
@@ -172,10 +181,8 @@ KittenPlayer::TreeView::TreeView(QWidget *parent, Player *player)
 	setItemDelegate(new CurrentItemDelegate(this));
 }
 
-void KittenPlayer::TreeView::playAt(QTreeWidgetItem *_item, int column)
+void KittenPlayer::TreeView::playAt(QTreeWidgetItem *_item)
 {
-	if (column != 0) return;
-	
 	Song *const cur = findAfter(_item);
 	if (!cur) return;
 
@@ -223,6 +230,15 @@ void KittenPlayer::TreeView::manuallyExpanded(QTreeWidgetItem *_item)
 		return;
 	if (Node *n = dynamic_cast<Node*>(_item))
 		n->setWasAutoExpanded(false);
+}
+
+void KittenPlayer::TreeView::mousePressEvent(QMouseEvent *e)
+{
+	QTreeWidgetItem *const at = itemAt(e->pos());
+	if (e->button() == Qt::LeftButton && !itemWidget(at, 0))
+		emit kdeActivated(at);
+	else if (e->button() == Qt::RightButton)
+		emit kdeContextMenu(at, e->pos());
 }
 
 

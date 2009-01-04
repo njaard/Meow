@@ -34,10 +34,17 @@ public slots:
 	void addFile(const File &file);
 	
 protected slots:
-	void playAt(QTreeWidgetItem *, int);
+	void playAt(QTreeWidgetItem *);
 	void nextSong();
 	void manuallyExpanded(QTreeWidgetItem *);
 
+signals:
+	void kdeActivated(QTreeWidgetItem*);
+	void kdeContextMenu(QTreeWidgetItem*, const QPoint &at);
+
+protected:
+	virtual void mousePressEvent(QMouseEvent *e);
+	
 private:
 	Song *findAfter(QTreeWidgetItem *);
 
