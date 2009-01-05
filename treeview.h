@@ -7,6 +7,7 @@ namespace KittenPlayer
 {
 class File;
 class Player;
+class Collection;
 
 class TreeView : public QTreeWidget
 {
@@ -19,12 +20,13 @@ class TreeView : public QTreeWidget
 	struct Song;
 	
 	Player *const player;
+	Collection *const collection;
 	Song *mCurrent;
 	
 	bool currentlyProcessingAutomaticExpansion;
 	
 public:
-	TreeView(QWidget *parent, Player *player);
+	TreeView(QWidget *parent, Player *player, Collection *collection);
 	
 	
 	int childCount() const { return topLevelItemCount(); }
@@ -32,6 +34,7 @@ public:
 	
 public slots:
 	void addFile(const File &file);
+	void removeSelected();
 	
 protected slots:
 	void playAt(QTreeWidgetItem *);
@@ -41,6 +44,7 @@ protected slots:
 signals:
 	void kdeActivated(QTreeWidgetItem*);
 	void kdeContextMenu(QTreeWidgetItem*, const QPoint &at);
+	void kdeContextMenu(const QPoint &at);
 
 protected:
 	virtual void mousePressEvent(QMouseEvent *e);

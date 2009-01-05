@@ -20,7 +20,10 @@ inline int64_t KittenPlayer::Base::sql(const QString &s, T &function)
 {
 	const QByteArray utf8 = s.toUtf8();
 	sqlite3_stmt *stmt;
-	sqlite3_prepare_v2(d->db, utf8.data(), utf8.length(), &stmt, 0);
+	if (SQLITE_OK != sqlite3_prepare_v2(d->db, utf8.data(), utf8.length(), &stmt, 0))
+	{
+		std::cerr << "SQLite error (prepare): " << sqlite3_errmsg(d->db) << std::endl;
+	}
 	
 	int x;
 	while (1)

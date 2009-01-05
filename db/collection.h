@@ -4,6 +4,10 @@
 #include <qobject.h>
 #include <qthread.h>
 
+#include <vector>
+
+#include <db/file.h>
+
 namespace KittenPlayer
 {
 
@@ -27,6 +31,8 @@ public:
 
 	void add(const QString &file);
 	
+	void remove(const std::vector<FileId> &files);
+	
 	/**
 	 * emit @ref added for all files in the database
 	 **/
@@ -34,8 +40,6 @@ public:
 
 signals:
 	void added(const File &file);
-	void removed(const File &file);
-	void modified(const File &file);
 
 	/**
 	 * emitted when something of the slices gets modified

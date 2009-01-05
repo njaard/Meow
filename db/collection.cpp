@@ -104,7 +104,24 @@ KittenPlayer::Collection::~Collection()
 void KittenPlayer::Collection::add(const QString &file)
 {
 	QApplication::postEvent(addThread, new AddFileEvent(file));
+}
+
+void KittenPlayer::Collection::remove(const std::vector<FileId> &files)
+{
+	base->sql("begin transaction");
 	
+	QString songids;
+	for (std::vector<FileId>::const_iterator i=files.begin(); i != files.end(); ++i)
+	{
+		if (songids.length() >0)
+			songids += " or ";
+		songids += "song_id=" + QString::number(*i);
+	}
+	
+	
+	base->sql("delete from songs where " + songids);
+	base->sql("delete from tags where " + songids);
+	base->sql("commit transaction");
 }
 
 #define SIZE_OF_CHUNK_TO_LOAD 32
@@ -167,7 +184,7 @@ protected:
 #define xstr(s) str(s)
 #define str(s) #s
 		b->sql(
-				"select id,url from songs order by id "
+				"select song_id,url from songs order by song_id "
 					"limit " xstr(SIZE_OF_CHUNK_TO_LOAD) " offset "
 					+ QString::number(index), l
 			);

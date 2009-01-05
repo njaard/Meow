@@ -1,6 +1,7 @@
 #include "treeview.h"
 #include "player.h"
 #include <db/file.h>
+#include <db/collection.h>
 
 #include <qpainter.h>
 #include <qitemdelegate.h>
@@ -182,8 +183,8 @@ public:
 
 
 
-KittenPlayer::TreeView::TreeView(QWidget *parent, Player *player)
-	: QTreeWidget(parent), player(player)
+KittenPlayer::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection)
+	: QTreeWidget(parent), player(player), collection(collection)
 {
 	currentlyProcessingAutomaticExpansion = false;
 	connect(
@@ -289,7 +290,10 @@ void KittenPlayer::TreeView::mousePressEvent(QMouseEvent *e)
 	if (e->button() == Qt::LeftButton && !itemWidget(at, 0))
 		emit kdeActivated(at);
 	else if (e->button() == Qt::RightButton)
-		emit kdeContextMenu(at, e->pos());
+	{
+		emit kdeContextMenu(at, e->globalPos());
+		emit kdeContextMenu(e->globalPos());
+	}
 }
 
 
@@ -361,6 +365,49 @@ void KittenPlayer::TreeView::addFile(const File &file)
 	Song *const song = new Song(file);
 	
 	insertSorted(album, song, canonical(song->text(0)));
+}
+
+void KittenPlayer::TreeView::removeSelected()
+{
+	QList<QTreeWidgetItem*> selected = selectedItems();
+	
+	// first pass, go over selected making sure it doesn't contain any children of its own items
+	// this is O(n²) but that's ok, because n should be pretty small, and it will get smaller every iteration
+	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); )
+	{
+		QList<QTreeWidgetItem*>::iterator prevI = i;
+		QTreeWidgetItem*const item  = *i;
+		++i;
+		
+		for (QTreeWidgetItem *up = item->parent(); up; up = up->parent())
+		{
+			if (selected.count(up) > 0)
+				selected.erase(prevI);
+		}
+	}
+	
+	std::vector<FileId> files;
+	// second pass: delete the stuff
+	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); )
+	{
+		QTreeWidgetItem *const item = *i;
+		++i; // access the next item before we delete the old one
+		QTreeWidgetItem *const parent = item->parent() ? item->parent() : invisibleRootItem();
+		const int myself = parent->indexOfChild(item);
+		QTreeWidgetItem *const next
+			= parent->childCount() > myself+1
+				? parent->child(myself+1)
+				: 0;
+		
+		for (QTreeWidgetItemIterator it(item); *it != next; ++it)
+		{
+			if (Song *s = dynamic_cast<Song*>(*it))
+				files.push_back(s->file().fileId());
+		}
+	}
+	collection->remove(files);
+	while (!selected.isEmpty())
+		delete selected.takeFirst();
 }
 
 // kate: space-indent off; replace-tabs off;

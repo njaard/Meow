@@ -13,65 +13,98 @@
 #include <kfiledialog.h>
 #include <ksystemtrayicon.h>
 #include <kstandarddirs.h>
+#include <kiconeffect.h>
+#include <kxmlguifactory.h>
 
 #include <qpixmap.h>
 #include <qicon.h>
 #include <qevent.h>
-#include <kiconeffect.h>
+#include <qmenu.h>
+
+struct KittenPlayer::MainWindow::MainWindowPrivate
+{
+	TreeView *view;
+	Player *player;
+	KSystemTrayIcon *tray;
+	Base db;
+	Collection *collection;
+	DirectoryAdder *adder;
+	
+	KAction *itemProperties, *itemRemove;
+};
 
 KittenPlayer::MainWindow::MainWindow()
 {
-	mAdder = 0;
+	d = new MainWindowPrivate;
+	d->adder = 0;
 	
-	Base *db = new Base;
-	db->open(KStandardDirs::locate("data", "kittenplayer/")+"collection");
+	d->db.open(KStandardDirs::locate("data", "kittenplayer/")+"collection");
 	
-	collection = new Collection(db);
+	d->collection = new Collection(&d->db);
 
-	player = new Player;
-	player->setVolume(50);
-	view = new TreeView(this, player);
-	setCentralWidget(view);
+	d->player = new Player;
+	d->player->setVolume(50);
+	d->view = new TreeView(this, d->player, d->collection);
+	setCentralWidget(d->view);
 	
-	tray = new KSystemTrayIcon(this);
-	tray->show();
+	d->tray = new KSystemTrayIcon(this);
+	d->tray->show();
 	
-	
-	KAction *ac;
-	ac = actionCollection()->addAction("add_files");
-	ac->setText(i18n("Add &Files..."));
-	ac->setIcon(KIcon("list-add"));
-	connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
+	{ // file menu
+		KAction *ac;
+		ac = actionCollection()->addAction("add_files");
+		ac->setText(i18n("Add &Files..."));
+		ac->setIcon(KIcon("list-add"));
+		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
 		
-	ac = actionCollection()->addAction("add_dir");
-	ac->setText(i18n("Add Fol&ders..."));
-	ac->setIcon(KIcon("folder"));
-	connect(ac, SIGNAL(triggered()), SLOT(addDirectory()));
+		ac = actionCollection()->addAction("add_dir");
+		ac->setText(i18n("Add Fol&ders..."));
+		ac->setIcon(KIcon("folder"));
+		connect(ac, SIGNAL(triggered()), SLOT(addDirectory()));
+		
+		ac = actionCollection()->addAction(
+				KStandardAction::Close,
+				this,
+				SLOT(deleteLater())
+			);
+	}
 	
+	{ // context menu
+		d->itemProperties = actionCollection()->addAction("remove_item");
+		d->itemProperties->setText(i18n("&Remove from playlist"));
+		d->itemProperties->setIcon(KIcon("edit-delete"));
+		d->itemProperties->setShortcut(Qt::Key_Delete);
+		connect(d->itemProperties, SIGNAL(triggered()), d->view, SLOT(removeSelected()));
+		
+		d->itemProperties = actionCollection()->addAction("item_properties");
+		d->itemProperties->setText(i18n("&Properties"));
+		connect(d->itemProperties, SIGNAL(triggered()), SLOT(itemProperties()));
+	}
 	
-	ac = actionCollection()->addAction(
-			KStandardAction::Close,
-			this,
-			SLOT(deleteLater())
-		);
+	connect(d->collection, SIGNAL(added(File)), d->view, SLOT(addFile(File)));
+	connect(d->view, SIGNAL(kdeContextMenu(QPoint)), SLOT(showItemContext(QPoint)));
 	
-	connect(collection, SIGNAL(added(File)), view, SLOT(addFile(File)));
-	
-	collection->getFiles();
+	d->collection->getFiles();
 	
 	createGUI();
+}
+
+KittenPlayer::MainWindow::~MainWindow()
+{
+	delete d->collection;
+	delete d;
 }
 
 void KittenPlayer::MainWindow::addFile(const KUrl &url)
 {
 	if (url.isLocalFile())
-		collection->add( url.path() );
+		d->collection->add( url.path() );
 }
 
 void KittenPlayer::MainWindow::addFiles()
 {
 	KUrl::List files = KFileDialog::getOpenUrls(
-			KUrl("kfiledialog:///mediadir"), player->mimeTypes().join(" "),
+			KUrl("kfiledialog:///mediadir"), d->player->mimeTypes().join(" "),
 			this, i18n("Select Files to Add")
 		);
 
@@ -94,30 +127,35 @@ void KittenPlayer::MainWindow::addDirectory()
 
 void KittenPlayer::MainWindow::closeEvent(QCloseEvent *event)
 {
-	tray->toggleActive();
+	d->tray->toggleActive();
 	event->ignore();
 }
 
 void KittenPlayer::MainWindow::adderDone()
 {
-	delete mAdder;
-	mAdder = 0;
+	delete d->adder;
+	d->adder = 0;
 }
 
 void KittenPlayer::MainWindow::beginDirectoryAdd(const KUrl &url)
 {
-	if (mAdder)
+	if (d->adder)
 	{
-		mAdder->add(url);
+		d->adder->add(url);
 	}
 	else
 	{
-		mAdder = new DirectoryAdder(url, this);
-		connect(mAdder, SIGNAL(done()), SLOT(adderDone()));
-		connect(mAdder, SIGNAL(addFile(KUrl)), SLOT(addFile(KUrl)));
+		d->adder = new DirectoryAdder(url, this);
+		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
+		connect(d->adder, SIGNAL(addFile(KUrl)), SLOT(addFile(KUrl)));
 	}
 }
 
+void KittenPlayer::MainWindow::showItemContext(const QPoint &at)
+{
+	QMenu *const menu = static_cast<QMenu*>(factory()->container("item_context", this));
+	menu->popup(at);
+}
 
 QIcon KittenPlayer::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
 {

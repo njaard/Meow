@@ -13,5 +13,9 @@
 			<Action name="add_dir" />
 		</Menu>
 	</MenuBar>
+	<Menu name="item_context">
+		<Action name="remove_item"/> 
+		<Action name="item_properties"/>
+	</Menu>
 </gui>
 <!-- kate: space-indent off; replace-tabs off; -->

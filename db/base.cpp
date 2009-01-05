@@ -10,6 +10,7 @@ KittenPlayer::Base::Base()
 
 KittenPlayer::Base::~Base()
 {
+	sqlite3_close(d->db);
 	delete d;
 }
 
@@ -30,7 +31,7 @@ void KittenPlayer::Base::initialize()
 	static const char *tables[] =
 		{
 			"create table songs ("
-				"id integer primary key autoincrement, "
+				"song_id integer primary key autoincrement, "
 				"length int not null, "
 				"url char(255))",
 			"create table tags ("

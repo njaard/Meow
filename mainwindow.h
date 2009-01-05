@@ -17,14 +17,12 @@ class DirectoryAdder;
 class MainWindow : public KXmlGuiWindow
 {
 	Q_OBJECT
-	TreeView *view;
-	Player *player;
-	KSystemTrayIcon *tray;
-	Collection *collection;
-	DirectoryAdder *mAdder;
+	struct MainWindowPrivate;
+	MainWindowPrivate *d;
 
 public:
 	MainWindow();
+	~MainWindow();
 
 public slots:
 	void addFiles();
@@ -36,6 +34,7 @@ protected:
 
 private slots:
 	void adderDone();
+	void showItemContext(const QPoint &at);
 
 private:
 	void beginDirectoryAdd(const KUrl &url);
