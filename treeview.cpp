@@ -9,21 +9,56 @@
 #include <set>
 #include <limits>
 
+static void pad(QString &str)
+{
+	int len=str.length();
+	int at = 0;
+	int blocklen=0;
+
+	static const int paddingsize=12;
+
+	// not static for reason
+	const QChar chars[paddingsize] =
+	{
+		QChar('0'), QChar('0'), QChar('0'), QChar('0'),
+		QChar('0'), QChar('0'), QChar('0'), QChar('0'),
+		QChar('0'), QChar('0'), QChar('0'), QChar('0')
+	};
+
+	for (int i=0; i < len; i++)
+	{
+		if (str[i].isNumber())
+		{
+			if (!blocklen)
+				at = i;
+			blocklen++;
+		}
+		else if (blocklen)
+		{
+			int pads=paddingsize;
+			pads -= blocklen;
+			str.insert(at, chars, pads);
+			i += pads;
+			blocklen = 0;
+		}
+	}
+	if (blocklen)
+	{
+		int pads=paddingsize;
+		pads -= blocklen;
+		str.insert(at, chars, pads);
+	}
+}
+
 struct KittenPlayer::TreeView::Node : public QTreeWidgetItem
 {
 	bool autoExpanded:1;
 	QColor oldColor;
-	Node(TreeView *parent, int type)
-		: QTreeWidgetItem(parent, type)
+	Node(int type)
+		: QTreeWidgetItem(type)
 	{
 		autoExpanded = false;
 	}
-	Node(Node *parent, int type)
-		: QTreeWidgetItem(parent, type)
-	{
-		autoExpanded = false;
-	}
-	
 	Node *parent() { return static_cast<Node*>(QTreeWidgetItem::parent()); }
 	
 	void setWasAutoExpanded(bool exp)
@@ -56,8 +91,8 @@ struct KittenPlayer::TreeView::Node : public QTreeWidgetItem
 
 struct KittenPlayer::TreeView::Artist : public Node
 {
-	Artist(TreeView *parent, const QString &artist)
-		: Node(parent, UserType+1)
+	Artist(const QString &artist)
+		: Node(UserType+1)
 	{
 		setText(0, artist);
 	}
@@ -67,8 +102,8 @@ struct KittenPlayer::TreeView::Artist : public Node
 struct KittenPlayer::TreeView::Album : public Node
 {
 public:
-	Album(Artist *parent, const QString &album)
-		: Node(parent, UserType+2)
+	Album(const QString &album)
+		: Node(UserType+2)
 	{
 		setText(0, album);
 	}
@@ -78,8 +113,8 @@ struct KittenPlayer::TreeView::Song : public Node
 {
 	const KittenPlayer::File mFile;
 public:
-	Song(Album *parent, const KittenPlayer::File &file)
-		: Node(parent, UserType+3), mFile(file)
+	Song(const KittenPlayer::File &file)
+		: Node(UserType+3), mFile(file)
 	{
 		QString title = mFile.title();
 		const QString track = mFile.track();
@@ -236,7 +271,18 @@ void KittenPlayer::TreeView::manuallyExpanded(QTreeWidgetItem *_item)
 
 void KittenPlayer::TreeView::mousePressEvent(QMouseEvent *e)
 {
+	QTreeWidget::mousePressEvent(e);
+	QModelIndex index = indexAt(e->pos());
+	if (index.column() != 0) return;
 	QTreeWidgetItem *const at = itemAt(e->pos());
+	
+	int indent=0;
+	for (QTreeWidgetItem *up = at; up ; up = up->parent())
+		indent++;
+	
+	if (e->pos().x() < indent*indentation())
+		return;
+	
 	if (e->button() == Qt::LeftButton && !itemWidget(at, 0))
 		emit kdeActivated(at);
 	else if (e->button() == Qt::RightButton)
@@ -258,16 +304,38 @@ KittenPlayer::TreeView::Song* KittenPlayer::TreeView::findAfter(QTreeWidgetItem 
 
 static QString canonical(const QString &t)
 {
-	return t.toCaseFolded().simplified();
+	QString s = t.toCaseFolded().simplified();
+	pad(s);
+	return s;
 }
 
-template<typename Parent, typename Child>
+static void insertSorted(
+		QTreeWidgetItem *into, QTreeWidgetItem *child,
+		const QString &childCanonicalLabel)
+{
+	const int children = into->childCount();
+	int upper=children;
+	int lower=0;
+	while (upper!=lower)
+	{ // a binary search
+		int i = lower+(upper-lower)/2;
+		QTreeWidgetItem *const ch = into->child(i);
+		QString t = canonical(ch->text(0));
+		if (childCanonicalLabel > t)
+			lower = i+1;
+		else
+			upper = i;
+	}
+	into->insertChild(lower, child);
+}
+
+template<typename Child, typename Parent>
 static Child* fold(Parent *into, const QString &label)
 {
 	const QString clabel = canonical(label);
 	const int children = into->childCount();
 	for (int i=0; i != children; ++i)
-	{
+	{ // return the child that already exists
 		QTreeWidgetItem *const ch = into->child(i);
 		if (canonical(ch->text(0)) == clabel)
 		{
@@ -276,15 +344,20 @@ static Child* fold(Parent *into, const QString &label)
 		}
 	}
 	
-	return new Child(into, label);
+	// or make a new one
+	Child *const c = new Child(label);
+	insertSorted(into, c, clabel);
+	return c;
 }
 
 void KittenPlayer::TreeView::addFile(const File &file)
 {
-	Artist *artist = fold<TreeView, Artist>(this, file.artist());
-	Album *album   = fold<Artist, Album>(artist, file.album());
+	Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
+	Album *album   = fold<Album>(artist, file.album());
 	
-	new Song(album, file);
+	Song *const song = new Song(file);
+	
+	insertSorted(album, song, canonical(song->text(0)));
 }
 
 // kate: space-indent off; replace-tabs off;
