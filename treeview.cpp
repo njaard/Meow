@@ -218,6 +218,7 @@ KittenPlayer::TreeView::TreeView(QWidget *parent, Player *player)
 		
 	};
 	setItemDelegate(new CurrentItemDelegate(this));
+	setAlternatingRowColors(true);
 }
 
 void KittenPlayer::TreeView::playAt(QTreeWidgetItem *_item)
