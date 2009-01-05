@@ -11,7 +11,7 @@ namespace KittenPlayer
 
 class TreeView;
 class Player;
-class Base;
+class Collection;
 class DirectoryAdder;
 
 class MainWindow : public KXmlGuiWindow
@@ -20,7 +20,7 @@ class MainWindow : public KXmlGuiWindow
 	TreeView *view;
 	Player *player;
 	KSystemTrayIcon *tray;
-	Base *db;
+	Collection *collection;
 	DirectoryAdder *mAdder;
 
 public:

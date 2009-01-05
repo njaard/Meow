@@ -26,7 +26,7 @@ set(kittenplayer_SRCS
     mainwindow.cpp
     directoryadder.cpp
    
-    db/base.cpp db/file.cpp treeview.cpp
+    db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
     )
 
 kde4_add_executable(kittenplayer_install ${kittenplayer_SRCS})

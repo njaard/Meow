@@ -5,6 +5,7 @@
 
 #include <db/file.h>
 #include <db/base.h>
+#include <db/collection.h>
 
 #include <kaction.h>
 #include <klocale.h>
@@ -22,8 +23,10 @@ KittenPlayer::MainWindow::MainWindow()
 {
 	mAdder = 0;
 	
-	db = new Base;
+	Base *db = new Base;
 	db->open(KStandardDirs::locate("data", "kittenplayer/")+"collection");
+	
+	collection = new Collection(db);
 
 	player = new Player;
 	player->setVolume(50);
@@ -52,9 +55,9 @@ KittenPlayer::MainWindow::MainWindow()
 			SLOT(deleteLater())
 		);
 	
-	connect(db, SIGNAL(added(File)), view, SLOT(addFile(File)));
+	connect(collection, SIGNAL(added(File)), view, SLOT(addFile(File)));
 	
-	db->getFiles();
+	collection->getFiles();
 	
 	createGUI();
 }
@@ -62,7 +65,7 @@ KittenPlayer::MainWindow::MainWindow()
 void KittenPlayer::MainWindow::addFile(const KUrl &url)
 {
 	if (url.isLocalFile())
-		db->add( url.path() );
+		collection->add( url.path() );
 }
 
 void KittenPlayer::MainWindow::addFiles()

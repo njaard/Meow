@@ -7,6 +7,7 @@
 #include <qevent.h>
 
 #include <set>
+#include <limits>
 
 struct KittenPlayer::TreeView::Node : public QTreeWidgetItem
 {
@@ -119,6 +120,7 @@ public:
 		QPainter *painter = &p;
 		unsigned int pos = player->position();
 		unsigned int len = player->currentLength();
+		if (len == 0) len = std::numeric_limits<int>::max();
 		QRect rect = this->rect();
 		rect.setWidth(pos*rect.width()/len);
 		
