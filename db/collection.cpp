@@ -11,6 +11,7 @@
 #include <qapplication.h>
 
 #include <vector>
+#include <map>
 
 namespace
 {
@@ -116,6 +117,7 @@ class KittenPlayer::Collection::LoadAll : public QObject
 	Collection *const collection;
 	
 	uint64_t idsInChunk[SIZE_OF_CHUNK_TO_LOAD];
+	QString urlsInChunk[SIZE_OF_CHUNK_TO_LOAD];
 	int numberInChunk;
 	
 	struct LoadEachFile
@@ -125,11 +127,24 @@ class KittenPlayer::Collection::LoadAll : public QObject
 		LoadEachFile(Base *b, LoadAll *loader) : b(b), loader(loader) { }
 		void operator() (const std::vector<QString> &vals)
 		{
-			if (vals.size() == 0)
+			if (vals.size() != 2)
 				return;
 			
 			uint64_t id = vals[0].toLongLong();
-			loader->idsInChunk[loader->numberInChunk++] = id;
+			loader->idsInChunk[loader->numberInChunk] = id;
+			loader->urlsInChunk[loader->numberInChunk] = vals[1];
+			loader->numberInChunk++;
+		}
+	};
+	
+	struct LoadTags
+	{
+		std::map<QString, QString> vals;
+		void operator() (const std::vector<QString> &v)
+		{
+			if (v.size() != 2)
+				return;
+			vals.insert(std::make_pair(v[0], v[1]));
 		}
 	};
 
@@ -152,7 +167,7 @@ protected:
 #define xstr(s) str(s)
 #define str(s) #s
 		b->sql(
-				"select id from songs order by id "
+				"select id,url from songs order by id "
 					"limit " xstr(SIZE_OF_CHUNK_TO_LOAD) " offset "
 					+ QString::number(index), l
 			);
@@ -160,7 +175,19 @@ protected:
 #undef xstr
 		for (int i=0; i < numberInChunk; i++)
 		{
-			File f(b, idsInChunk[i]);
+			File f;
+			f.id = idsInChunk[i];
+			LoadTags tags;
+			b->sql(
+					"select tag,value from tags where song_id=" + QString::number(f.id),
+					tags
+				);
+			f.mFile = urlsInChunk[i];
+			f.mArtist = tags.vals["artist"];
+			f.mAlbum = tags.vals["album"];
+			f.mTitle = tags.vals["title"];
+			f.mTrack = tags.vals["track"];
+			
 			emit collection->added(f);
 		}
 		numberInChunk=0;
@@ -186,14 +213,16 @@ bool KittenPlayer::Collection::event(QEvent *e)
 	if (e->type() != FileAddedEvent::type)
 		return false;
 	
-	struct Map { TagLib::String (TagLib::Tag::*fn)() const; const char *sql; };
-	static const Map propertyMap[] =
+	File fff;
+	fff.mFile = static_cast<FileAddedEvent*>(e)->file;
+	struct Map { TagLib::String (TagLib::Tag::*fn)() const; const char *sql; QString *f; };
+	Map propertyMap[] =
 	{
-		{ &TagLib::Tag::title, "title" },
-		{ &TagLib::Tag::artist, "artist" },
-		{ &TagLib::Tag::album, "album" },
-		{ &TagLib::Tag::genre, "genre" },
-		{ 0, 0 }
+		{ &TagLib::Tag::title, "title", &fff.mTitle },
+		{ &TagLib::Tag::artist, "artist", &fff.mArtist },
+		{ &TagLib::Tag::album, "album", &fff.mAlbum },
+		{ &TagLib::Tag::genre, "genre", 0 },
+		{ 0, 0, 0 }
 	};
 
 
@@ -203,18 +232,22 @@ bool KittenPlayer::Collection::event(QEvent *e)
 	base->sql("begin transaction");
 	const int64_t last = base->sql(
 			"insert into songs values(null, 0, '"
-				+ Base::escape(static_cast<FileAddedEvent*>(e)->file)
+				+ Base::escape(fff.mFile)
 				+ "')"
 		);
+	fff.id = last;
 	for (int i=0; propertyMap[i].sql; i++)
 	{
+		QString x = QString::fromUtf8(
+				(tag->*propertyMap[i].fn)().toCString(true)
+			);
 		base->sql(
 				"insert into tags values("
 					+ QString::number(last) + ", '"+ propertyMap[i].sql + "', '"
-					+ Base::escape(QString::fromUtf8(
-							(tag->*propertyMap[i].fn)().toCString(true))
-						) + "')"
+					+ Base::escape(x) + "')"
 			);
+		if (propertyMap[i].f)
+			*propertyMap[i].f = x;
 	}
 	
 	if (tag->track() > 0)
@@ -224,10 +257,10 @@ bool KittenPlayer::Collection::event(QEvent *e)
 					+ QString::number(last) + ", 'track', '"
 					+ QString::number(tag->track()) + "')"
 			);
+		fff.mTrack = tag->track();
 	}
 	base->sql("commit transaction");
 
-	File fff(base, last);
 	emit added(fff);
 	return true;
 }

@@ -7,21 +7,23 @@
 
 namespace KittenPlayer
 {
-class Base;
+class Collection;
 
 class File
 {
-	Base *const base;
-	const int64_t id;
+	friend class Collection;
+	int64_t id;
+	
+	QString mArtist, mAlbum, mTitle, mFile, mTrack;
 	
 public:
-	File(Base *base, int64_t id);
+	int64_t fileId() const { return id; }
 	
-	QString artist() const;
-	QString album() const;
-	QString title() const;
-	QString file() const;
-	QString track() const;
+	QString artist() const { return mArtist; }
+	QString album() const { return mAlbum; }
+	QString title() const { return mTitle; }
+	QString file() const { return mFile; }
+	QString track() const { return mTrack; }
 };
 
 

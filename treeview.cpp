@@ -111,19 +111,21 @@ public:
 
 struct KittenPlayer::TreeView::Song : public Node
 {
-	const KittenPlayer::File mFile;
+	const int64_t mFileId;
+	File mFile; // remove this member
 public:
 	Song(const KittenPlayer::File &file)
-		: Node(UserType+3), mFile(file)
+		: Node(UserType+3), mFileId(file.fileId()), mFile(file)
 	{
-		QString title = mFile.title();
-		const QString track = mFile.track();
+		QString title = file.title();
+		const QString track = file.track();
 		if (!track.isEmpty())
 			title = track + ". " + title;
 		setText(0, title);
 	}
 	
-	const KittenPlayer::File &file() const { return mFile; }
+	const File &file() const { return mFile; }
+	
 };
 
 
