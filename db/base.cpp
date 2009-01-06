@@ -19,8 +19,17 @@ bool Meow::Base::open(const QString &database)
 	int rc = sqlite3_open(
 			QFile::encodeName(database).data(), &d->db
 		);
+	if (rc != SQLITE_OK)
+	{
+		std::cerr << "Failed to open " << database.toLatin1().data() << std::endl;
+		return false;
+	}
 	if (0 == sqlite3_threadsafe())
+	{
 		std::cerr << "Failing because sqlite is not threadsafe" << std::endl;
+		return false;
+	}
+		
 	initialize();
 
 	return true;

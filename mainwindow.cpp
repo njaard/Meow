@@ -44,7 +44,7 @@ Meow::MainWindow::MainWindow()
 	d->adder = 0;
 	d->nowFiltering = false;
 	
-	d->db.open(KGlobal::dirs()->saveLocation("data", "meow/", false)+"collection");
+	d->db.open(KGlobal::dirs()->saveLocation("data", "meow/")+"collection");
 	
 	d->collection = new Collection(&d->db);
 
