@@ -29,11 +29,12 @@ set(meow_SRCS
     db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
     )
 
-kde4_add_executable(meow_install ${meow_SRCS})
+kde4_add_executable(meow ${meow_SRCS})
 
-target_link_libraries(meow_install ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS} ${KDE4_PHONON_LIBRARY} ${TAGLIB_LIBRARIES})
+target_link_libraries(meow ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS} ${KDE4_PHONON_LIBRARY} ${TAGLIB_LIBRARIES})
 
 install(FILES meow.desktop DESTINATION ${XDG_APPS_INSTALL_DIR})
 install(FILES meowui.rc DESTINATION ${DATA_INSTALL_DIR}/meow)
-        
+install(TARGETS meow ${INSTALL_TARGETS_DEFAULT_ARGS})
+
 kde4_install_icons(${ICON_INSTALL_DIR})
