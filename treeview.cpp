@@ -11,8 +11,6 @@
 #include <set>
 #include <limits>
 
-#include <iostream>
-
 static void pad(QString &str)
 {
 	int len=str.length();
@@ -151,8 +149,6 @@ public:
 		QRect rect = this->rect();
 		if (mOwner->horizontalScrollBar()->value() == 0)
 		{
-			std::cerr << "w = " << rect.width() << ", max=" << mOwner->horizontalScrollBar()->maximum()
-				<< ", vp=" << mOwner->viewport()->width() << std::endl;
 			rect.setWidth(rect.width() - mOwner->horizontalScrollBar()->maximum());
 		}
 		return rect;
