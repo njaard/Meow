@@ -96,6 +96,7 @@ Meow::MainWindow::MainWindow()
 	
 	connect(d->collection, SIGNAL(added(File)), d->view, SLOT(addFile(File)));
 	connect(d->view, SIGNAL(kdeContextMenu(QPoint)), SLOT(showItemContext(QPoint)));
+	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(changeCaption(File)));
 	
 	d->collection->getFiles();
 	
@@ -205,6 +206,12 @@ QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overl
 	return base;
 }
 
+void Meow::MainWindow::changeCaption(const File &f)
+{
+	setCaption(f.title());
+}
+
+
 class SpecialSlider : public QSlider
 {
 public:
@@ -276,5 +283,6 @@ void Meow::VolumeAction::showPopup(QWidget *button)
 	slider->raise();
 	slider->grabMouse();
 }
+
 
 // kate: space-indent off; replace-tabs off;

@@ -6,9 +6,12 @@
 #include <qpainter.h>
 #include <qitemdelegate.h>
 #include <qevent.h>
+#include <qscrollbar.h>
 
 #include <set>
 #include <limits>
+
+#include <iostream>
 
 static void pad(QString &str)
 {
@@ -143,23 +146,36 @@ public:
 		setCursor(Qt::PointingHandCursor);
 	}
 	
-	virtual void mouseReleaseEvent(QMouseEvent *event)
+	QRect drawArea() const
+	{
+		QRect rect = this->rect();
+		if (mOwner->horizontalScrollBar()->value() == 0)
+		{
+			std::cerr << "w = " << rect.width() << ", max=" << mOwner->horizontalScrollBar()->maximum()
+				<< ", vp=" << mOwner->viewport()->width() << std::endl;
+			rect.setWidth(rect.width() - mOwner->horizontalScrollBar()->maximum());
+		}
+		return rect;
+	}
+	
+	virtual void mousePressEvent(QMouseEvent *event)
 	{
 		if (event->button() == Qt::LeftButton)
 		{
+			QRect rect = drawArea();
 			unsigned int len = player->currentLength();
-			player->setPosition(event->pos().x()*len / width());
+			player->setPosition(event->pos().x()*len / rect.width());
 		}
 	}
 
 	virtual void paintEvent(QPaintEvent *)
 	{
 		QPainter p(this);
-		QPainter *painter = &p;
 		unsigned int pos = player->position();
 		unsigned int len = player->currentLength();
 		if (len == 0) len = std::numeric_limits<int>::max();
-		QRect rect = this->rect();
+		
+		QRect rect = drawArea();
 		rect.setWidth(pos*rect.width()/len);
 		
 		const QColor hl = palette().highlight().color();
@@ -171,13 +187,13 @@ public:
 		int b = bg.blue() + hl.blue();
 		bg.setRgb(r/2,g/2,b/2);
 		brush.setColor(bg);
-		painter->fillRect(rect, bg);
+		p.fillRect(rect, bg);
 		
-		QFont font = painter->font();
+		QFont font = p.font();
 		font.setUnderline(true);
-		painter->setFont(font);
+		p.setFont(font);
 		
-		painter->drawText(this->rect(), Qt::AlignVCenter, mOwner->mCurrent->text(0));
+		p.drawText(this->rect(), Qt::AlignVCenter, mOwner->mCurrent->text(0));
 	}
 };
 

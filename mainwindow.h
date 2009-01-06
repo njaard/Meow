@@ -16,6 +16,7 @@ class TreeView;
 class Player;
 class Collection;
 class DirectoryAdder;
+class File;
 
 class MainWindow : public KXmlGuiWindow
 {
@@ -40,6 +41,7 @@ protected:
 private slots:
 	void adderDone();
 	void showItemContext(const QPoint &at);
+	void changeCaption(const File &f);
 
 private:
 	void beginDirectoryAdd(const KUrl &url);
