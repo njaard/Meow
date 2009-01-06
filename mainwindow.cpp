@@ -47,7 +47,7 @@ KittenPlayer::MainWindow::MainWindow()
 	d->view = new TreeView(this, d->player, d->collection);
 	setCentralWidget(d->view);
 	
-	d->tray = new KSystemTrayIcon(this);
+	d->tray = new KSystemTrayIcon("speaker", this);
 	d->tray->show();
 	
 	{ // file menu
