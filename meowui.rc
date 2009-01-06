@@ -5,6 +5,7 @@
 		<text>Main Toolbar</text>
 		<Action name="add_files" />
 		<Action name="add_dir" />
+		<Action name="volume" />
 	</ToolBar>
 	<MenuBar>
 		<Menu name="file" >

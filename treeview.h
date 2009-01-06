@@ -48,7 +48,7 @@ signals:
 
 protected:
 	virtual void mousePressEvent(QMouseEvent *e);
-	
+
 private:
 	Song *findAfter(QTreeWidgetItem *);
 

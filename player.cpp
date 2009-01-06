@@ -156,7 +156,7 @@ void PlayerPrivate::_n_updatePosition(qint64 msecPos)
 void PlayerPrivate::_n_updateVolume(qreal vol)
 {
 	//kDebug(66666) << "new volume" << vol;
-	emit q->volumeChanged((unsigned int)(100.00 * vol + 0.5));
+	emit q->volumeChanged((int)(100.00 * vol + 0.5));
 }
 
 
@@ -357,19 +357,19 @@ QString Player::lengthString() const
 	return formatDuration(currentLength());
 }
 
-unsigned int Player::volume() const
+int Player::volume() const
 {
 	if (!d->audioOutput)
 	{
 		kWarning(66666) << "Missing AudioOutput";
 		return 0u;
 	}
-	return (unsigned int)(100.00 * d->audioOutput->volume() + 0.5);
+	return (int)(100.00 * d->audioOutput->volume() + 0.5);
 }
 
-void Player::setVolume(unsigned int percent)
+void Player::setVolume(int percent)
 {
-	percent = qBound(percent, 0u, 100u);
+	percent = qBound(percent, 0, 100);
 	if (!d->audioOutput)
 	{
 		kWarning(66666) << "Missing AudioOutput";

@@ -93,7 +93,7 @@ public:
 	/**
 	 * @return the output volume in percent
 	 **/
-	unsigned int volume() const;
+	int volume() const;
 
 	/**
 	 * @return the position in milliseconds
@@ -189,7 +189,7 @@ public Q_SLOTS:
 	 * @brief Set playback volume
 	 * @param percent new playback volume in percent (0 - 100)
 	 **/
-	void setVolume(unsigned int percent);
+	void setVolume(int percent);
 
 Q_SIGNALS:
 
@@ -219,7 +219,7 @@ Q_SIGNALS:
 	 **/
 	Q_SCRIPTABLE void paused();
 
-	Q_SCRIPTABLE void volumeChanged(unsigned int percent);
+	Q_SCRIPTABLE void volumeChanged(int percent);
 
 	Q_SCRIPTABLE void positionChanged(int msec);
 

@@ -7,7 +7,6 @@
 #include <db/base.h>
 #include <db/collection.h>
 
-#include <kaction.h>
 #include <klocale.h>
 #include <kactioncollection.h>
 #include <kfiledialog.h>
@@ -20,6 +19,10 @@
 #include <qicon.h>
 #include <qevent.h>
 #include <qmenu.h>
+#include <qslider.h>
+#include <qsignalmapper.h>
+#include <qtoolbutton.h>
+#include <qapplication.h>
 
 struct Meow::MainWindow::MainWindowPrivate
 {
@@ -31,12 +34,15 @@ struct Meow::MainWindow::MainWindowPrivate
 	DirectoryAdder *adder;
 	
 	KAction *itemProperties, *itemRemove;
+	
+	bool nowFiltering;
 };
 
 Meow::MainWindow::MainWindow()
 {
 	d = new MainWindowPrivate;
 	d->adder = 0;
+	d->nowFiltering = false;
 	
 	d->db.open(KGlobal::dirs()->saveLocation("data", "meow/", false)+"collection");
 	
@@ -45,9 +51,11 @@ Meow::MainWindow::MainWindow()
 	d->player = new Player;
 	d->player->setVolume(50);
 	d->view = new TreeView(this, d->player, d->collection);
+	d->view->installEventFilter(this);
 	setCentralWidget(d->view);
 	
 	d->tray = new KSystemTrayIcon("speaker", this);
+	d->tray->installEventFilter(this);
 	d->tray->show();
 	
 	{ // file menu
@@ -56,6 +64,11 @@ Meow::MainWindow::MainWindow()
 		ac->setText(i18n("Add &Files..."));
 		ac->setIcon(KIcon("list-add"));
 		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
+		
+		VolumeAction *va = new VolumeAction(KIcon("speaker"), i18n("Volume"), actionCollection());
+		ac = actionCollection()->addAction("volume", va);
+		connect(va, SIGNAL(volumeChanged(int)), d->player, SLOT(setVolume(int)));
+		connect(d->player, SIGNAL(volumeChanged(int)), va, SLOT(setVolume(int)));
 		
 		ac = actionCollection()->addAction("add_dir");
 		ac->setText(i18n("Add Fol&ders..."));
@@ -131,6 +144,27 @@ void Meow::MainWindow::closeEvent(QCloseEvent *event)
 	event->ignore();
 }
 
+void Meow::MainWindow::wheelEvent(QWheelEvent *event)
+{
+	if (!d->nowFiltering)
+		d->player->setVolume(d->player->volume() + event->delta()*10/120);
+}
+bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
+{
+	if (!d->nowFiltering && object == d->view && event->type() == QEvent::Wheel)
+	{
+		d->nowFiltering = true;
+		QApplication::sendEvent(d->view, event);
+		d->nowFiltering = false;
+		return true;
+	}
+	else if (object == d->tray && event->type() == QEvent::Wheel)
+	{
+		QApplication::sendEvent(this, event);
+	}
+	return false;
+}
+
 void Meow::MainWindow::adderDone()
 {
 	delete d->adder;
@@ -171,5 +205,76 @@ QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overl
 	return base;
 }
 
+class SpecialSlider : public QSlider
+{
+public:
+	SpecialSlider()
+		: QSlider(Qt::Vertical, 0)
+	{
+		setWindowFlags(Qt::Popup);
+		setRange(0, 100);
+	}
+	virtual void mousePressEvent(QMouseEvent *event)
+	{
+		if (!rect().contains(event->pos()))
+			hide();
+		QSlider::mousePressEvent(event);
+	}
+	
+	virtual void keyPressEvent(QKeyEvent *event)
+	{
+		if (event->key() == Qt::Key_Escape)
+			hide();
+		QSlider::keyPressEvent(event);
+	}
+	virtual void hideEvent(QHideEvent *event)
+	{
+		releaseMouse();
+		QSlider::hideEvent(event);
+	}
+};
+
+Meow::VolumeAction::VolumeAction(const KIcon& icon, const QString& text, QObject *parent)
+	: KToolBarPopupAction(icon, text, parent)
+{
+	signalMapper = new QSignalMapper(this);
+	
+	slider = new SpecialSlider;
+	connect(slider, SIGNAL(valueChanged(int)), SIGNAL(volumeChanged(int)));
+	connect(
+			signalMapper, SIGNAL(mapped(QWidget*)),
+			this, SLOT(showPopup(QWidget*))
+		);
+	setMenu(0);
+}
+
+Meow::VolumeAction::~VolumeAction()
+{
+	delete slider;
+}
+
+QWidget* Meow::VolumeAction::createWidget(QWidget* parent)
+{
+	QWidget *w = KToolBarPopupAction::createWidget(parent);
+	if (QToolButton *b = qobject_cast<QToolButton*>(w))
+	{
+		b->setPopupMode(QToolButton::DelayedPopup);
+		connect(b, SIGNAL(triggered(QAction*)), signalMapper, SLOT(map()));
+		signalMapper->setMapping(b, b);
+	}
+	return w;
+}
+void Meow::VolumeAction::setVolume(int percent)
+{
+	slider->setValue(percent);
+}
+
+void Meow::VolumeAction::showPopup(QWidget *button)
+{
+	slider->move(button->mapToGlobal(button->rect().bottomLeft()));
+	slider->show();
+	slider->raise();
+	slider->grabMouse();
+}
 
 // kate: space-indent off; replace-tabs off;

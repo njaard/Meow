@@ -296,7 +296,6 @@ void Meow::TreeView::mousePressEvent(QMouseEvent *e)
 	}
 }
 
-
 Meow::TreeView::Song* Meow::TreeView::findAfter(QTreeWidgetItem *_item)
 {
 	for (QTreeWidgetItemIterator it(_item); *it; ++it)
