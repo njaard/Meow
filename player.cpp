@@ -39,7 +39,7 @@
 #include <kglobal.h>
 
 
-namespace KittenPlayer
+namespace Meow
 {
 
 

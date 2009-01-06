@@ -21,7 +21,7 @@
 #include <qevent.h>
 #include <qmenu.h>
 
-struct KittenPlayer::MainWindow::MainWindowPrivate
+struct Meow::MainWindow::MainWindowPrivate
 {
 	TreeView *view;
 	Player *player;
@@ -33,12 +33,12 @@ struct KittenPlayer::MainWindow::MainWindowPrivate
 	KAction *itemProperties, *itemRemove;
 };
 
-KittenPlayer::MainWindow::MainWindow()
+Meow::MainWindow::MainWindow()
 {
 	d = new MainWindowPrivate;
 	d->adder = 0;
 	
-	d->db.open(KStandardDirs::locate("data", "kittenplayer/")+"collection");
+	d->db.open(KGlobal::dirs()->saveLocation("data", "meow/", false)+"collection");
 	
 	d->collection = new Collection(&d->db);
 
@@ -89,19 +89,19 @@ KittenPlayer::MainWindow::MainWindow()
 	createGUI();
 }
 
-KittenPlayer::MainWindow::~MainWindow()
+Meow::MainWindow::~MainWindow()
 {
 	delete d->collection;
 	delete d;
 }
 
-void KittenPlayer::MainWindow::addFile(const KUrl &url)
+void Meow::MainWindow::addFile(const KUrl &url)
 {
 	if (url.isLocalFile())
 		d->collection->add( url.path() );
 }
 
-void KittenPlayer::MainWindow::addFiles()
+void Meow::MainWindow::addFiles()
 {
 	KUrl::List files = KFileDialog::getOpenUrls(
 			KUrl("kfiledialog:///mediadir"), d->player->mimeTypes().join(" "),
@@ -112,7 +112,7 @@ void KittenPlayer::MainWindow::addFiles()
 		addFile(*it);
 }
 
-void KittenPlayer::MainWindow::addDirectory()
+void Meow::MainWindow::addDirectory()
 {
 	QString folder = KFileDialog::getExistingDirectory(KUrl("kfiledialog:///mediadir"), this,
 		i18n("Select Folder to Add"));
@@ -125,19 +125,19 @@ void KittenPlayer::MainWindow::addDirectory()
 	beginDirectoryAdd(url);
 }
 
-void KittenPlayer::MainWindow::closeEvent(QCloseEvent *event)
+void Meow::MainWindow::closeEvent(QCloseEvent *event)
 {
 	d->tray->toggleActive();
 	event->ignore();
 }
 
-void KittenPlayer::MainWindow::adderDone()
+void Meow::MainWindow::adderDone()
 {
 	delete d->adder;
 	d->adder = 0;
 }
 
-void KittenPlayer::MainWindow::beginDirectoryAdd(const KUrl &url)
+void Meow::MainWindow::beginDirectoryAdd(const KUrl &url)
 {
 	if (d->adder)
 	{
@@ -151,13 +151,13 @@ void KittenPlayer::MainWindow::beginDirectoryAdd(const KUrl &url)
 	}
 }
 
-void KittenPlayer::MainWindow::showItemContext(const QPoint &at)
+void Meow::MainWindow::showItemContext(const QPoint &at)
 {
 	QMenu *const menu = static_cast<QMenu*>(factory()->container("item_context", this));
 	menu->popup(at);
 }
 
-QIcon KittenPlayer::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
+QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
 {
 	if (overlayIcon.isNull())
 		return KSystemTrayIcon::loadIcon(baseIcon);

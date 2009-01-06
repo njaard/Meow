@@ -3,18 +3,18 @@
 #include "sqlt.h"
 
 
-KittenPlayer::Base::Base()
+Meow::Base::Base()
 {
 	d = new BasePrivate;
 }
 
-KittenPlayer::Base::~Base()
+Meow::Base::~Base()
 {
 	sqlite3_close(d->db);
 	delete d;
 }
 
-bool KittenPlayer::Base::open(const QString &database)
+bool Meow::Base::open(const QString &database)
 {
 	int rc = sqlite3_open(
 			QFile::encodeName(database).data(), &d->db
@@ -26,7 +26,7 @@ bool KittenPlayer::Base::open(const QString &database)
 	return true;
 }
 
-void KittenPlayer::Base::initialize()
+void Meow::Base::initialize()
 {
 	static const char *tables[] =
 		{
@@ -52,7 +52,7 @@ namespace
 struct Nothing { void operator() (const std::vector<QString> &) { } };
 }
 
-int64_t KittenPlayer::Base::sql(const QString &s)
+int64_t Meow::Base::sql(const QString &s)
 {
 	Nothing n;
 	return sql(s, n);
@@ -75,7 +75,7 @@ struct Keep1
 };
 }
 
-QString KittenPlayer::Base::sqlValue(const QString &s) const
+QString Meow::Base::sqlValue(const QString &s) const
 {
 	const_cast<Base*>(this)->sql("begin transaction");
 	std::vector<QString> vals;
@@ -85,7 +85,7 @@ QString KittenPlayer::Base::sqlValue(const QString &s) const
 	return k.first;
 }
 
-QString KittenPlayer::Base::escape(const QString &s)
+QString Meow::Base::escape(const QString &s)
 {
 	char *e = sqlite3_mprintf("%q", s.toUtf8().data());
 	QString x = QString::fromUtf8(e);

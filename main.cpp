@@ -8,7 +8,7 @@
 int main( int argc, char *argv[] )
 {
     KAboutData aboutData(
-		    "kittenplayer", 0, ki18n( "KittenPlayer" ),
+		    "meow", 0, ki18n( "Meow" ),
 		    "1.0", ki18n("Cutest Music Player Ever"), KAboutData::License_BSD,
 		    ki18n("(c) 2008, Charles Samuels")
 	    );
@@ -22,7 +22,7 @@ int main( int argc, char *argv[] )
     
     KApplication app;
     
-    KittenPlayer::MainWindow *dlg = new KittenPlayer::MainWindow;
+    Meow::MainWindow *dlg = new Meow::MainWindow;
     dlg->show();
     
     return app.exec();

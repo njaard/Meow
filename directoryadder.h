@@ -1,12 +1,12 @@
-#ifndef KITTENPLAYER_DIRECTORYADDER_H
-#define KITTENPLAYER_DIRECTORYADDER_H
+#ifndef MEOW_DIRECTORYADDER_H
+#define MEOW_DIRECTORYADDER_H
 
 #include <qobject.h>
 
 #include <kurl.h>
 #include <kio/job.h>
 
-namespace KittenPlayer
+namespace Meow
 {
 
 /**

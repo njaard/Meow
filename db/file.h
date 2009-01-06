@@ -1,11 +1,11 @@
-#ifndef KITTENPLAYER_FILE_H
-#define KITTENPLAYER_FILE_H
+#ifndef MEOW_FILE_H
+#define MEOW_FILE_H
 
 #include <qstring.h>
 #include <stdint.h>
 
 
-namespace KittenPlayer
+namespace Meow
 {
 class Collection;
 typedef uint64_t FileId;
@@ -17,7 +17,7 @@ class File
 	
 	
 	QString mFile;
-	// refer to KittenPlayer::Collection::LoadAll
+	// refer to Meow::Collection::LoadAll
 	QString tags[4];
 	
 public:

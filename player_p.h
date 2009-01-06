@@ -38,7 +38,7 @@
 
 #include <memory>
 
-namespace KittenPlayer
+namespace Meow
 {
 
 
@@ -63,6 +63,6 @@ public:
 	void _n_updateVolume(qreal);
 };
 
-} // namespace KittenPlayer
-#endif // PLAYER_P_H
+}
+#endif
 // kate: space-indent off; replace-tabs off;

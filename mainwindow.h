@@ -1,12 +1,12 @@
-#ifndef KITTENPLAYER_MAINWINDOW_H
-#define KITTENPLAYER_MAINWINDOW_H
+#ifndef MEOW_MAINWINDOW_H
+#define MEOW_MAINWINDOW_H
 
 #include <kxmlguiwindow.h>
 
 class KSystemTrayIcon;
 class KUrl;
 
-namespace KittenPlayer
+namespace Meow
 {
 
 class TreeView;

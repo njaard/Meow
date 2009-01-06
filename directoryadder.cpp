@@ -2,20 +2,20 @@
 
 #include <kfileitem.h>
 
-KittenPlayer::DirectoryAdder::DirectoryAdder(const KUrl &dir, QObject *parent)
+Meow::DirectoryAdder::DirectoryAdder(const KUrl &dir, QObject *parent)
 	: QObject(parent)
 {
 	listJob=0;
 	add(dir);
 }
 
-void KittenPlayer::DirectoryAdder::add(const KUrl &dir)
+void Meow::DirectoryAdder::add(const KUrl &dir)
 {
 	pendingAddDirectories.append(dir);
 	addNextPending();
 }
 
-void KittenPlayer::DirectoryAdder::addNextPending()
+void Meow::DirectoryAdder::addNextPending()
 {
 	KUrl::List::Iterator pendingIt= pendingAddDirectories.begin();
 	if (!listJob && (pendingIt!= pendingAddDirectories.end()))
@@ -38,7 +38,7 @@ void KittenPlayer::DirectoryAdder::addNextPending()
 	}
 }
 
-void KittenPlayer::DirectoryAdder::slotResult(KIO::Job *job)
+void Meow::DirectoryAdder::slotResult(KIO::Job *job)
 {
 	listJob= 0;
 	if (job && job->error())
@@ -48,7 +48,7 @@ void KittenPlayer::DirectoryAdder::slotResult(KIO::Job *job)
 		emit done();
 }
 
-void KittenPlayer::DirectoryAdder::slotEntries(KIO::Job *, const KIO::UDSEntryList &entries)
+void Meow::DirectoryAdder::slotEntries(KIO::Job *, const KIO::UDSEntryList &entries)
 {
 	for (KIO::UDSEntryList::ConstIterator it = entries.begin(); it != entries.end(); ++it)
 	{
@@ -58,7 +58,7 @@ void KittenPlayer::DirectoryAdder::slotEntries(KIO::Job *, const KIO::UDSEntryLi
 
 }
 
-void KittenPlayer::DirectoryAdder::slotRedirection(KIO::Job *, const KUrl & url)
+void Meow::DirectoryAdder::slotRedirection(KIO::Job *, const KUrl & url)
 {
 	currentJobUrl= url;
 }

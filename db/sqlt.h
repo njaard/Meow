@@ -1,5 +1,5 @@
-#ifndef KITTENPLAYER_SQLT_H 
-#define KITTENPLAYER_SQLT_H 
+#ifndef MEOW_SQLT_H 
+#define MEOW_SQLT_H 
 
 #include "base.h"
 
@@ -10,13 +10,13 @@
 
 #include <sqlite3.h>
 
-struct KittenPlayer::Base::BasePrivate
+struct Meow::Base::BasePrivate
 {
 	sqlite3 *db;
 };
 
 template<class T>
-inline int64_t KittenPlayer::Base::sql(const QString &s, T &function)
+inline int64_t Meow::Base::sql(const QString &s, T &function)
 {
 	const QByteArray utf8 = s.toUtf8();
 	sqlite3_stmt *stmt;

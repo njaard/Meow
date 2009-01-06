@@ -1,4 +1,4 @@
-project(kittenplayer)
+project(meow)
 
 # search packages used by KDE
 find_package(KDE4 REQUIRED)
@@ -20,7 +20,7 @@ include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${KDE4_INCLUDES})
 macro_display_feature_log()
 
 
-set(kittenplayer_SRCS
+set(meow_SRCS
     main.cpp
     player.cpp
     mainwindow.cpp
@@ -29,11 +29,11 @@ set(kittenplayer_SRCS
     db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
     )
 
-kde4_add_executable(kittenplayer_install ${kittenplayer_SRCS})
+kde4_add_executable(meow_install ${meow_SRCS})
 
-target_link_libraries(kittenplayer_install ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS} ${KDE4_PHONON_LIBRARY} ${TAGLIB_LIBRARIES})
+target_link_libraries(meow_install ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS} ${KDE4_PHONON_LIBRARY} ${TAGLIB_LIBRARIES})
 
-install(FILES kittenplayer.desktop DESTINATION ${XDG_APPS_INSTALL_DIR})
-install(FILES kittenplayerui.rc DESTINATION ${DATA_INSTALL_DIR}/kittenplayer)
+install(FILES meow.desktop DESTINATION ${XDG_APPS_INSTALL_DIR})
+install(FILES meowui.rc DESTINATION ${DATA_INSTALL_DIR}/meow)
         
 kde4_install_icons(${ICON_INSTALL_DIR})

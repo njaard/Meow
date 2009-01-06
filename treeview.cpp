@@ -51,7 +51,7 @@ static void pad(QString &str)
 	}
 }
 
-struct KittenPlayer::TreeView::Node : public QTreeWidgetItem
+struct Meow::TreeView::Node : public QTreeWidgetItem
 {
 	bool autoExpanded:1;
 	QColor oldColor;
@@ -90,7 +90,7 @@ struct KittenPlayer::TreeView::Node : public QTreeWidgetItem
 	}
 };
 
-struct KittenPlayer::TreeView::Artist : public Node
+struct Meow::TreeView::Artist : public Node
 {
 	Artist(const QString &artist)
 		: Node(UserType+1)
@@ -100,7 +100,7 @@ struct KittenPlayer::TreeView::Artist : public Node
 };
 
 
-struct KittenPlayer::TreeView::Album : public Node
+struct Meow::TreeView::Album : public Node
 {
 public:
 	Album(const QString &album)
@@ -110,12 +110,12 @@ public:
 	}
 };
 
-struct KittenPlayer::TreeView::Song : public Node
+struct Meow::TreeView::Song : public Node
 {
 	const int64_t mFileId;
 	File mFile; // remove this member
 public:
-	Song(const KittenPlayer::File &file)
+	Song(const Meow::File &file)
 		: Node(UserType+3), mFileId(file.fileId()), mFile(file)
 	{
 		QString title = file.title();
@@ -130,12 +130,12 @@ public:
 };
 
 
-class KittenPlayer::TreeView::SongWidget : public QWidget
+class Meow::TreeView::SongWidget : public QWidget
 {
 	TreeView *const mOwner;
-	KittenPlayer::Player *const player;
+	Meow::Player *const player;
 public:
-	SongWidget(QWidget *parent, TreeView *owner, KittenPlayer::Player *player)
+	SongWidget(QWidget *parent, TreeView *owner, Meow::Player *player)
 		: QWidget(parent), mOwner(owner), player(player)
 	{
 		connect(player, SIGNAL(positionChanged(int)), SLOT(update()));
@@ -183,7 +183,7 @@ public:
 
 
 
-KittenPlayer::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection)
+Meow::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection)
 	: QTreeWidget(parent), player(player), collection(collection)
 {
 	currentlyProcessingAutomaticExpansion = false;
@@ -222,7 +222,7 @@ KittenPlayer::TreeView::TreeView(QWidget *parent, Player *player, Collection *co
 	setAlternatingRowColors(true);
 }
 
-void KittenPlayer::TreeView::playAt(QTreeWidgetItem *_item)
+void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 {
 	Song *const cur = findAfter(_item);
 	if (!cur) return;
@@ -258,14 +258,14 @@ void KittenPlayer::TreeView::playAt(QTreeWidgetItem *_item)
 	setItemWidget(cur, 0, new SongWidget(this, this, player));
 }
 
-void KittenPlayer::TreeView::nextSong()
+void Meow::TreeView::nextSong()
 {
 	QTreeWidgetItemIterator it(mCurrent);
 	Song *const next = findAfter(*++it);
 	playAt(next);
 }
 
-void KittenPlayer::TreeView::manuallyExpanded(QTreeWidgetItem *_item)
+void Meow::TreeView::manuallyExpanded(QTreeWidgetItem *_item)
 {
 	if (currentlyProcessingAutomaticExpansion)
 		return;
@@ -273,7 +273,7 @@ void KittenPlayer::TreeView::manuallyExpanded(QTreeWidgetItem *_item)
 		n->setWasAutoExpanded(false);
 }
 
-void KittenPlayer::TreeView::mousePressEvent(QMouseEvent *e)
+void Meow::TreeView::mousePressEvent(QMouseEvent *e)
 {
 	QTreeWidget::mousePressEvent(e);
 	QModelIndex index = indexAt(e->pos());
@@ -297,7 +297,7 @@ void KittenPlayer::TreeView::mousePressEvent(QMouseEvent *e)
 }
 
 
-KittenPlayer::TreeView::Song* KittenPlayer::TreeView::findAfter(QTreeWidgetItem *_item)
+Meow::TreeView::Song* Meow::TreeView::findAfter(QTreeWidgetItem *_item)
 {
 	for (QTreeWidgetItemIterator it(_item); *it; ++it)
 	{
@@ -357,7 +357,7 @@ static Child* fold(Parent *into, const QString &label)
 	return c;
 }
 
-void KittenPlayer::TreeView::addFile(const File &file)
+void Meow::TreeView::addFile(const File &file)
 {
 	Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
 	Album *album   = fold<Album>(artist, file.album());
@@ -367,7 +367,7 @@ void KittenPlayer::TreeView::addFile(const File &file)
 	insertSorted(album, song, canonical(song->text(0)));
 }
 
-void KittenPlayer::TreeView::removeSelected()
+void Meow::TreeView::removeSelected()
 {
 	QList<QTreeWidgetItem*> selected = selectedItems();
 	

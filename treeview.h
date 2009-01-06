@@ -1,9 +1,9 @@
-#ifndef KITTENPLAYER_TREEVIEW_H
-#define KITTENPLAYER_TREEVIEW_H
+#ifndef MEOW_TREEVIEW_H
+#define MEOW_TREEVIEW_H
 
 #include <qtreewidget.h>
 
-namespace KittenPlayer
+namespace Meow
 {
 class File;
 class Player;

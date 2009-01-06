@@ -45,7 +45,7 @@ public:
 }
 
 
-class KittenPlayer::Collection::AddThread : public QThread
+class Meow::Collection::AddThread : public QThread
 {
 	Collection *const c;
 
@@ -81,7 +81,7 @@ public:
 
 
 
-KittenPlayer::Collection::Collection(Base *base)
+Meow::Collection::Collection(Base *base)
 	: base(base), addThread(0)
 {
 		addThread = new AddThread(this);
@@ -90,7 +90,7 @@ KittenPlayer::Collection::Collection(Base *base)
 }
 
 
-KittenPlayer::Collection::~Collection()
+Meow::Collection::~Collection()
 {
 	if (addThread)
 	{
@@ -101,12 +101,12 @@ KittenPlayer::Collection::~Collection()
 
 
 
-void KittenPlayer::Collection::add(const QString &file)
+void Meow::Collection::add(const QString &file)
 {
 	QApplication::postEvent(addThread, new AddFileEvent(file));
 }
 
-void KittenPlayer::Collection::remove(const std::vector<FileId> &files)
+void Meow::Collection::remove(const std::vector<FileId> &files)
 {
 	base->sql("begin transaction");
 	
@@ -127,7 +127,7 @@ void KittenPlayer::Collection::remove(const std::vector<FileId> &files)
 static const char *const tags[] = { "artist", "album", "title", "track" };
 static const int numTags = sizeof(tags)/sizeof(tags[0]);
 
-class KittenPlayer::Collection::LoadAll : public QObject
+class Meow::Collection::LoadAll : public QObject
 {
 	int index;
 	int count;
@@ -229,12 +229,12 @@ protected:
 	}
 };
 
-void KittenPlayer::Collection::getFiles()
+void Meow::Collection::getFiles()
 {
 	new LoadAll(base, this);
 }
 
-bool KittenPlayer::Collection::event(QEvent *e)
+bool Meow::Collection::event(QEvent *e)
 {
 	if (e->type() != FileAddedEvent::type)
 		return false;

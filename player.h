@@ -30,7 +30,7 @@
 
 #include <qobject.h>
 
-namespace KittenPlayer
+namespace Meow
 {
 
 class File;

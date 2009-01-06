@@ -1,5 +1,5 @@
-#ifndef KITTENPLAYER_MODEL_H
-#define KITTENPLAYER_MODEL_H
+#ifndef MEOW_MODEL_H
+#define MEOW_MODEL_H
 
 #include <qtreeview.h>
 

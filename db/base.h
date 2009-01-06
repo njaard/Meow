@@ -1,11 +1,11 @@
-#ifndef KITTENPLAYER_BASE_H
-#define KITTENPLAYER_BASE_H
+#ifndef MEOW_BASE_H
+#define MEOW_BASE_H
 
 #include <qstring.h>
 
 #include <stdint.h>
 
-namespace KittenPlayer
+namespace Meow
 {
 
 class Base

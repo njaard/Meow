@@ -1,5 +1,5 @@
-#ifndef KITTENPLAYER_COLLECTION_H
-#define KITTENPLAYER_COLLECTION_H
+#ifndef MEOW_COLLECTION_H
+#define MEOW_COLLECTION_H
 
 #include <qobject.h>
 #include <qthread.h>
@@ -8,7 +8,7 @@
 
 #include <db/file.h>
 
-namespace KittenPlayer
+namespace Meow
 {
 
 class File;
