@@ -15,16 +15,20 @@ class File
 	friend class Collection;
 	FileId id;
 	
-	QString mArtist, mAlbum, mTitle, mFile, mTrack;
+	
+	QString mFile;
+	// refer to KittenPlayer::Collection::LoadAll
+	QString tags[4];
 	
 public:
 	FileId fileId() const { return id; }
 	
-	QString artist() const { return mArtist; }
-	QString album() const { return mAlbum; }
-	QString title() const { return mTitle; }
 	QString file() const { return mFile; }
-	QString track() const { return mTrack; }
+	
+	QString artist() const { return tags[0]; }
+	QString album() const { return tags[1]; }
+	QString title() const { return tags[2]; }
+	QString track() const { return tags[3]; }
 };
 
 

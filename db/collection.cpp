@@ -124,8 +124,8 @@ void KittenPlayer::Collection::remove(const std::vector<FileId> &files)
 	base->sql("commit transaction");
 }
 
-#define SIZE_OF_CHUNK_TO_LOAD 32
-
+	static const char *const tags[] = { "artist", "album", "title", "track" };
+	static const int numTags = sizeof(tags)/sizeof(tags[0]);
 class KittenPlayer::Collection::LoadAll : public QObject
 {
 	int index;
@@ -133,37 +133,55 @@ class KittenPlayer::Collection::LoadAll : public QObject
 	Base *const b;
 	Collection *const collection;
 	
-	uint64_t idsInChunk[SIZE_OF_CHUNK_TO_LOAD];
-	QString urlsInChunk[SIZE_OF_CHUNK_TO_LOAD];
+	
+	struct SongEntry
+	{
+		FileId songid;
+		QString url;
+		QString tags[numTags];
+	};
+	
+	static const int SIZE_OF_CHUNK_TO_LOAD = 32;
+	SongEntry songEntriesInChunk[SIZE_OF_CHUNK_TO_LOAD];
 	int numberInChunk;
 	
 	struct LoadEachFile
 	{
-		Base *const b;
 		LoadAll *const loader;
-		LoadEachFile(Base *b, LoadAll *loader) : b(b), loader(loader) { }
+		FileId lastId;
+		
+		LoadEachFile(LoadAll *loader) : loader(loader), lastId(0)
+		{
+			loader->numberInChunk = -1;
+		}
 		void operator() (const std::vector<QString> &vals)
 		{
-			if (vals.size() != 2)
+			if (vals.size() != 4)
 				return;
 			
-			uint64_t id = vals[0].toLongLong();
-			loader->idsInChunk[loader->numberInChunk] = id;
-			loader->urlsInChunk[loader->numberInChunk] = vals[1];
-			loader->numberInChunk++;
+			FileId id = vals[0].toLongLong();
+			if (id != lastId)
+			{
+				loader->numberInChunk++;
+				loader->songEntriesInChunk[loader->numberInChunk].songid = id;
+				loader->songEntriesInChunk[loader->numberInChunk].url = vals[1];
+				lastId = id;
+			}
+			
+			QString tag = vals[2];
+			
+			for (int i=0; i < numTags; ++i)
+			{
+				if (tags[i] == tag)
+				{
+					loader->songEntriesInChunk[loader->numberInChunk].tags[i] = vals[3];
+					break;
+				}
+			}
+			
 		}
 	};
 	
-	struct LoadTags
-	{
-		std::map<QString, QString> vals;
-		void operator() (const std::vector<QString> &v)
-		{
-			if (v.size() != 2)
-				return;
-			vals.insert(std::make_pair(v[0], v[1]));
-		}
-	};
 
 public:
 	LoadAll(Base *b, Collection *collection)
@@ -180,36 +198,29 @@ public:
 protected:
 	virtual void timerEvent(QTimerEvent *e)
 	{
-		LoadEachFile l(b, this);
-#define xstr(s) str(s)
-#define str(s) #s
-		b->sql(
-				"select song_id,url from songs order by song_id "
-					"limit " xstr(SIZE_OF_CHUNK_TO_LOAD) " offset "
-					+ QString::number(index), l
-			);
-#undef str
-#undef xstr
+	
+		QString select = "select songs.song_id, songs.url, tags.tag, tags.value "
+			"from songs natural join tags where songs.song_id > "
+			+ QString::number(index) + " and songs.song_id < "
+			+ QString::number(index+SIZE_OF_CHUNK_TO_LOAD);
+			
+		LoadEachFile l(this);
+		b->sql(select, l);
+		
 		for (int i=0; i < numberInChunk; i++)
 		{
 			File f;
-			f.id = idsInChunk[i];
-			LoadTags tags;
-			b->sql(
-					"select tag,value from tags where song_id=" + QString::number(f.id),
-					tags
-				);
-			f.mFile = urlsInChunk[i];
-			f.mArtist = tags.vals["artist"];
-			f.mAlbum = tags.vals["album"];
-			f.mTitle = tags.vals["title"];
-			f.mTrack = tags.vals["track"];
+			f.id = songEntriesInChunk[i].songid;
+			f.mFile = songEntriesInChunk[i].url;
+			for (int tagi=0; tagi < numTags; ++tagi)
+			{
+				f.tags[tagi] = songEntriesInChunk[i].tags[tagi];
+			}
 			
 			emit collection->added(f);
 		}
-		numberInChunk=0;
 		
-		index += 32;
+		index += SIZE_OF_CHUNK_TO_LOAD;
 		if (index >= count)
 		{
 			killTimer(e->timerId());
@@ -232,13 +243,12 @@ bool KittenPlayer::Collection::event(QEvent *e)
 	
 	File fff;
 	fff.mFile = static_cast<FileAddedEvent*>(e)->file;
-	struct Map { TagLib::String (TagLib::Tag::*fn)() const; const char *sql; QString *f; };
-	Map propertyMap[] =
+	struct Map { TagLib::String (TagLib::Tag::*fn)() const; const char *sql; int tagIndex; };
+	static const Map propertyMap[] =
 	{
-		{ &TagLib::Tag::title, "title", &fff.mTitle },
-		{ &TagLib::Tag::artist, "artist", &fff.mArtist },
-		{ &TagLib::Tag::album, "album", &fff.mAlbum },
-		{ &TagLib::Tag::genre, "genre", 0 },
+		{ &TagLib::Tag::title, "title", 2 },
+		{ &TagLib::Tag::artist, "artist", 0 },
+		{ &TagLib::Tag::album, "album", 1 },
 		{ 0, 0, 0 }
 	};
 
@@ -263,8 +273,8 @@ bool KittenPlayer::Collection::event(QEvent *e)
 					+ QString::number(last) + ", '"+ propertyMap[i].sql + "', '"
 					+ Base::escape(x) + "')"
 			);
-		if (propertyMap[i].f)
-			*propertyMap[i].f = x;
+		if (propertyMap[i].tagIndex != -1)
+			fff.tags[propertyMap[i].tagIndex] = x;
 	}
 	
 	if (tag->track() > 0)
@@ -274,7 +284,7 @@ bool KittenPlayer::Collection::event(QEvent *e)
 					+ QString::number(last) + ", 'track', '"
 					+ QString::number(tag->track()) + "')"
 			);
-		fff.mTrack = tag->track();
+		fff.tags[3] = QString::number(tag->track());
 	}
 	base->sql("commit transaction");
 
