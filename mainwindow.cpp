@@ -65,6 +65,11 @@ Meow::MainWindow::MainWindow()
 		ac->setIcon(KIcon("list-add"));
 		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
 		
+		ac = actionCollection()->addAction("pause");
+		ac->setText(i18n("Paws"));
+		ac->setIcon(KIcon("media-playback-pause"));
+		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
+		
 		VolumeAction *va = new VolumeAction(KIcon("speaker"), i18n("Volume"), actionCollection());
 		ac = actionCollection()->addAction("volume", va);
 		connect(va, SIGNAL(volumeChanged(int)), d->player, SLOT(setVolume(int)));
