@@ -124,15 +124,15 @@ void KittenPlayer::Collection::remove(const std::vector<FileId> &files)
 	base->sql("commit transaction");
 }
 
-	static const char *const tags[] = { "artist", "album", "title", "track" };
-	static const int numTags = sizeof(tags)/sizeof(tags[0]);
+static const char *const tags[] = { "artist", "album", "title", "track" };
+static const int numTags = sizeof(tags)/sizeof(tags[0]);
+
 class KittenPlayer::Collection::LoadAll : public QObject
 {
 	int index;
 	int count;
 	Base *const b;
 	Collection *const collection;
-	
 	
 	struct SongEntry
 	{
@@ -228,8 +228,6 @@ protected:
 		}
 	}
 };
-
-#undef SIZE_OF_CHUNK_TO_LOAD
 
 void KittenPlayer::Collection::getFiles()
 {
