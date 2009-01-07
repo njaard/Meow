@@ -36,9 +36,11 @@ public slots:
 	void addFile(const File &file);
 	void removeSelected();
 	
+	void previousSong();
+	void nextSong();
+	
 protected slots:
 	void playAt(QTreeWidgetItem *);
-	void nextSong();
 	void manuallyExpanded(QTreeWidgetItem *);
 
 signals:

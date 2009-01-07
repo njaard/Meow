@@ -272,9 +272,27 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 
 void Meow::TreeView::nextSong()
 {
+	if (!mCurrent)
+		return;
 	QTreeWidgetItemIterator it(mCurrent);
-	Song *const next = findAfter(*++it);
-	playAt(next);
+	playAt(*++it);
+}
+
+void Meow::TreeView::previousSong()
+{
+	if (!mCurrent)
+		return;
+	QTreeWidgetItemIterator it(mCurrent);
+	--it;
+	for (; *it; --it)
+	{
+		QTreeWidgetItem *n = *it;
+		if (Song *s = dynamic_cast<Song*>(n))
+		{
+			playAt(s);
+			break;
+		}
+	}
 }
 
 void Meow::TreeView::manuallyExpanded(QTreeWidgetItem *_item)

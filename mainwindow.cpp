@@ -14,6 +14,9 @@
 #include <kstandarddirs.h>
 #include <kiconeffect.h>
 #include <kxmlguifactory.h>
+#include <kconfig.h>
+#include <ksharedconfig.h>
+#include <kconfiggroup.h>
 
 #include <qpixmap.h>
 #include <qicon.h>
@@ -65,10 +68,20 @@ Meow::MainWindow::MainWindow()
 		ac->setIcon(KIcon("list-add"));
 		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
 		
+		ac = actionCollection()->addAction("previous");
+		ac->setText(i18n("Previous"));
+		ac->setIcon(KIcon("media-skip-backward"));
+		connect(ac, SIGNAL(triggered()), d->view, SLOT(previousSong()));
+		
 		ac = actionCollection()->addAction("pause");
 		ac->setText(i18n("Paws"));
 		ac->setIcon(KIcon("media-playback-pause"));
 		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
+		
+		ac = actionCollection()->addAction("next");
+		ac->setText(i18n("Next"));
+		ac->setIcon(KIcon("media-skip-forward"));
+		connect(ac, SIGNAL(triggered()), d->view, SLOT(nextSong()));
 		
 		VolumeAction *va = new VolumeAction(KIcon("speaker"), i18n("Volume"), actionCollection());
 		ac = actionCollection()->addAction("volume", va);
@@ -106,10 +119,17 @@ Meow::MainWindow::MainWindow()
 	d->collection->getFiles();
 	
 	createGUI();
+
+	KConfigGroup meow = KGlobal::config()->group("state");
+	d->player->setVolume(meow.readEntry<int>("volume", 50));
+
 }
 
 Meow::MainWindow::~MainWindow()
 {
+	KConfigGroup meow = KGlobal::config()->group("state");
+	meow.writeEntry<int>("volume", d->player->volume());
+
 	delete d->collection;
 	delete d;
 }

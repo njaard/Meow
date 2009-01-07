@@ -6,7 +6,9 @@
 		<Action name="add_files" />
 		<Action name="add_dir" />
 		<separator />
+		<Action name="previous" />
 		<Action name="pause" />
+		<Action name="next" />
 		<Action name="volume" />
 	</ToolBar>
 	<MenuBar>
