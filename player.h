@@ -184,12 +184,18 @@ public Q_SLOTS:
 	 * @param msec new position given in milliseconds
 	 **/
 	void setPosition(unsigned int msec);
+	
+	void seekForward() { setPosition(position() + 5000); }
+	void seekBackward() { setPosition(position() - 5000); }
 
 	/**
 	 * @brief Set playback volume
 	 * @param percent new playback volume in percent (0 - 100)
 	 **/
 	void setVolume(int percent);
+	
+	void volumeUp() { setVolume(volume() + 5); }
+	void volumeDown() { setVolume(volume() - 5); }
 
 Q_SIGNALS:
 

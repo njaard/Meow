@@ -73,6 +73,7 @@ void PlayerPrivate::initPhonon()
 	//videoPath->addOutput(videoWidget);
 
 	mediaObject->setTickInterval(200);
+	setVolume(d->volumePercent);
 
 	QObject::connect(mediaObject, SIGNAL(stateChanged(Phonon::State, Phonon::State)),
 		q, SLOT(_n_updateState(Phonon::State, Phonon::State)));
@@ -86,6 +87,7 @@ void PlayerPrivate::initPhonon()
 		q, SLOT(_n_updatePosition(qint64)));
 	QObject::connect(audioOutput, SIGNAL(volumeChanged(qreal)),
 		q, SLOT(_n_updateVolume(qreal)));
+	
 }
 
 void PlayerPrivate::_n_updateState(Phonon::State newState, Phonon::State oldState)
@@ -175,6 +177,7 @@ Player::Player()
 
 	d->mediaObject = 0;
 	d->audioOutput = 0;
+	d->volumePercent = 50;
 }
 
 
@@ -369,13 +372,9 @@ int Player::volume() const
 
 void Player::setVolume(int percent)
 {
-	percent = qBound(percent, 0, 100);
-	if (!d->audioOutput)
-	{
-		kWarning(66666) << "Missing AudioOutput";
-		return;
-	}
-	d->audioOutput->setVolume(percent * 0.01);
+	d->volumePercent = qBound(percent, 0, 100);
+	if (d->audioOutput)
+		d->audioOutput->setVolume(d->volumePercent * 0.01);
 }
 
 QStringList Player::mimeTypes() const

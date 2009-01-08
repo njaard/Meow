@@ -51,6 +51,7 @@ public:
 	Phonon::AudioOutput *audioOutput;
 	//Phonon::VideoWidget *videoWidget;
 	std::auto_ptr<File> currentItem; // TODO: remove
+	int volumePercent;
 
 	void initPhonon();
 	Player::State convertState(Phonon::State s);
