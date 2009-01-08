@@ -7,6 +7,7 @@
 #include <qitemdelegate.h>
 #include <qevent.h>
 #include <qscrollbar.h>
+#include <qcursor.h>
 
 #include <set>
 #include <limits>
@@ -231,6 +232,8 @@ Meow::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection
 	};
 	setItemDelegate(new CurrentItemDelegate(this));
 	setAlternatingRowColors(true);
+	// required for keeping the current item under the cursor while adding items
+	setVerticalScrollMode(ScrollPerPixel);
 }
 
 void Meow::TreeView::playAt(QTreeWidgetItem *_item)
@@ -393,12 +396,32 @@ static Child* fold(Parent *into, const QString &label)
 
 void Meow::TreeView::addFile(const File &file)
 {
+	QPoint under = QCursor::pos();
+	under = mapFromGlobal(under);
+	
+	// keep the current item under the cursor while adding items
+	QTreeWidgetItem *const itemUnder = itemAt(under);
+	int oldPos;
+	if (itemUnder)
+		oldPos = visualItemRect(itemUnder).top();
+
 	Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
 	Album *album   = fold<Album>(artist, file.album());
 	
 	Song *const song = new Song(file);
 	
 	insertSorted(album, song, canonical(song->text(0)));
+	
+	if (itemUnder)
+	{
+		// requires: setVerticalScrollMode(ScrollPerPixel); in the ctor
+		QRect newArea = visualItemRect(itemUnder);
+		//now scroll vertically so that newArea is oldArea
+		int diff = newArea.top() - oldPos;
+		QScrollBar *const vs = verticalScrollBar();
+		vs->setValue(vs->value() + diff);
+	}
+	
 }
 
 void Meow::TreeView::removeSelected()
