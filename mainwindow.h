@@ -32,6 +32,7 @@ public slots:
 	void addFiles();
 	void addDirectory();
 	void addFile(const KUrl &url);
+	void toggleVisible();
 
 protected:
 	virtual void closeEvent(QCloseEvent *event);

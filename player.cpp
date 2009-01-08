@@ -73,7 +73,7 @@ void PlayerPrivate::initPhonon()
 	//videoPath->addOutput(videoWidget);
 
 	mediaObject->setTickInterval(200);
-	setVolume(d->volumePercent);
+	q->setVolume(volumePercent);
 
 	QObject::connect(mediaObject, SIGNAL(stateChanged(Phonon::State, Phonon::State)),
 		q, SLOT(_n_updateState(Phonon::State, Phonon::State)));

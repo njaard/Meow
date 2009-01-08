@@ -52,7 +52,6 @@ Meow::MainWindow::MainWindow()
 	d->collection = new Collection(&d->db);
 
 	d->player = new Player;
-	d->player->setVolume(50);
 	d->view = new TreeView(this, d->player, d->collection);
 	d->view->installEventFilter(this);
 	setCentralWidget(d->view);
@@ -61,37 +60,57 @@ Meow::MainWindow::MainWindow()
 	d->tray->installEventFilter(this);
 	d->tray->show();
 	
-	{ // file menu
+	{
 		KAction *ac;
-		ac = actionCollection()->addAction("add_files");
+		ac = actionCollection()->addAction("add_files", this, SLOT(addFiles()));
 		ac->setText(i18n("Add &Files..."));
 		ac->setIcon(KIcon("list-add"));
 		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
-		
-		ac = actionCollection()->addAction("previous");
-		ac->setText(i18n("Previous"));
-		ac->setIcon(KIcon("media-skip-backward"));
-		connect(ac, SIGNAL(triggered()), d->view, SLOT(previousSong()));
-		
-		ac = actionCollection()->addAction("pause");
+				
+		ac = actionCollection()->addAction("pause", d->player, SLOT(playpause()));
 		ac->setText(i18n("Paws"));
 		ac->setIcon(KIcon("media-playback-pause"));
-		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_P), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
 		
-		ac = actionCollection()->addAction("next");
-		ac->setText(i18n("Next"));
+		ac = actionCollection()->addAction("next", d->view, SLOT(nextSong()));
+		ac->setText(i18n("Next Song"));
 		ac->setIcon(KIcon("media-skip-forward"));
-		connect(ac, SIGNAL(triggered()), d->view, SLOT(nextSong()));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_Right), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		
+		ac = actionCollection()->addAction("previous", d->view, SLOT(nextSong()));
+		ac->setText(i18n("Previous Song"));
+		ac->setIcon(KIcon("media-skip-backward"));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_Left), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		
+		ac = actionCollection()->addAction("volumeup", d->player, SLOT(volumeUp()));
+		ac->setText(i18n("Volume Up"));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::SHIFT+Qt::Key_Up), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		
+		ac = actionCollection()->addAction("volumedown", d->player, SLOT(volumeDown()));
+		ac->setText(i18n("Volume Down"));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::SHIFT+Qt::Key_Down));
+		
+		ac = actionCollection()->addAction("seekforward", d->player, SLOT(seekForward()));
+		ac->setText(i18n("Seek Forward"));
+		ac->setIcon(KIcon("media-seek-forward"));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::SHIFT+Qt::Key_Right), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		
+		ac = actionCollection()->addAction("seekbackward", d->player, SLOT(seekBackward()));
+		ac->setText(i18n("Seek Backward"));
+		ac->setIcon(KIcon("media-seek-forward"));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::SHIFT+Qt::Key_Left), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		
+		ac = actionCollection()->addAction("togglegui", this, SLOT(toggleVisible()));
+		ac->setText(i18n("Show/Hide Main Window"));
 		
 		VolumeAction *va = new VolumeAction(KIcon("speaker"), i18n("Volume"), actionCollection());
 		ac = actionCollection()->addAction("volume", va);
 		connect(va, SIGNAL(volumeChanged(int)), d->player, SLOT(setVolume(int)));
 		connect(d->player, SIGNAL(volumeChanged(int)), va, SLOT(setVolume(int)));
 		
-		ac = actionCollection()->addAction("add_dir");
+		ac = actionCollection()->addAction("add_dir", this, SLOT(addDirectory()));
 		ac->setText(i18n("Add Fol&ders..."));
 		ac->setIcon(KIcon("folder"));
-		connect(ac, SIGNAL(triggered()), SLOT(addDirectory()));
 		
 		ac = actionCollection()->addAction(
 				KStandardAction::Close,
@@ -101,15 +120,13 @@ Meow::MainWindow::MainWindow()
 	}
 	
 	{ // context menu
-		d->itemProperties = actionCollection()->addAction("remove_item");
+		d->itemProperties = actionCollection()->addAction("remove_item", d->view, SLOT(removeSelected()));
 		d->itemProperties->setText(i18n("&Remove from playlist"));
 		d->itemProperties->setIcon(KIcon("edit-delete"));
 		d->itemProperties->setShortcut(Qt::Key_Delete);
-		connect(d->itemProperties, SIGNAL(triggered()), d->view, SLOT(removeSelected()));
 		
-		d->itemProperties = actionCollection()->addAction("item_properties");
+		d->itemProperties = actionCollection()->addAction("item_properties", this, SLOT(itemProperties()));
 		d->itemProperties->setText(i18n("&Properties"));
-		connect(d->itemProperties, SIGNAL(triggered()), SLOT(itemProperties()));
 	}
 	
 	connect(d->collection, SIGNAL(added(File)), d->view, SLOT(addFile(File)));
@@ -122,7 +139,6 @@ Meow::MainWindow::MainWindow()
 
 	KConfigGroup meow = KGlobal::config()->group("state");
 	d->player->setVolume(meow.readEntry<int>("volume", 50));
-
 }
 
 Meow::MainWindow::~MainWindow()
@@ -164,9 +180,14 @@ void Meow::MainWindow::addDirectory()
 	beginDirectoryAdd(url);
 }
 
-void Meow::MainWindow::closeEvent(QCloseEvent *event)
+void Meow::MainWindow::toggleVisible()
 {
 	d->tray->toggleActive();
+}
+	
+void Meow::MainWindow::closeEvent(QCloseEvent *event)
+{
+	toggleVisible();
 	event->ignore();
 }
 
