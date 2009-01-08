@@ -127,13 +127,9 @@ void Meow::Collection::remove(const std::vector<FileId> &files)
 static const char *const tags[] = { "artist", "album", "title", "track" };
 static const int numTags = sizeof(tags)/sizeof(tags[0]);
 
-class Meow::Collection::LoadAll : public QObject
+class Meow::Collection::BasicLoader
 {
-	int index;
-	int count;
-	Base *const b;
-	Collection *const collection;
-	
+public:
 	struct SongEntry
 	{
 		FileId songid;
@@ -145,12 +141,24 @@ class Meow::Collection::LoadAll : public QObject
 	SongEntry songEntriesInChunk[SIZE_OF_CHUNK_TO_LOAD];
 	int numberInChunk;
 	
+	static File toFile(const SongEntry &entry)
+	{
+		File f;
+		f.id = entry.songid;
+		f.mFile = entry.url;
+		for (int tagi=0; tagi < numTags; ++tagi)
+		{
+			f.tags[tagi] = entry.tags[tagi];
+		}
+		return f;
+	}
+	
 	struct LoadEachFile
 	{
-		LoadAll *const loader;
+		BasicLoader *const loader;
 		FileId lastId;
 		
-		LoadEachFile(LoadAll *loader) : loader(loader), lastId(0)
+		LoadEachFile(BasicLoader *loader) : loader(loader), lastId(0)
 		{
 			loader->numberInChunk = -1;
 		}
@@ -182,10 +190,20 @@ class Meow::Collection::LoadAll : public QObject
 		}
 	};
 	
+};
+
+class Meow::Collection::LoadAll
+	: public QObject, private Meow::Collection::BasicLoader
+{
+	int index;
+	int count;
+	Base *const b;
+	Collection *const collection;
+	const FileId exceptThisOne;
 
 public:
-	LoadAll(Base *b, Collection *collection)
-		: b(b), collection(collection)
+	LoadAll(Base *b, Collection *collection, FileId exceptThisOne)
+		: b(b), collection(collection), exceptThisOne(exceptThisOne)
 	{
 		index=0;
 		numberInChunk = 0;
@@ -209,15 +227,11 @@ protected:
 		
 		for (int i=0; i < numberInChunk; i++)
 		{
-			File f;
-			f.id = songEntriesInChunk[i].songid;
-			f.mFile = songEntriesInChunk[i].url;
-			for (int tagi=0; tagi < numTags; ++tagi)
+			if (songEntriesInChunk[i].songid != exceptThisOne)
 			{
-				f.tags[tagi] = songEntriesInChunk[i].tags[tagi];
+				File f = toFile(songEntriesInChunk[i]);
+				emit collection->added(f);
 			}
-			
-			emit collection->added(f);
 		}
 		
 		index += SIZE_OF_CHUNK_TO_LOAD;
@@ -229,10 +243,33 @@ protected:
 	}
 };
 
-void Meow::Collection::getFiles()
+void Meow::Collection::getFilesAndFirst(Meow::FileId id)
 {
-	new LoadAll(base, this);
+	if (id != 0)
+	{
+		File f = getSong(id);
+		emit added(f);
+	}
+	new LoadAll(base, this, id);
 }
+
+Meow::File Meow::Collection::getSong(FileId id) const
+{
+	File file;
+	QString select = "select songs.song_id, songs.url, tags.tag, tags.value "
+		"from songs natural join tags where songs.song_id="
+		+ QString::number(id);
+	
+	BasicLoader loader;
+	BasicLoader::LoadEachFile l(&loader);
+	base->sql(select, l);
+	if (loader.numberInChunk == 0)
+	{
+		file = BasicLoader::toFile(loader.songEntriesInChunk[0]);
+	}
+	return file;
+}
+
 
 bool Meow::Collection::event(QEvent *e)
 {

@@ -133,18 +133,32 @@ Meow::MainWindow::MainWindow()
 	connect(d->view, SIGNAL(kdeContextMenu(QPoint)), SLOT(showItemContext(QPoint)));
 	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(changeCaption(File)));
 	
-	d->collection->getFiles();
 	
 	createGUI();
 
 	KConfigGroup meow = KGlobal::config()->group("state");
 	d->player->setVolume(meow.readEntry<int>("volume", 50));
+	
+	FileId first = meow.readEntry<FileId>("lastPlayed", 0);
+	
+	d->collection->getFilesAndFirst(first);
+	if (first)
+	{
+		// clever trick here:
+		// if first is valid, that means that getFilesAndFirst has loaded it first
+		// and it did it right now (not later in the event loop)
+		// furthermore, it will also load the rest of the files later on 
+		// in the event loop, which means that right now, first is the only
+		// item in the list
+		d->view->nextSong();
+	}
 }
 
 Meow::MainWindow::~MainWindow()
 {
 	KConfigGroup meow = KGlobal::config()->group("state");
 	meow.writeEntry<int>("volume", d->player->volume());
+	meow.writeEntry<FileId>("lastPlayed", d->player->currentFile().fileId());
 
 	delete d->collection;
 	delete d;

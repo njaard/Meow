@@ -371,6 +371,14 @@ void Player::setVolume(int percent)
 	}
 }
 
+File Player::currentFile() const
+{
+	if (!d->currentItem.get())
+		return File();
+	else
+		return *d->currentItem;
+}
+
 QStringList Player::mimeTypes() const
 {
 	return Phonon::BackendCapabilities::availableMimeTypes();

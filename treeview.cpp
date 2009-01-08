@@ -113,11 +113,10 @@ public:
 
 struct Meow::TreeView::Song : public Node
 {
-	const int64_t mFileId;
-	File mFile; // remove this member
+	const FileId mFileId;
 public:
 	Song(const Meow::File &file)
-		: Node(UserType+3), mFileId(file.fileId()), mFile(file)
+		: Node(UserType+3), mFileId(file.fileId())
 	{
 		QString title = file.title();
 		const QString track = file.track();
@@ -126,7 +125,7 @@ public:
 		setText(0, title);
 	}
 	
-	const File &file() const { return mFile; }
+	FileId fileId() const { return mFileId; }
 	
 };
 
@@ -265,7 +264,8 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 		
 	removeItemWidget(mCurrent, 0);
 	mCurrent = cur;
-	player->play(cur->file());
+	File curFile = collection->getSong(cur->fileId());
+	player->play(curFile);
 	scrollToItem(cur);
 	setItemWidget(cur, 0, new SongWidget(this, this, player));
 }
@@ -273,9 +273,14 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 void Meow::TreeView::nextSong()
 {
 	if (!mCurrent)
-		return;
-	QTreeWidgetItemIterator it(mCurrent);
-	playAt(*++it);
+	{
+		playAt(invisibleRootItem());
+	}
+	else
+	{
+		QTreeWidgetItemIterator it(mCurrent);
+		playAt(*++it);
+	}
 }
 
 void Meow::TreeView::previousSong()
@@ -431,7 +436,7 @@ void Meow::TreeView::removeSelected()
 		for (QTreeWidgetItemIterator it(item); *it != next; ++it)
 		{
 			if (Song *s = dynamic_cast<Song*>(*it))
-				files.push_back(s->file().fileId());
+				files.push_back(s->fileId());
 		}
 	}
 	collection->remove(files);

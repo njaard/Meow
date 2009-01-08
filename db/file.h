@@ -21,6 +21,7 @@ class File
 	QString tags[4];
 	
 public:
+	File() { id = 0; }
 	FileId fileId() const { return id; }
 	
 	QString file() const { return mFile; }

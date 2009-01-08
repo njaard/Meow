@@ -20,6 +20,7 @@ class Collection : public QObject
 	
 	Base *const base;
 	
+	class BasicLoader;
 	class LoadAll;
 	class AddThread;
 	
@@ -36,7 +37,12 @@ public:
 	/**
 	 * emit @ref added for all files in the database
 	 **/
-	void getFiles();
+	void getFilesAndFirst(FileId id);
+	
+	/**
+	 * gets just this file by id. This function is slow
+	 **/
+	File getSong(FileId id) const;
 
 signals:
 	void added(const File &file);

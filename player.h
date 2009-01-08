@@ -145,6 +145,8 @@ public:
 	 * filter in KFileDialog
 	 */
 	QStringList mimeTypes() const;
+	
+	File currentFile() const;
 
 public Q_SLOTS:
 	/**
