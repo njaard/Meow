@@ -242,7 +242,6 @@ private:
 	Q_PRIVATE_SLOT(d, void _n_updateLength(qint64))
 	Q_PRIVATE_SLOT(d, void _n_updateMetaData())
 	Q_PRIVATE_SLOT(d, void _n_updatePosition(qint64))
-	Q_PRIVATE_SLOT(d, void _n_updateVolume(qreal))
 };
 
 }

@@ -61,7 +61,6 @@ public:
 	void _n_updateLength(qint64);
 	void _n_updateMetaData();
 	void _n_updatePosition(qint64);
-	void _n_updateVolume(qreal);
 };
 
 }

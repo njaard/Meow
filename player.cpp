@@ -38,6 +38,7 @@
 #include <klocale.h>
 #include <kglobal.h>
 
+#include <cmath>
 
 namespace Meow
 {
@@ -85,9 +86,6 @@ void PlayerPrivate::initPhonon()
 		q, SLOT(_n_updateMetaData()));
 	QObject::connect(mediaObject, SIGNAL(tick(qint64)),
 		q, SLOT(_n_updatePosition(qint64)));
-	QObject::connect(audioOutput, SIGNAL(volumeChanged(qreal)),
-		q, SLOT(_n_updateVolume(qreal)));
-	
 }
 
 void PlayerPrivate::_n_updateState(Phonon::State newState, Phonon::State oldState)
@@ -153,12 +151,6 @@ void PlayerPrivate::_n_updatePosition(qint64 msecPos)
 {
 	//kDebug(66666) << "new pos" << msecPos;
 	emit q->positionChanged((int)msecPos);
-}
-
-void PlayerPrivate::_n_updateVolume(qreal vol)
-{
-	//kDebug(66666) << "new volume" << vol;
-	emit q->volumeChanged((int)(100.00 * vol + 0.5));
 }
 
 
@@ -362,19 +354,21 @@ QString Player::lengthString() const
 
 int Player::volume() const
 {
-	if (!d->audioOutput)
-	{
-		kWarning(66666) << "Missing AudioOutput";
-		return 0u;
-	}
-	return (int)(100.00 * d->audioOutput->volume() + 0.5);
+	return d->volumePercent;
 }
 
 void Player::setVolume(int percent)
 {
-	d->volumePercent = qBound(percent, 0, 100);
+	percent = qBound(percent, 0, 100);
+	double vol = (exp(percent*.01)-1)/(exp(1)-1);
 	if (d->audioOutput)
-		d->audioOutput->setVolume(d->volumePercent * 0.01);
+		d->audioOutput->setVolume(vol);
+	
+	if (d->volumePercent != percent)
+	{
+		d->volumePercent = percent;
+		emit volumeChanged(percent);
+	}
 }
 
 QStringList Player::mimeTypes() const
