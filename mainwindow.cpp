@@ -69,7 +69,6 @@ Meow::MainWindow::MainWindow()
 		ac = actionCollection()->addAction("add_files", this, SLOT(addFiles()));
 		ac->setText(i18n("Add &Files..."));
 		ac->setIcon(KIcon("list-add"));
-		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
 				
 		ac = actionCollection()->addAction("pause", d->player, SLOT(playpause()));
 		ac->setText(i18n("Paws"));
