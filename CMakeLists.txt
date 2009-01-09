@@ -25,6 +25,7 @@ set(meow_SRCS
     player.cpp
     mainwindow.cpp
     directoryadder.cpp
+    scrobble.cpp
    
     db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
     )

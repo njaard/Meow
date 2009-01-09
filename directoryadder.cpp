@@ -27,8 +27,8 @@ void Meow::DirectoryAdder::addNextPending()
 				SLOT(slotEntries(KIO::Job*, const KIO::UDSEntryList&))
 			);
 		connect(
-				listJob, SIGNAL(result(KIO::Job*)),
-				SLOT(slotResult(KIO::Job*))
+				listJob, SIGNAL(result(KJob*)),
+				SLOT(slotResult(KJob*))
 			);
 		connect(
 				listJob, SIGNAL(redirection(KIO::Job *, const KUrl &)),
@@ -38,11 +38,9 @@ void Meow::DirectoryAdder::addNextPending()
 	}
 }
 
-void Meow::DirectoryAdder::slotResult(KIO::Job *job)
+void Meow::DirectoryAdder::slotResult(KJob *job)
 {
 	listJob= 0;
-	if (job && job->error())
-		job->showErrorDialog();
 	addNextPending();
 	if (!listJob)
 		emit done();

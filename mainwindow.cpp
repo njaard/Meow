@@ -2,6 +2,7 @@
 #include "treeview.h"
 #include "player.h"
 #include "directoryadder.h"
+#include "scrobble.h"
 
 #include <db/file.h>
 #include <db/base.h>
@@ -54,6 +55,9 @@ Meow::MainWindow::MainWindow()
 	d->player = new Player;
 	d->view = new TreeView(this, d->player, d->collection);
 	d->view->installEventFilter(this);
+	
+	new Scrobble(this, d->player);
+	
 	setCentralWidget(d->view);
 	
 	d->tray = new KSystemTrayIcon("speaker", this);
@@ -102,8 +106,9 @@ Meow::MainWindow::MainWindow()
 		
 		ac = actionCollection()->addAction("togglegui", this, SLOT(toggleVisible()));
 		ac->setText(i18n("Show/Hide Main Window"));
+		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::SHIFT+Qt::Key_L), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
 		
-		VolumeAction *va = new VolumeAction(KIcon("speaker"), i18n("Volume"), actionCollection());
+		VolumeAction *va = new VolumeAction(KIcon("player-volume"), i18n("Volume"), actionCollection());
 		ac = actionCollection()->addAction("volume", va);
 		connect(va, SIGNAL(volumeChanged(int)), d->player, SLOT(setVolume(int)));
 		connect(d->player, SIGNAL(volumeChanged(int)), va, SLOT(setVolume(int)));

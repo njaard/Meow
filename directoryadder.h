@@ -32,7 +32,7 @@ signals:
 	void addFile(const KUrl &file);
 
 private slots:
-	void slotResult(KIO::Job *job);
+	void slotResult(KJob *job);
 	void slotEntries(KIO::Job *job, const KIO::UDSEntryList &entries);
 	void slotRedirection(KIO::Job *, const KUrl & url);
 
