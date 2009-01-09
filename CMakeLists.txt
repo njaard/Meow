@@ -26,6 +26,7 @@ set(meow_SRCS
     mainwindow.cpp
     directoryadder.cpp
     scrobble.cpp
+	configdialog.cpp
    
     db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
     )

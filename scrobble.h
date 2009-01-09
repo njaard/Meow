@@ -1,11 +1,12 @@
 #ifndef MEOW_SCROBBLE_H
 #define MEOW_SCROBBLE_H
 
-#include <qobject.h>
+#include <qwidget.h>
 
+#include "configdialog.h"
 namespace KIO
 {
-	class Job;
+class Job;
 }
 
 namespace Meow
@@ -13,6 +14,25 @@ namespace Meow
 
 class Player;
 class File;
+class Scrobble;
+
+class ScrobbleConfigure : public ConfigWidget
+{
+	Q_OBJECT
+	struct ScrobbleConfigurePrivate;
+	ScrobbleConfigurePrivate *d;
+
+public:
+	ScrobbleConfigure(QWidget *parent, Scrobble *scrobble);
+	~ScrobbleConfigure();
+	
+	virtual void load();
+	virtual void apply();
+
+private slots:
+	void setEnablement(bool);
+};
+
 
 class Scrobble : public QObject
 {
@@ -32,12 +52,23 @@ public:
 	
 	Scrobble(QObject *parent, Player *player);
 	~Scrobble();
+	
+	bool isEnabled() const;
+	void setEnabled(bool);
+	
+	QString username() const;
+	QString password() const;
+	
+	void setUsername(const QString &);
+	void setPassword(const QString &);
 
+public slots:
+	void begin();
+	
 signals:
 	void handshakeState(HandshakeState error);
 
 private slots:
-	void begin();
 	void announceNowPlaying(const File &file);
 	void announceNowPlayingFromQueue();
 

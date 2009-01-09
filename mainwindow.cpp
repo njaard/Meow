@@ -40,12 +40,16 @@ struct Meow::MainWindow::MainWindowPrivate
 	KAction *itemProperties, *itemRemove;
 	
 	bool nowFiltering;
+	
+	ConfigDialog *settingsDialog;
+	Scrobble *scrobble;
 };
 
 Meow::MainWindow::MainWindow()
 {
 	d = new MainWindowPrivate;
 	d->adder = 0;
+	d->settingsDialog = 0;
 	d->nowFiltering = false;
 	
 	d->db.open(KGlobal::dirs()->saveLocation("data", "meow/")+"collection");
@@ -56,7 +60,7 @@ Meow::MainWindow::MainWindow()
 	d->view = new TreeView(this, d->player, d->collection);
 	d->view->installEventFilter(this);
 	
-	new Scrobble(this, d->player);
+	d->scrobble = new Scrobble(this, d->player);
 	
 	setCentralWidget(d->view);
 	
@@ -120,6 +124,12 @@ Meow::MainWindow::MainWindow()
 				KStandardAction::Close,
 				this,
 				SLOT(deleteLater())
+			);
+		
+		ac = actionCollection()->addAction(
+				KStandardAction::Preferences,
+				this,
+				SLOT(showSettings())
 			);
 	}
 	
@@ -273,6 +283,19 @@ QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overl
 void Meow::MainWindow::changeCaption(const File &f)
 {
 	setCaption(f.title());
+}
+
+void Meow::MainWindow::showSettings()
+{
+	if (!d->settingsDialog)
+	{
+		d->settingsDialog = new ConfigDialog(this);
+		ScrobbleConfigure *sc=new ScrobbleConfigure(d->settingsDialog, d->scrobble);
+		d->settingsDialog->addPage(sc, i18n("AudioScrobbler"));
+	}
+	
+	d->settingsDialog->show();
+
 }
 
 

@@ -4,13 +4,109 @@
 
 #include <kurl.h>
 #include <kio/job.h>
+#include <klocale.h>
 
 #include <qprocess.h>
 #include <qbytearray.h>
 #include <qtimer.h>
 #include <qdatetime.h>
+#include <qlabel.h>
+#include <qcheckbox.h>
+#include <qgridlayout.h>
+#include <qlineedit.h>
+#include <qpushbutton.h>
 
 #include <iostream>
+
+struct Meow::ScrobbleConfigure::ScrobbleConfigurePrivate
+{
+	Scrobble *scrobble;
+	
+	QCheckBox *isEnabled;
+	QLineEdit *username, *password;
+	QLabel *diagnostics;
+	QPushButton *test;
+};
+
+Meow::ScrobbleConfigure::ScrobbleConfigure(QWidget *parent, Scrobble *scrobble)
+	: ConfigWidget(parent)
+{
+	d = new ScrobbleConfigurePrivate;
+	d->scrobble = scrobble;
+	
+	QGridLayout *layout = new QGridLayout(this);
+	
+	d->isEnabled = new QCheckBox(
+			i18n("&Enable scrobbling with AudioScrobbler"),
+			this
+		);
+	layout->addWidget(d->isEnabled, 0, 0, 1, 2);
+	
+	{
+		QLabel *label = new QLabel(i18n("&Username"), this);
+		layout->addWidget(label, 1, 0);
+		
+		d->username = new QLineEdit(this);
+		label->setBuddy(d->username);
+		layout->addWidget(d->username, 1, 1);
+	}
+	{
+		QLabel *label = new QLabel(i18n("&Password"), this);
+		layout->addWidget(label, 2, 0);
+		
+		d->password = new QLineEdit(this);
+		d->password->setEchoMode(QLineEdit::Password);
+		label->setBuddy(d->password);
+		layout->addWidget(d->password, 2, 1);
+	}
+	
+	{
+		QHBoxLayout *rowlayout = new QHBoxLayout;
+		layout->addLayout(rowlayout, 3, 0, 1, 2);
+		
+		d->diagnostics = new QLabel(this);
+		d->test = new QPushButton(i18n("&Check Login"), this);
+		
+		rowlayout->addWidget(d->diagnostics);
+		rowlayout->addWidget(d->test);
+	}
+	connect(d->isEnabled, SIGNAL(toggled(bool)), SLOT(setEnablement(bool)));
+	setEnablement(false);
+	d->isEnabled->setChecked(false);
+}
+
+Meow::ScrobbleConfigure::~ScrobbleConfigure()
+{
+	delete d;
+}
+
+void Meow::ScrobbleConfigure::load()
+{
+	d->isEnabled->setChecked(d->scrobble->isEnabled());
+	d->username->setText(d->scrobble->username());
+	d->password->setText(d->scrobble->password());
+}
+
+void Meow::ScrobbleConfigure::apply()
+{
+	d->scrobble->setEnabled(d->isEnabled->isChecked());
+	d->scrobble->setUsername(d->username->text());
+	d->scrobble->setPassword(d->username->text());
+	if (d->isEnabled->isChecked())
+		d->scrobble->begin();
+}
+
+
+void Meow::ScrobbleConfigure::setEnablement(bool on)
+{
+	d->username->setEnabled(on);
+	d->password->setEnabled(on);
+	d->diagnostics->setEnabled(on);
+	d->test->setEnabled(on);
+	
+	modified();
+}
+
 
 static const char handshakeUrl[] = "http://post.audioscrobbler.com/";
 static const char clientId[] = "tst";
@@ -40,6 +136,7 @@ struct Meow::Scrobble::ScrobblePrivate
 {
 	Player *player;
 	
+	bool isEnabled;
 	QString username;
 	QString password;
 	
@@ -58,16 +155,46 @@ Meow::Scrobble::Scrobble(QObject *parent, Player *player)
 {
 	d = new ScrobblePrivate;
 	d->player = player;
-	d->username = "njaard";
-	d->password = "";
+	d->isEnabled = false;
 	
-	QTimer::singleShot(10, this, SLOT(begin()));
+	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(announceNowPlaying(File)));
 }
 
 Meow::Scrobble::~Scrobble()
 {
 	delete d;
 }
+
+bool Meow::Scrobble::isEnabled() const
+{
+	return d->isEnabled;
+}
+
+void Meow::Scrobble::setEnabled(bool en)
+{
+	d->isEnabled = en;
+}
+
+QString Meow::Scrobble::username() const
+{
+	return d->username;
+}
+
+QString Meow::Scrobble::password() const
+{
+	return d->password;
+}
+
+void Meow::Scrobble::setUsername(const QString &u)
+{
+	d->username = u;
+}
+
+void Meow::Scrobble::setPassword(const QString &p)
+{
+	d->username = p;
+}
+
 
 void Meow::Scrobble::begin()
 {
@@ -129,12 +256,13 @@ void Meow::Scrobble::slotHandshakeResult()
 	
 	d->nowPlaying = KUrl(lines[2]);
 	d->submission = KUrl(lines[3]);
-	
-	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(announceNowPlaying(File)));
 }
 
 void Meow::Scrobble::announceNowPlaying(const File &file)
 {
+	if (!isEnabled())
+		return;
+
 	d->nowPlayingQueue += file;
 	if (d->nowPlayingQueue.count() > 1)
 		announceNowPlayingFromQueue();

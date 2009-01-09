@@ -43,6 +43,7 @@ private slots:
 	void adderDone();
 	void showItemContext(const QPoint &at);
 	void changeCaption(const File &f);
+	void showSettings();
 
 private:
 	void beginDirectoryAdd(const KUrl &url);
