@@ -61,7 +61,7 @@ Meow::MainWindow::MainWindow()
 	d->view = new TreeView(this, d->player, d->collection);
 	d->view->installEventFilter(this);
 	
-	d->scrobble = new Scrobble(this, d->player);
+	d->scrobble = new Scrobble(this, d->player, d->collection);
 	if ( d->scrobble->isEnabled() )
 	{
 		KWallet::Wallet *wallet = KWallet::Wallet::openWallet(

@@ -1,6 +1,7 @@
 #include "scrobble.h"
 #include "player.h"
 #include "db/file.h"
+#include "db/collection.h"
 
 #include <kurl.h>
 #include <kio/job.h>
@@ -113,7 +114,7 @@ void Meow::ScrobbleConfigure::setEnablement(bool on)
 
 void Meow::ScrobbleConfigure::verify()
 {
-	Scrobble *scr = new Scrobble(this, 0);
+	Scrobble *scr = new Scrobble(this, 0, 0);
 	scr->setEnabled(false);
 	scr->setUsername(d->username->text());
 	scr->setPassword(d->password->text());
@@ -173,13 +174,14 @@ static QByteArray md5(const QByteArray &data)
 struct Meow::Scrobble::ScrobblePrivate
 {
 	Player *player;
+	Collection *collection;
 	
 	bool isEnabled;
 	QString username;
 	QString password;
 	
 	QByteArray sessionId;
-	QByteArray recievedData;
+	QByteArray recievedData, recievedDataSubmission;
 	
 	KUrl nowPlaying;
 	KUrl submission;
@@ -190,7 +192,11 @@ struct Meow::Scrobble::ScrobblePrivate
 		File file;
 		FileId unknownFile;
 		time_t timestamp;
+		int length;
 	};
+	
+	int numTracksSubmitting;
+	bool failureSubmitting;
 	
 	QList<Submission> submissionQueue;
 	File currentlyPlaying;
@@ -198,18 +204,21 @@ struct Meow::Scrobble::ScrobblePrivate
 	int lengthOfLastSong;
 };
 
-Meow::Scrobble::Scrobble(QObject *parent, Player *player)
+Meow::Scrobble::Scrobble(QObject *parent, Player *player, Collection *collection)
 	: QObject(parent)
 {
 	d = new ScrobblePrivate;
 	d->player = player;
+	d->collection = collection;
 	d->isEnabled = false;
+	d->numTracksSubmitting = 0;
+	d->failureSubmitting = false;
 	
 	if (player)
 	{
 		KConfigGroup meow = KGlobal::config()->group("audioscrobbler");
 		d->isEnabled = meow.readEntry<bool>("enabled", false);
-		connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(announceNowPlaying(File)));
+		connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(currentItemChanged(File)));
 		connect(d->player, SIGNAL(playing()), SLOT(startCountingTimeAgain()));
 		connect(d->player, SIGNAL(paused()), SLOT(stopCountingTime()));
 		
@@ -219,11 +228,13 @@ Meow::Scrobble::Scrobble(QObject *parent, Player *player)
 			ScrobblePrivate::Submission s = {
 					File(),
 					meow.readEntry<FileId>("qi" + QString::number(index), 0),
-					meow.readEntry<int>("qt" + QString::number(index), 0)
+					meow.readEntry<int>("qt" + QString::number(index), 0),
+					meow.readEntry<int>("ql" + QString::number(index), 0)
 				};
 			d->submissionQueue += s;
 			meow.deleteEntry("qi" + QString::number(index));
 			meow.deleteEntry("qt" + QString::number(index));
+			meow.deleteEntry("ql" + QString::number(index));
 			index++;
 		}
 	
@@ -243,6 +254,7 @@ Meow::Scrobble::~Scrobble()
 	{
 		meow.writeEntry("qi" + QString::number(index), i->file.fileId());
 		meow.writeEntry("qt" + QString::number(index), QString::number(i->timestamp));
+		meow.writeEntry("ql" + QString::number(index), i->length);
 		index++;
 	}
 	
@@ -302,6 +314,7 @@ void Meow::Scrobble::begin()
 	KIO::TransferJob *job = KIO::http_post(handshake, QByteArray(), KIO::HideProgressInfo);
 	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(handshakeData(KIO::Job*, QByteArray)));
 	connect(job, SIGNAL(result(KJob*)), SLOT(slotHandshakeResult()));
+	d->failureSubmitting = false;
 }
 
 void Meow::Scrobble::handshakeData(KIO::Job*, const QByteArray &data)
@@ -342,11 +355,12 @@ void Meow::Scrobble::slotHandshakeResult()
 	d->submission = KUrl(lines[3]);
 }
 
-void Meow::Scrobble::announceNowPlaying(const File &file)
+void Meow::Scrobble::currentItemChanged(const File &file)
 {
 	if (!isEnabled())
 		return;
 
+	std::cerr << "Something is playing now" << std::endl;
 	d->nowPlayingQueue += file;
 	if (d->nowPlayingQueue.count() > 1)
 		announceNowPlayingFromQueue();
@@ -357,23 +371,29 @@ void Meow::Scrobble::announceNowPlaying(const File &file)
 	d->lengthOfLastSong = d->player->currentLength();
 	if (d->lengthOfLastSong > 30)
 	{
-		
 		d->currentlyPlaying = file;
 		d->startedPlayingLast = QDateTime::currentDateTime().toTime_t();
 		d->beginDurationOfPlayback = d->startedPlayingLast;
+		stopCountingTime();
 	}
 	
 }
+
 
 void Meow::Scrobble::lastSongFinishedPlaying()
 {
 	time_t now = QDateTime::currentDateTime().toTime_t();
 	int duration = now - d->beginDurationOfPlayback;
-	if (duration >= 240 || duration > d->lengthOfLastSong/2)
+	if (duration >= 5 || duration > d->lengthOfLastSong/2)
 	{
-		ScrobblePrivate::Submission s = { d->currentlyPlaying, 0, d->startedPlayingLast };
+		ScrobblePrivate::Submission s = {
+				d->currentlyPlaying, 0,
+				d->startedPlayingLast,
+				d->lengthOfLastSong
+			};
+		std::cerr << "Submitting that last song" << std::endl;
 		d->submissionQueue += s;
-		std::cerr << "Hypothetically submitting that last song" << std::endl;
+		sendSubmissions();
 	}
 	d->currentlyPlaying = File();
 }
@@ -389,6 +409,102 @@ void Meow::Scrobble::startCountingTimeAgain()
 	d->beginDurationOfPlayback += now - d->pausedPlayingLast;
 }
 
+void Meow::Scrobble::sendSubmissions()
+{
+	if (d->numTracksSubmitting > 0 || d->failureSubmitting)
+		return;
+		
+	QByteArray submissionData;
+	submissionData = "s=" + d->sessionId;
+	int index=0;
+	for (
+			QList<ScrobblePrivate::Submission>::iterator i = d->submissionQueue.begin();
+			i != d->submissionQueue.end() && index < 50; ++i
+		)
+	{
+		ScrobblePrivate::Submission &s = *i;
+		
+		File &f = s.file;
+		if (!f)
+			f = d->collection->getSong(s.unknownFile);
+		
+		const QByteArray aindex = QByteArray::number(index);
+		
+		submissionData += "&a[" + aindex + "]="
+				+ f.artist().toUtf8().toPercentEncoding()
+			+ "&t[" + aindex + "]="
+				+ f.title().toUtf8().toPercentEncoding()
+			+ "&i[" + aindex + "]="
+				+ QByteArray::number((int)s.timestamp)
+			+ "&o[" + aindex + "]=P"
+			+ "&r[" + aindex + "]="
+			+ "&l[" + aindex + "]="
+				+ QByteArray::number(s.length/1000)
+			+ "&b[" + aindex + "]="
+				+ f.album().toUtf8().toPercentEncoding()
+			+ "&n[" + aindex + "]="
+				+ f.track().toUtf8().toPercentEncoding()
+			+ "&m[" + aindex + "]=";
+		
+		index++;
+	}
+	d->numTracksSubmitting = index;
+	
+	std::cerr << "Posting: " << submissionData.data() << std::endl;
+	
+	KIO::TransferJob *job = KIO::http_post(
+			d->submission, submissionData, KIO::HideProgressInfo
+		);
+	job->addMetaData( "content-type", "Content-type: application/x-www-form-urlencoded" );
+	job->addMetaData( "accept", "" );
+	connect(
+			job, SIGNAL(data(KIO::Job*, QByteArray)),
+			SLOT(submissionData(KIO::Job*, QByteArray))
+		);
+	connect(
+			job, SIGNAL(result(KJob*)),
+			SLOT(submissionResult())
+		);
+}
+
+void Meow::Scrobble::submissionData(KIO::Job*, const QByteArray &data)
+{
+	d->recievedDataSubmission += data;
+}
+
+void Meow::Scrobble::submissionResult()
+{
+	QList<QByteArray> lines = d->recievedDataSubmission.split('\n');
+	if (lines.size() < 1)
+	{
+		std::cerr << "Meow: scrobbler submitting: major error" << std::endl;
+		return;
+	}
+	
+	if (lines[0] == "OK")
+	{
+		while (d->numTracksSubmitting--)
+			d->submissionQueue.removeFirst();
+	}
+	else
+	{
+		std::cerr << "Meow: scrobbler submitting error: " << lines[0].data() << std::endl;
+		d->failureSubmitting = true;
+		QTimer::singleShot(240*1000, this, SLOT(sendSubmissionsRetry()));
+		return;
+	}
+	
+	d->recievedDataSubmission.clear();
+	QTimer::singleShot(10*1000, this, SLOT(sendSubmissions()));
+}
+
+void Meow::Scrobble::sendSubmissionsRetry()
+{
+	d->failureSubmitting = false;
+	submissionResult();
+}
+
+
 void Meow::Scrobble::announceNowPlayingFromQueue()
 {
 	File file = d->nowPlayingQueue.takeLast();
@@ -403,7 +519,6 @@ void Meow::Scrobble::announceNowPlayingFromQueue()
 	np.addQueryItem("n", file.track());
 	np.addQueryItem("m", "");
 	
-	d->recievedData.clear();
 	KIO::TransferJob *job = KIO::http_post(np, QByteArray(), KIO::HideProgressInfo);
 	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(nowPlayingData(KIO::Job*, QByteArray)));
 	connect(job, SIGNAL(result(KJob*)), SLOT(nowPlayingResult()));
@@ -412,8 +527,6 @@ void Meow::Scrobble::announceNowPlayingFromQueue()
 void Meow::Scrobble::nowPlayingData(KIO::Job*, const QByteArray &data)
 {
 	d->recievedData += data;
-	if (d->nowPlayingQueue.count() > 0)
-		announceNowPlayingFromQueue();
 }
 
 void Meow::Scrobble::nowPlayingResult()
@@ -426,6 +539,9 @@ void Meow::Scrobble::nowPlayingResult()
 	}
 	
 	std::cerr << "Meow: scrobbler now playing: " << lines[0].data() << std::endl;
+	d->recievedData.clear();
+	if (d->nowPlayingQueue.count() > 0)
+		announceNowPlayingFromQueue();
 }
 
 // kate: space-indent off; replace-tabs off;

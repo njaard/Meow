@@ -14,6 +14,7 @@ namespace Meow
 
 class Player;
 class File;
+class Collection;
 
 class Scrobble : public QObject
 {
@@ -31,7 +32,7 @@ public:
 		HandshakeFailure
 	};
 	
-	Scrobble(QObject *parent, Player *player);
+	Scrobble(QObject *parent, Player *player, Collection *collection);
 	~Scrobble();
 	
 	bool isEnabled() const;
@@ -50,13 +51,17 @@ signals:
 	void handshakeState(Scrobble::HandshakeState error);
 
 private slots:
-	void announceNowPlaying(const File &file);
+	void currentItemChanged(const File &file);
 	void announceNowPlayingFromQueue();
+	void sendSubmissions();
+	void sendSubmissionsRetry();
 
 	void handshakeData(KIO::Job*, const QByteArray &data);
 	void slotHandshakeResult();
 	void nowPlayingData(KIO::Job*, const QByteArray &data);
 	void nowPlayingResult();
+	void submissionData(KIO::Job*, const QByteArray &data);
+	void submissionResult();
 	
 	void lastSongFinishedPlaying();
 	void stopCountingTime();
