@@ -384,7 +384,7 @@ void Meow::Scrobble::lastSongFinishedPlaying()
 {
 	time_t now = QDateTime::currentDateTime().toTime_t();
 	int duration = now - d->beginDurationOfPlayback;
-	if (duration >= 5 || duration > d->lengthOfLastSong/2)
+	if (duration >= 240 || duration > d->lengthOfLastSong/2)
 	{
 		ScrobblePrivate::Submission s = {
 				d->currentlyPlaying, 0,
