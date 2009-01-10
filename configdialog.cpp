@@ -14,6 +14,7 @@ Meow::ConfigDialog::ConfigDialog(QWidget *parent)
 	: KPageDialog(parent)
 {
 	connect(this, SIGNAL(applyClicked()), SLOT(apply()));
+	connect(this, SIGNAL(okClicked()), SLOT(apply()));
 }
 
 void Meow::ConfigDialog::addPage(ConfigWidget *widget, const QString &name)

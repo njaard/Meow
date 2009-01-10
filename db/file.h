@@ -23,6 +23,7 @@ class File
 public:
 	File() { id = 0; }
 	FileId fileId() const { return id; }
+	operator bool() const { return !!fileId(); }
 	
 	QString file() const { return mFile; }
 	

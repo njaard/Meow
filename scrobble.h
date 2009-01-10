@@ -14,25 +14,6 @@ namespace Meow
 
 class Player;
 class File;
-class Scrobble;
-
-class ScrobbleConfigure : public ConfigWidget
-{
-	Q_OBJECT
-	struct ScrobbleConfigurePrivate;
-	ScrobbleConfigurePrivate *d;
-
-public:
-	ScrobbleConfigure(QWidget *parent, Scrobble *scrobble);
-	~ScrobbleConfigure();
-	
-	virtual void load();
-	virtual void apply();
-
-private slots:
-	void setEnablement(bool);
-};
-
 
 class Scrobble : public QObject
 {
@@ -66,7 +47,7 @@ public slots:
 	void begin();
 	
 signals:
-	void handshakeState(HandshakeState error);
+	void handshakeState(Scrobble::HandshakeState error);
 
 private slots:
 	void announceNowPlaying(const File &file);
@@ -77,8 +58,30 @@ private slots:
 	void nowPlayingData(KIO::Job*, const QByteArray &data);
 	void nowPlayingResult();
 	
+	void lastSongFinishedPlaying();
+	void stopCountingTime();
+	void startCountingTimeAgain();
 };
 
+
+class ScrobbleConfigure : public ConfigWidget
+{
+	Q_OBJECT
+	struct ScrobbleConfigurePrivate;
+	ScrobbleConfigurePrivate *d;
+
+public:
+	ScrobbleConfigure(QWidget *parent, Scrobble *scrobble);
+	~ScrobbleConfigure();
+	
+	virtual void load();
+	virtual void apply();
+
+private slots:
+	void setEnablement(bool);
+	void verify();
+	void showResults(Scrobble::HandshakeState state);
+};
 
 
 }

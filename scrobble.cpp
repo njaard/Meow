@@ -5,6 +5,8 @@
 #include <kurl.h>
 #include <kio/job.h>
 #include <klocale.h>
+#include <kconfig.h>
+#include <kconfiggroup.h>
 
 #include <qprocess.h>
 #include <qbytearray.h>
@@ -66,6 +68,7 @@ Meow::ScrobbleConfigure::ScrobbleConfigure(QWidget *parent, Scrobble *scrobble)
 		
 		d->diagnostics = new QLabel(this);
 		d->test = new QPushButton(i18n("&Check Login"), this);
+		connect(d->test, SIGNAL(clicked()), SLOT(verify()));
 		
 		rowlayout->addWidget(d->diagnostics);
 		rowlayout->addWidget(d->test);
@@ -91,7 +94,7 @@ void Meow::ScrobbleConfigure::apply()
 {
 	d->scrobble->setEnabled(d->isEnabled->isChecked());
 	d->scrobble->setUsername(d->username->text());
-	d->scrobble->setPassword(d->username->text());
+	d->scrobble->setPassword(d->password->text());
 	if (d->isEnabled->isChecked())
 		d->scrobble->begin();
 }
@@ -106,6 +109,41 @@ void Meow::ScrobbleConfigure::setEnablement(bool on)
 	
 	modified();
 }
+
+
+void Meow::ScrobbleConfigure::verify()
+{
+	Scrobble *scr = new Scrobble(this, 0);
+	scr->setEnabled(false);
+	scr->setUsername(d->username->text());
+	scr->setPassword(d->password->text());
+	connect(
+			scr, SIGNAL(handshakeState(Scrobble::HandshakeState)), 
+			SLOT(showResults(Scrobble::HandshakeState))
+		);
+	connect(
+			scr, SIGNAL(handshakeState(Scrobble::HandshakeState)),
+			scr, SLOT(deleteLater())
+		);
+	scr->begin();
+}
+
+void Meow::ScrobbleConfigure::showResults(Scrobble::HandshakeState state)
+{
+	QString str;
+	if (state == Scrobble::HandshakeOk)
+		str = i18n("Ok");
+	if (state == Scrobble::HandshakeClientBanned)
+		str = i18n("Meow is banned from AudioScrobbler (upgrade Meow)");
+	if (state == Scrobble::HandshakeAuth)
+		str = i18n("Bad username or password");
+	if (state == Scrobble::HandshakeTime)
+		str = i18n("Your system clock is too inaccurate");
+	if (state == Scrobble::HandshakeFailure)
+		str = i18n("Generic failure handshaking (try later)");
+	d->diagnostics->setText(str);
+}
+
 
 
 static const char handshakeUrl[] = "http://post.audioscrobbler.com/";
@@ -147,7 +185,17 @@ struct Meow::Scrobble::ScrobblePrivate
 	KUrl submission;
 	
 	QList<File> nowPlayingQueue;
+	struct Submission
+	{
+		File file;
+		FileId unknownFile;
+		time_t timestamp;
+	};
 	
+	QList<Submission> submissionQueue;
+	File currentlyPlaying;
+	time_t startedPlayingLast, beginDurationOfPlayback, pausedPlayingLast;
+	int lengthOfLastSong;
 };
 
 Meow::Scrobble::Scrobble(QObject *parent, Player *player)
@@ -157,11 +205,47 @@ Meow::Scrobble::Scrobble(QObject *parent, Player *player)
 	d->player = player;
 	d->isEnabled = false;
 	
-	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(announceNowPlaying(File)));
+	if (player)
+	{
+		KConfigGroup meow = KGlobal::config()->group("audioscrobbler");
+		d->isEnabled = meow.readEntry<bool>("enabled", false);
+		connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(announceNowPlaying(File)));
+		connect(d->player, SIGNAL(playing()), SLOT(startCountingTimeAgain()));
+		connect(d->player, SIGNAL(paused()), SLOT(stopCountingTime()));
+		
+		int index=0;
+		while (meow.hasKey("qi" + QString::number(index)))
+		{
+			ScrobblePrivate::Submission s = {
+					File(),
+					meow.readEntry<FileId>("qi" + QString::number(index), 0),
+					meow.readEntry<int>("qt" + QString::number(index), 0)
+				};
+			d->submissionQueue += s;
+			meow.deleteEntry("qi" + QString::number(index));
+			meow.deleteEntry("qt" + QString::number(index));
+			index++;
+		}
+	
+	}
 }
 
 Meow::Scrobble::~Scrobble()
 {
+	KConfigGroup meow = KGlobal::config()->group("audioscrobbler");
+	meow.writeEntry<bool>("enabled", d->isEnabled);
+	
+	int index=0;
+	for (
+			QList<ScrobblePrivate::Submission>::iterator i = d->submissionQueue.begin();
+			i != d->submissionQueue.end(); ++i
+		)
+	{
+		meow.writeEntry("qi" + QString::number(index), i->file.fileId());
+		meow.writeEntry("qt" + QString::number(index), QString::number(i->timestamp));
+		index++;
+	}
+	
 	delete d;
 }
 
@@ -192,7 +276,7 @@ void Meow::Scrobble::setUsername(const QString &u)
 
 void Meow::Scrobble::setPassword(const QString &p)
 {
-	d->username = p;
+	d->password = p;
 }
 
 
@@ -266,6 +350,43 @@ void Meow::Scrobble::announceNowPlaying(const File &file)
 	d->nowPlayingQueue += file;
 	if (d->nowPlayingQueue.count() > 1)
 		announceNowPlayingFromQueue();
+	
+	if (d->currentlyPlaying)
+		lastSongFinishedPlaying();
+	
+	d->lengthOfLastSong = d->player->currentLength();
+	if (d->lengthOfLastSong > 30)
+	{
+		
+		d->currentlyPlaying = file;
+		d->startedPlayingLast = QDateTime::currentDateTime().toTime_t();
+		d->beginDurationOfPlayback = d->startedPlayingLast;
+	}
+	
+}
+
+void Meow::Scrobble::lastSongFinishedPlaying()
+{
+	time_t now = QDateTime::currentDateTime().toTime_t();
+	int duration = now - d->beginDurationOfPlayback;
+	if (duration >= 240 || duration > d->lengthOfLastSong/2)
+	{
+		ScrobblePrivate::Submission s = { d->currentlyPlaying, 0, d->startedPlayingLast };
+		d->submissionQueue += s;
+		std::cerr << "Hypothetically submitting that last song" << std::endl;
+	}
+	d->currentlyPlaying = File();
+}
+
+void Meow::Scrobble::stopCountingTime()
+{
+	d->pausedPlayingLast = QDateTime::currentDateTime().toTime_t();
+}
+
+void Meow::Scrobble::startCountingTimeAgain()
+{
+	time_t now = QDateTime::currentDateTime().toTime_t();
+	d->beginDurationOfPlayback += now - d->pausedPlayingLast;
 }
 
 void Meow::Scrobble::announceNowPlayingFromQueue()

@@ -18,6 +18,7 @@
 #include <kconfig.h>
 #include <ksharedconfig.h>
 #include <kconfiggroup.h>
+#include <kwallet.h>
 
 #include <qpixmap.h>
 #include <qicon.h>
@@ -61,7 +62,28 @@ Meow::MainWindow::MainWindow()
 	d->view->installEventFilter(this);
 	
 	d->scrobble = new Scrobble(this, d->player);
-	
+	if ( d->scrobble->isEnabled() )
+	{
+		KWallet::Wallet *wallet = KWallet::Wallet::openWallet(
+				KWallet::Wallet::NetworkWallet(), effectiveWinId()
+			);
+		if (wallet)
+		{
+			// use the KPdf folder (and create if missing)
+			if ( !wallet->hasFolder( "Meow" ) )
+				wallet->createFolder( "Meow" );
+			wallet->setFolder( "Meow" );
+
+			// look for the pass in that folder
+			QString retrievedPass;
+			QByteArray retrievedUser;
+			if ( !wallet->readEntry( "AudioScrobbler Username", retrievedUser ) )
+				d->scrobble->setUsername(QString::fromUtf8(retrievedUser));
+			if ( !wallet->readPassword( "AudioScrobbler Password", retrievedPass ) )
+				d->scrobble->setPassword(retrievedPass);
+			d->scrobble->begin();
+		}
+	}
 	setCentralWidget(d->view);
 	
 	d->tray = new KSystemTrayIcon("speaker", this);
@@ -174,6 +196,24 @@ Meow::MainWindow::~MainWindow()
 	meow.writeEntry<int>("volume", d->player->volume());
 	meow.writeEntry<FileId>("lastPlayed", d->player->currentFile().fileId());
 
+	if ( d->scrobble->isEnabled() )
+	{
+		KWallet::Wallet *wallet = KWallet::Wallet::openWallet(
+				KWallet::Wallet::NetworkWallet(), effectiveWinId()
+			);
+		if (wallet)
+		{
+			// use the KPdf folder (and create if missing)
+			if ( !wallet->hasFolder( "Meow" ) )
+				wallet->createFolder( "Meow" );
+			wallet->setFolder( "Meow" );
+
+			// look for the pass in that folder
+			wallet->writeEntry( "AudioScrobbler Username", d->scrobble->username().toUtf8() );
+			wallet->writePassword( "AudioScrobbler Password", d->scrobble->password() );
+		}
+	}
+	
 	delete d->collection;
 	delete d;
 }
