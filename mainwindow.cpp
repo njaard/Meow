@@ -69,12 +69,10 @@ Meow::MainWindow::MainWindow()
 			);
 		if (wallet)
 		{
-			// use the KPdf folder (and create if missing)
 			if ( !wallet->hasFolder( "Meow" ) )
 				wallet->createFolder( "Meow" );
 			wallet->setFolder( "Meow" );
 
-			// look for the pass in that folder
 			QString retrievedPass;
 			QByteArray retrievedUser;
 			if ( !wallet->readEntry( "AudioScrobbler Username", retrievedUser ) )
@@ -182,7 +180,7 @@ Meow::MainWindow::MainWindow()
 	{
 		// clever trick here:
 		// if first is valid, that means that getFilesAndFirst has loaded it first
-		// and it did it right now (not later in the event loop)
+		// and it did so right now (not later in the event loop)
 		// furthermore, it will also load the rest of the files later on 
 		// in the event loop, which means that right now, first is the only
 		// item in the list
