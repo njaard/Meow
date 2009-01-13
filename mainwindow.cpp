@@ -88,6 +88,8 @@ Meow::MainWindow::MainWindow()
 	d->tray->installEventFilter(this);
 	d->tray->show();
 	
+	QMenu *const trayMenu = d->tray->contextMenu();
+	
 	{
 		KAction *ac;
 		ac = actionCollection()->addAction("add_files", this, SLOT(addFiles()));
@@ -98,16 +100,19 @@ Meow::MainWindow::MainWindow()
 		ac->setText(i18n("Paws"));
 		ac->setIcon(KIcon("media-playback-pause"));
 		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_P), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		trayMenu->addAction(ac);
 		
 		ac = actionCollection()->addAction("next", d->view, SLOT(nextSong()));
 		ac->setText(i18n("Next Song"));
 		ac->setIcon(KIcon("media-skip-forward"));
 		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_Right), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		trayMenu->addAction(ac);
 		
 		ac = actionCollection()->addAction("previous", d->view, SLOT(nextSong()));
 		ac->setText(i18n("Previous Song"));
 		ac->setIcon(KIcon("media-skip-backward"));
 		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_Left), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		trayMenu->addAction(ac);
 		
 		ac = actionCollection()->addAction("volumeup", d->player, SLOT(volumeUp()));
 		ac->setText(i18n("Volume Up"));

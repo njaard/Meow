@@ -1,5 +1,5 @@
 #include <kaboutdata.h>
-#include <kapplication.h>
+#include <kuniqueapplication.h>
 #include <kcmdlineargs.h>
 #include <klocale.h>
 
@@ -16,11 +16,7 @@ int main( int argc, char *argv[] )
     
     KCmdLineArgs::init( argc, argv, &aboutData );
     
-    KCmdLineOptions options;
-    KCmdLineArgs::addCmdLineOptions( options );
-    KCmdLineArgs *const args = KCmdLineArgs::parsedArgs();
-    
-    KApplication app;
+    KUniqueApplication app;
     
     Meow::MainWindow *dlg = new Meow::MainWindow;
     dlg->show();
