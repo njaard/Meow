@@ -4,6 +4,8 @@
 #include <kxmlguiwindow.h>
 #include <ktoolbarpopupaction.h>
 
+#include <qsystemtrayicon.h>
+
 class KSystemTrayIcon;
 class KUrl;
 class QSlider;
@@ -44,6 +46,7 @@ private slots:
 	void showItemContext(const QPoint &at);
 	void changeCaption(const File &f);
 	void showSettings();
+	void systemTrayClicked(QSystemTrayIcon::ActivationReason reason);
 
 private:
 	void beginDirectoryAdd(const KUrl &url);

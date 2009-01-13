@@ -87,6 +87,10 @@ Meow::MainWindow::MainWindow()
 	d->tray = new KSystemTrayIcon("speaker", this);
 	d->tray->installEventFilter(this);
 	d->tray->show();
+	connect(
+			d->tray, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
+			SLOT(systemTrayClicked(QSystemTrayIcon::ActivationReason))
+		);
 	
 	QMenu *const trayMenu = d->tray->contextMenu();
 	
@@ -340,6 +344,14 @@ void Meow::MainWindow::showSettings()
 	d->settingsDialog->show();
 
 }
+
+
+void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reason)
+{
+	if (reason == QSystemTrayIcon::MiddleClick)
+		d->player->playpause();
+}
+
 
 
 class SpecialSlider : public QSlider
