@@ -8,6 +8,8 @@
 #include <klocale.h>
 #include <kconfig.h>
 #include <kconfiggroup.h>
+#include <kwallet.h>
+#include <kmessagebox.h>
 
 #include <qprocess.h>
 #include <qbytearray.h>
@@ -20,6 +22,25 @@
 #include <qpushbutton.h>
 
 #include <iostream>
+
+static QByteArray md5(const QByteArray &data)
+{
+	QStringList args;
+	args << "-";
+	QProcess proc;
+	proc.start("md5sum", args);
+	proc.write(data);
+	proc.closeWriteChannel();
+	if (!proc.waitForFinished())
+		return false;
+	QByteArray sum = proc.readAll();
+	int x;
+	if ( (x = sum.indexOf(' ')) == -1)
+		if ( (x = sum.indexOf('\t')) == -1)
+			return QByteArray();
+	return sum.left(x);
+}
+
 
 struct Meow::ScrobbleConfigure::ScrobbleConfigurePrivate
 {
@@ -43,29 +64,42 @@ Meow::ScrobbleConfigure::ScrobbleConfigure(QWidget *parent, Scrobble *scrobble)
 			i18n("&Enable scrobbling with AudioScrobbler"),
 			this
 		);
+	
 	layout->addWidget(d->isEnabled, 0, 0, 1, 2);
+	
+	QLabel *info = new QLabel(
+			i18n(
+					"If you enable scrobbling, but for whatever reason, "
+					"the track submission could not be made (such as if "
+					"the password was incorrect or unavailable), it will be "
+					"queued up for later submission."
+				),
+			this
+		);
+	
+	layout->addWidget(d->isEnabled, 1, 0, 1, 2);
 	
 	{
 		QLabel *label = new QLabel(i18n("&Username"), this);
-		layout->addWidget(label, 1, 0);
+		layout->addWidget(label, 2, 0);
 		
 		d->username = new QLineEdit(this);
 		label->setBuddy(d->username);
-		layout->addWidget(d->username, 1, 1);
+		layout->addWidget(d->username, 2, 1);
 	}
 	{
 		QLabel *label = new QLabel(i18n("&Password"), this);
-		layout->addWidget(label, 2, 0);
+		layout->addWidget(label, 3, 0);
 		
 		d->password = new QLineEdit(this);
 		d->password->setEchoMode(QLineEdit::Password);
 		label->setBuddy(d->password);
-		layout->addWidget(d->password, 2, 1);
+		layout->addWidget(d->password, 3, 1);
 	}
 	
 	{
 		QHBoxLayout *rowlayout = new QHBoxLayout;
-		layout->addLayout(rowlayout, 3, 0, 1, 2);
+		layout->addLayout(rowlayout, 4, 0, 1, 2);
 		
 		d->diagnostics = new QLabel(this);
 		d->test = new QPushButton(i18n("&Check Login"), this);
@@ -88,7 +122,7 @@ void Meow::ScrobbleConfigure::load()
 {
 	d->isEnabled->setChecked(d->scrobble->isEnabled());
 	d->username->setText(d->scrobble->username());
-	d->password->setText(d->scrobble->password());
+	d->diagnostics->setText("");
 }
 
 void Meow::ScrobbleConfigure::apply()
@@ -96,8 +130,73 @@ void Meow::ScrobbleConfigure::apply()
 	d->scrobble->setEnabled(d->isEnabled->isChecked());
 	d->scrobble->setUsername(d->username->text());
 	d->scrobble->setPassword(d->password->text());
-	if (d->isEnabled->isChecked())
-		d->scrobble->begin();
+	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");
+	conf.writeEntry<bool>("enabled", d->isEnabled->isChecked());
+	conf.deleteEntry("password");
+	conf.deleteEntry("usename");
+	conf.deleteEntry("password source");
+	
+	if (!d->isEnabled->isChecked())
+	{
+		conf.sync();
+		return;
+	}
+	
+	if (
+			KWallet::Wallet *wallet = KWallet::Wallet::openWallet(
+					KWallet::Wallet::NetworkWallet(), effectiveWinId()
+				)
+		)
+	{
+		// use the KPdf folder (and create if missing)
+		if ( !wallet->hasFolder( "Meow" ) )
+			wallet->createFolder( "Meow" );
+		wallet->setFolder( "Meow" );
+
+		// look for the pass in that folder
+		wallet->writeEntry( "AudioScrobbler Username", d->username->text().toUtf8() );
+		wallet->writePassword( "AudioScrobbler Password", d->password->text().toUtf8() );
+		
+		conf.writeEntry("password source", "wallet");
+	}
+	else
+	{
+	
+		KGuiItem yes = KStandardGuiItem::yes();
+		yes.setText(i18n("Store password"));
+		KGuiItem no = KStandardGuiItem::no();
+		no.setText(i18n("Only use my password this session"));
+		const int question = KMessageBox::questionYesNo(
+				this, 
+				i18n(
+						"As KWallet is not available, Meow can store your "
+						"AudioScrobbler password in its config file. It will "
+						"be encrypted, so others will not be able to determine "
+						"your password, but they could use it in order to "
+						"make rogue and potentially embarrassing track "
+						"submissions.\n\n"
+						"If you opt to not store the password, you will have to "
+						"manually reenable Scrobbler support next time you "
+						"start Meow."
+					),
+				i18n("Store the password"),
+				yes, no
+			);
+		if (question == KMessageBox::Yes)
+		{
+			conf.writeEntry("password source", "here");
+			conf.writeEntry("password", md5(d->password->text().toUtf8()));
+			conf.writeEntry("username", d->username->text());
+		}
+		else
+		{
+			conf.writeEntry("password source", "nowhere");
+			conf.deleteEntry("password");
+		}
+	}
+	
+	conf.sync();
+	d->scrobble->begin();
 }
 
 
@@ -114,8 +213,8 @@ void Meow::ScrobbleConfigure::setEnablement(bool on)
 
 void Meow::ScrobbleConfigure::verify()
 {
-	Scrobble *scr = new Scrobble(this, 0, 0);
-	scr->setEnabled(false);
+	Scrobble *scr = new Scrobble(this);
+	scr->setEnabled(true);
 	scr->setUsername(d->username->text());
 	scr->setPassword(d->password->text());
 	connect(
@@ -152,24 +251,6 @@ static const char clientId[] = "tst";
 static const char clientVersion[] = "1.0";
 static const char clientProtocol[] = "1.2.1";
 
-static QByteArray md5(const QByteArray &data)
-{
-	QStringList args;
-	args << "-";
-	QProcess proc;
-	proc.start("md5sum", args);
-	proc.write(data);
-	proc.closeWriteChannel();
-	if (!proc.waitForFinished())
-		return false;
-	QByteArray sum = proc.readAll();
-	int x;
-	if ( (x = sum.indexOf(' ')) == -1)
-		if ( (x = sum.indexOf('\t')) == -1)
-			return QByteArray();
-	return sum.left(x);
-}
-
 
 struct Meow::Scrobble::ScrobblePrivate
 {
@@ -178,7 +259,7 @@ struct Meow::Scrobble::ScrobblePrivate
 	
 	bool isEnabled;
 	QString username;
-	QString password;
+	QString passwordMd5;
 	
 	QByteArray sessionId;
 	QByteArray recievedData, recievedDataSubmission;
@@ -204,7 +285,18 @@ struct Meow::Scrobble::ScrobblePrivate
 	int lengthOfLastSong;
 };
 
-Meow::Scrobble::Scrobble(QObject *parent, Player *player, Collection *collection)
+Meow::Scrobble::Scrobble(QObject *parent)
+	: QObject(parent)
+{
+	d = new ScrobblePrivate;
+	d->player = 0;
+	d->collection = 0;
+	d->isEnabled = false;
+	d->numTracksSubmitting = 0;
+	d->failureSubmitting = false;
+}
+
+Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection)
 	: QObject(parent)
 {
 	d = new ScrobblePrivate;
@@ -214,31 +306,59 @@ Meow::Scrobble::Scrobble(QObject *parent, Player *player, Collection *collection
 	d->numTracksSubmitting = 0;
 	d->failureSubmitting = false;
 	
-	if (player)
-	{
-		KConfigGroup meow = KGlobal::config()->group("audioscrobbler");
-		d->isEnabled = meow.readEntry<bool>("enabled", false);
-		connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(currentItemChanged(File)));
-		connect(d->player, SIGNAL(playing()), SLOT(startCountingTimeAgain()));
-		connect(d->player, SIGNAL(paused()), SLOT(stopCountingTime()));
-		
-		int index=0;
-		while (meow.hasKey("qi" + QString::number(index)))
-		{
-			ScrobblePrivate::Submission s = {
-					File(),
-					meow.readEntry<FileId>("qi" + QString::number(index), 0),
-					meow.readEntry<int>("qt" + QString::number(index), 0),
-					meow.readEntry<int>("ql" + QString::number(index), 0)
-				};
-			d->submissionQueue += s;
-			meow.deleteEntry("qi" + QString::number(index));
-			meow.deleteEntry("qt" + QString::number(index));
-			meow.deleteEntry("ql" + QString::number(index));
-			index++;
-		}
+	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");
+	d->isEnabled = conf.readEntry<bool>("enabled", false);
 	
+	if (d->isEnabled)
+	{
+		QString passwordSource = conf.readEntry("password source", "nowhere");
+		
+		if (passwordSource == "wallet")
+		{
+			KWallet::Wallet *wallet = KWallet::Wallet::openWallet(
+					KWallet::Wallet::NetworkWallet(), parent->effectiveWinId()
+				);
+			if (wallet)
+			{
+				if ( !wallet->hasFolder( "Meow" ) )
+					wallet->createFolder( "Meow" );
+				wallet->setFolder( "Meow" );
+	
+				QString retrievedPass;
+				QByteArray retrievedUser;
+				if ( !wallet->readEntry( "AudioScrobbler Username", retrievedUser ) )
+					setUsername(QString::fromUtf8(retrievedUser));
+				if ( !wallet->readPassword( "AudioScrobbler Password", retrievedPass ) )
+					setPassword(retrievedPass);
+			}
+		}
+		else if (passwordSource == "here")
+		{
+			d->passwordMd5 = conf.readEntry("password", "");
+			d->username = conf.readEntry("username", "");
+		}
 	}
+	
+	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(currentItemChanged(File)));
+	connect(d->player, SIGNAL(playing()), SLOT(startCountingTimeAgain()));
+	connect(d->player, SIGNAL(paused()), SLOT(stopCountingTime()));
+	
+	int index=0;
+	while (conf.hasKey("qi" + QString::number(index)))
+	{
+		ScrobblePrivate::Submission s = {
+				File(),
+				conf.readEntry<FileId>("qi" + QString::number(index), 0),
+				conf.readEntry<int>("qt" + QString::number(index), 0),
+				conf.readEntry<int>("ql" + QString::number(index), 0)
+			};
+		d->submissionQueue += s;
+		conf.deleteEntry("qi" + QString::number(index));
+		conf.deleteEntry("qt" + QString::number(index));
+		conf.deleteEntry("ql" + QString::number(index));
+		index++;
+	}
+
 }
 
 Meow::Scrobble::~Scrobble()
@@ -276,11 +396,6 @@ QString Meow::Scrobble::username() const
 	return d->username;
 }
 
-QString Meow::Scrobble::password() const
-{
-	return d->password;
-}
-
 void Meow::Scrobble::setUsername(const QString &u)
 {
 	d->username = u;
@@ -288,18 +403,21 @@ void Meow::Scrobble::setUsername(const QString &u)
 
 void Meow::Scrobble::setPassword(const QString &p)
 {
-	d->password = p;
+	d->passwordMd5 = md5(p.toUtf8());
 }
 
 
 void Meow::Scrobble::begin()
 {
+	if (!isEnabled())
+		return;
+	
 	d->recievedData.clear();
 	
 	QString timestamp = QString::number(QDateTime::currentDateTime().toTime_t());
 	
 	QString authToken;
-	authToken = md5(d->password.toUtf8()) + timestamp;
+	authToken = d->passwordMd5.toUtf8() + timestamp;
 	authToken = md5(authToken.toUtf8());
 
 	KUrl handshake(handshakeUrl);

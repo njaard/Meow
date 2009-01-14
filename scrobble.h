@@ -32,14 +32,14 @@ public:
 		HandshakeFailure
 	};
 	
-	Scrobble(QObject *parent, Player *player, Collection *collection);
+	Scrobble(QObject *parent);
+	Scrobble(QWidget *parent, Player *player, Collection *collection);
 	~Scrobble();
 	
 	bool isEnabled() const;
 	void setEnabled(bool);
 	
 	QString username() const;
-	QString password() const;
 	
 	void setUsername(const QString &);
 	void setPassword(const QString &);
