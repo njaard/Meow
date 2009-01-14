@@ -10,6 +10,7 @@
 #include <kconfiggroup.h>
 #include <kwallet.h>
 #include <kmessagebox.h>
+#include <kcodecs.h>
 
 #include <qprocess.h>
 #include <qbytearray.h>
@@ -25,20 +26,7 @@
 
 static QByteArray md5(const QByteArray &data)
 {
-	QStringList args;
-	args << "-";
-	QProcess proc;
-	proc.start("md5sum", args);
-	proc.write(data);
-	proc.closeWriteChannel();
-	if (!proc.waitForFinished())
-		return false;
-	QByteArray sum = proc.readAll();
-	int x;
-	if ( (x = sum.indexOf(' ')) == -1)
-		if ( (x = sum.indexOf('\t')) == -1)
-			return QByteArray();
-	return sum.left(x);
+	return KMD5(data).hexDigest();
 }
 
 
@@ -72,12 +60,13 @@ Meow::ScrobbleConfigure::ScrobbleConfigure(QWidget *parent, Scrobble *scrobble)
 					"If you enable scrobbling, but for whatever reason, "
 					"the track submission could not be made (such as if "
 					"the password was incorrect or unavailable), it will be "
-					"queued up for later submission."
+					"saved for later submission."
 				),
 			this
 		);
+	info->setWordWrap(true);
 	
-	layout->addWidget(d->isEnabled, 1, 0, 1, 2);
+	layout->addWidget(info, 1, 0, 1, 2);
 	
 	{
 		QLabel *label = new QLabel(i18n("&Username"), this);
