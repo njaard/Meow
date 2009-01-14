@@ -459,6 +459,19 @@ void Meow::TreeView::addFile(const File &file)
 	
 }
 
+static void deleteBranch(QTreeWidgetItem *parent)
+{
+	while (parent)
+	{
+		QTreeWidgetItem *p = parent->parent();
+		if (parent->childCount() == 0)
+			delete parent;
+		else
+			break;
+		parent = p;
+	}
+}
+
 void Meow::TreeView::reloadFile(const File &file)
 {
 	Song *s=0;
@@ -500,6 +513,7 @@ void Meow::TreeView::reloadFile(const File &file)
 	if (!parent) parent = invisibleRootItem();
 	int index = parent->indexOfChild(s);
 	parent->takeChild(index);
+	deleteBranch(parent);
 	
 	// ok now insert it again
 	Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
@@ -572,7 +586,12 @@ void Meow::TreeView::removeSelected()
 	}
 	collection->remove(files);
 	while (!selected.isEmpty())
-		delete selected.takeFirst();
+	{
+		QTreeWidgetItem *const item = selected.takeFirst();
+		QTreeWidgetItem *const parent = item->parent();
+		delete item;
+		deleteBranch(parent);
+	}
 	
 	if (nextToBePlaying)
 		playAt(nextToBePlaying);
