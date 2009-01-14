@@ -120,11 +120,16 @@ public:
 	Song(const Meow::File &file)
 		: Node(UserType+3), mFileId(file.fileId())
 	{
+		setText(file);
+	}
+	
+	void setText(const Meow::File &file)
+	{
 		QString title = file.title();
 		const QString track = file.track();
 		if (!track.isEmpty())
 			title = track + ". " + title;
-		setText(0, title);
+		Node::setText(0, title);
 	}
 	
 	FileId fileId() const { return mFileId; }
@@ -163,12 +168,7 @@ public:
 			unsigned int len = player->currentLength();
 			player->setPosition(event->pos().x()*len / rect.width());
 		}
-/*		else if (event->button() == Qt::RightButton)
-		{
-			emit mOwner->kdeContextMenu(mOwner->mCurrent, event->globalPos());
-			emit mOwner->kdeContextMenu(event->globalPos());
-		}
-*/
+		
 		QPoint xlated = mapTo(mOwner, event->pos());
 		xlated = mOwner->viewport()->mapFrom(mOwner, xlated);
 		
@@ -253,6 +253,21 @@ Meow::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection
 	setAlternatingRowColors(true);
 	// required for keeping the current item under the cursor while adding items
 	setVerticalScrollMode(ScrollPerPixel);
+	
+	connect(collection, SIGNAL(added(File)), SLOT(addFile(File)));
+	connect(collection, SIGNAL(reloaded(File)), SLOT(reloadFile(File)));
+}
+
+QList<Meow::File> Meow::TreeView::selectedFiles()
+{
+	QList<File> files;
+	QList<QTreeWidgetItem*> selected = selectedItems();
+	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); ++i)
+	{
+		if (Song *s = dynamic_cast<Song*>(*i))
+			files += collection->getSong(s->fileId());
+	}
+	return files;
 }
 
 void Meow::TreeView::playAt(QTreeWidgetItem *_item)
@@ -290,6 +305,7 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 	player->play(curFile);
 	scrollToItem(cur);
 	setItemWidget(cur, 0, new SongWidget(this, this, player));
+
 }
 
 void Meow::TreeView::nextSong()
@@ -440,6 +456,59 @@ void Meow::TreeView::addFile(const File &file)
 		QScrollBar *const vs = verticalScrollBar();
 		vs->setValue(vs->value() + diff);
 	}
+	
+}
+
+void Meow::TreeView::reloadFile(const File &file)
+{
+	Song *s=0;
+	//we have to find the song representing file
+	
+	QList<QTreeWidgetItem*> selected = selectedItems();
+	// maybe the reloaded file is currently playing...
+	if (mCurrent && mCurrent->fileId() == file.fileId())
+		s = mCurrent;
+	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); )
+	{ // ... or selected
+		if (Song *_s = dynamic_cast<Song*>(*i))
+			if (_s->fileId() == file.fileId())
+			{
+				s = _s;
+				break;
+			}
+	}
+	
+	if (!s)
+	{ // find it the slow way, then
+		for (QTreeWidgetItemIterator it(this); *it; ++it)
+		{
+			QTreeWidgetItem *n = *it;
+			if (Song *_s = dynamic_cast<Song*>(n))
+				if (_s->fileId() == file.fileId())
+				{
+					s = _s;
+					break;
+				}
+		}
+	}
+	
+	if (s == mCurrent)
+		removeItemWidget(mCurrent, 0);
+	
+	// remove it
+	QTreeWidgetItem *parent = s->parent();
+	if (!parent) parent = invisibleRootItem();
+	int index = parent->indexOfChild(s);
+	parent->takeChild(index);
+	
+	// ok now insert it again
+	Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
+	Album *album   = fold<Album>(artist, file.album());
+	
+	insertSorted(album, s, canonical(s->text(0)));
+	s->setText(file);
+	if (s == mCurrent)
+		setItemWidget(s, 0, new SongWidget(this, this, player));
 	
 }
 

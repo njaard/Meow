@@ -28,18 +28,21 @@ class TreeView : public QTreeWidget
 public:
 	TreeView(QWidget *parent, Player *player, Collection *collection);
 	
+	QList<File> selectedFiles();
 	
 	int childCount() const { return topLevelItemCount(); }
 	QTreeWidgetItem *child(int i) const { return topLevelItem(i); }
 	
 public slots:
-	void addFile(const File &file);
 	void removeSelected();
 	
 	void previousSong();
 	void nextSong();
 	
 protected slots:
+	void addFile(const File &file);
+	void reloadFile(const File &file);
+	
 	void playAt(QTreeWidgetItem *);
 	void manuallyExpanded(QTreeWidgetItem *);
 

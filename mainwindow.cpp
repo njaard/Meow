@@ -3,6 +3,7 @@
 #include "player.h"
 #include "directoryadder.h"
 #include "scrobble.h"
+#include "fileproperties.h"
 
 #include <db/file.h>
 #include <db/base.h>
@@ -151,7 +152,6 @@ Meow::MainWindow::MainWindow()
 		d->itemProperties->setText(i18n("&Properties"));
 	}
 	
-	connect(d->collection, SIGNAL(added(File)), d->view, SLOT(addFile(File)));
 	connect(d->view, SIGNAL(kdeContextMenu(QPoint)), SLOT(showItemContext(QPoint)));
 	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(changeCaption(File)));
 	
@@ -316,6 +316,10 @@ void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reaso
 		d->player->playpause();
 }
 
+void Meow::MainWindow::itemProperties()
+{
+	new FileProperties(d->view->selectedFiles(), d->collection, this);
+}
 
 
 class SpecialSlider : public QSlider

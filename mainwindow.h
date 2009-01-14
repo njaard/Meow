@@ -47,6 +47,7 @@ private slots:
 	void changeCaption(const File &f);
 	void showSettings();
 	void systemTrayClicked(QSystemTrayIcon::ActivationReason reason);
+	void itemProperties();
 
 private:
 	void beginDirectoryAdd(const KUrl &url);

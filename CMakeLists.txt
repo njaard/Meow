@@ -20,16 +20,18 @@ include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${KDE4_INCLUDES})
 macro_display_feature_log()
 
 
-set(meow_SRCS
-    main.cpp
-    player.cpp
-    mainwindow.cpp
-    directoryadder.cpp
-    scrobble.cpp
+set(
+	meow_SRCS
+	main.cpp
+	player.cpp
+	mainwindow.cpp
+	directoryadder.cpp
+	scrobble.cpp
 	configdialog.cpp
-   
-    db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
-    )
+	fileproperties.cpp
+	
+	db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
+	)
 
 kde4_add_executable(meow ${meow_SRCS})
 
@@ -40,3 +42,4 @@ install(FILES meowui.rc DESTINATION ${DATA_INSTALL_DIR}/meow)
 install(TARGETS meow ${INSTALL_TARGETS_DEFAULT_ARGS})
 
 kde4_install_icons(${ICON_INSTALL_DIR})
+# kate: space-indent off; replace-tabs off;

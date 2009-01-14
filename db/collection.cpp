@@ -26,10 +26,38 @@ public:
 	const QString file;
 };
 
-class FileAddedEvent : public QEvent
+class ReloadFileEvent : public QEvent
 {
 public:
 	static const Type type = QEvent::Type(QEvent::User+2);
+	ReloadFileEvent(const Meow::File &file)
+		: QEvent(type), file(file)
+	{}
+	
+	const Meow::File file;
+};
+
+class FileReloadedEvent : public QEvent
+{
+public:
+	static const Type type = QEvent::Type(QEvent::User+3);
+	FileReloadedEvent(const Meow::File &file, TagLib::FileRef *const f)
+		: QEvent(type), file(file), f(f)
+	{}
+	
+	~FileReloadedEvent()
+	{
+		delete f;
+	}
+	
+	const Meow::File file;
+	TagLib::FileRef *const f;
+};
+
+class FileAddedEvent : public QEvent
+{
+public:
+	static const Type type = QEvent::Type(QEvent::User+4);
 	FileAddedEvent(const QString &file, TagLib::FileRef *const f)
 		: QEvent(type), file(file), f(f)
 	{}
@@ -61,19 +89,32 @@ public:
 	
 	virtual bool event(QEvent *e)
 	{
-		if (e->type() != AddFileEvent::type)
-			return false;
-			
-		const QString file = static_cast<AddFileEvent*>(e)->file;
-	
-		TagLib::FileRef *const f = new TagLib::FileRef(QFile::encodeName(file).data());
-		if (f->isNull() || !f->file() || !f->file()->isValid())
+		if (e->type() == AddFileEvent::type)
 		{
-			delete f;
-			return true;
-		}
+			const QString file = static_cast<AddFileEvent*>(e)->file;
 		
-		QApplication::postEvent(c, new FileAddedEvent(file, f));
+			TagLib::FileRef *const f = new TagLib::FileRef(QFile::encodeName(file).data());
+			if (f->isNull() || !f->file() || !f->file()->isValid())
+			{
+				delete f;
+				return true;
+			}
+			
+			QApplication::postEvent(c, new FileAddedEvent(file, f));
+		}
+		else if (e->type() == ReloadFileEvent::type)
+		{
+			const File file = static_cast<ReloadFileEvent*>(e)->file;
+		
+			TagLib::FileRef *const f = new TagLib::FileRef(QFile::encodeName(file.file()).data());
+			if (f->isNull() || !f->file() || !f->file()->isValid())
+			{
+				delete f;
+				return true;
+			}
+			
+			QApplication::postEvent(c, new FileReloadedEvent(file, f));
+		}
 		
 		return true;
 	}
@@ -105,6 +146,12 @@ void Meow::Collection::add(const QString &file)
 {
 	QApplication::postEvent(addThread, new AddFileEvent(file));
 }
+
+void Meow::Collection::reload(const Meow::File &file)
+{
+	QApplication::postEvent(addThread, new ReloadFileEvent(file));
+}
+
 
 void Meow::Collection::remove(const std::vector<FileId> &files)
 {
@@ -274,11 +321,15 @@ Meow::File Meow::Collection::getSong(FileId id) const
 
 bool Meow::Collection::event(QEvent *e)
 {
-	if (e->type() != FileAddedEvent::type)
+	File fff;
+	
+	if (e->type() == FileAddedEvent::type)
+		fff.mFile = static_cast<FileAddedEvent*>(e)->file;
+	else if (e->type() == FileReloadedEvent::type)
+		fff = static_cast<FileReloadedEvent*>(e)->file;
+	else
 		return false;
 	
-	File fff;
-	fff.mFile = static_cast<FileAddedEvent*>(e)->file;
 	struct Map { TagLib::String (TagLib::Tag::*fn)() const; const char *sql; int tagIndex; };
 	static const Map propertyMap[] =
 	{
@@ -288,17 +339,39 @@ bool Meow::Collection::event(QEvent *e)
 		{ 0, 0, 0 }
 	};
 
+	const TagLib::FileRef *f;
+	if (e->type() == FileAddedEvent::type)
+		f = static_cast<FileAddedEvent*>(e)->f;
+	else if (e->type() == FileReloadedEvent::type)
+		f = static_cast<FileReloadedEvent*>(e)->f;
 
-	const TagLib::FileRef *const f = static_cast<FileAddedEvent*>(e)->f;
+
 	const TagLib::Tag *const tag = f->tag();
 	
 	base->sql("begin transaction");
-	const int64_t last = base->sql(
-			"insert into songs values(null, 0, '"
-				+ Base::escape(fff.mFile)
-				+ "')"
-		);
-	fff.id = last;
+	FileId last;
+	
+	if (e->type() == FileReloadedEvent::type)
+	{
+		last = fff.fileId();
+		base->sql(
+				"update songs set url='" +Base::escape(fff.mFile)
+					+"' where song_id=" + QString::number(fff.fileId())
+			);
+		base->sql(
+				"delete from tags where song_id=" + QString::number(fff.fileId())
+			);
+	}
+	else
+	{
+		last = base->sql(
+				"insert into songs values(null, 0, '"
+					+ Base::escape(fff.mFile)
+					+ "')"
+			);
+		fff.id = last;
+	}
+	
 	for (int i=0; propertyMap[i].sql; i++)
 	{
 		QString x = QString::fromUtf8(
@@ -324,7 +397,10 @@ bool Meow::Collection::event(QEvent *e)
 	}
 	base->sql("commit transaction");
 
-	emit added(fff);
+	if (e->type() == FileReloadedEvent::type)
+		emit reloaded(fff);
+	else
+		emit added(fff);
 	return true;
 }
 

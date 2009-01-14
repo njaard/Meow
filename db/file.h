@@ -24,6 +24,8 @@ public:
 	File() { id = 0; }
 	FileId fileId() const { return id; }
 	operator bool() const { return !!fileId(); }
+	bool operator==(const File &other) const { return id == other.id; }
+	bool operator!=(const File &other) const { return id != other.id; }
 	
 	QString file() const { return mFile; }
 	

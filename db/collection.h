@@ -31,6 +31,7 @@ public:
 	~Collection();
 
 	void add(const QString &file);
+	void reload(const File &file);
 	
 	void remove(const std::vector<FileId> &files);
 	
@@ -43,9 +44,11 @@ public:
 	 * gets just this file by id. This function is slow
 	 **/
 	File getSong(FileId id) const;
+	
 
 signals:
 	void added(const File &file);
+	void reloaded(const File &file);
 
 	/**
 	 * emitted when something of the slices gets modified
