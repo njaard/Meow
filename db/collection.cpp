@@ -118,7 +118,6 @@ void Meow::Collection::remove(const std::vector<FileId> &files)
 		songids += "song_id=" + QString::number(*i);
 	}
 	
-	
 	base->sql("delete from songs where " + songids);
 	base->sql("delete from tags where " + songids);
 	base->sql("commit transaction");

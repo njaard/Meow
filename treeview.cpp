@@ -8,6 +8,7 @@
 #include <qevent.h>
 #include <qscrollbar.h>
 #include <qcursor.h>
+#include <qapplication.h>
 
 #include <set>
 #include <limits>
@@ -162,6 +163,24 @@ public:
 			unsigned int len = player->currentLength();
 			player->setPosition(event->pos().x()*len / rect.width());
 		}
+/*		else if (event->button() == Qt::RightButton)
+		{
+			emit mOwner->kdeContextMenu(mOwner->mCurrent, event->globalPos());
+			emit mOwner->kdeContextMenu(event->globalPos());
+		}
+*/
+		QPoint xlated = mapTo(mOwner, event->pos());
+		xlated = mOwner->viewport()->mapFrom(mOwner, xlated);
+		
+		
+		//forward this mouse event to the list
+		QMouseEvent e2(
+				event->type(),
+				xlated,
+				event->globalPos(), event->button(),
+				event->buttons(), event->modifiers()
+			);
+		QApplication::sendEvent(mOwner->viewport(), &e2);
 	}
 
 	virtual void paintEvent(QPaintEvent *)
@@ -428,8 +447,9 @@ void Meow::TreeView::removeSelected()
 {
 	QList<QTreeWidgetItem*> selected = selectedItems();
 	
-	// first pass, go over selected making sure it doesn't contain any children of its own items
-	// this is O(n²) but that's ok, because n should be pretty small, and it will get smaller every iteration
+	// first pass, go over selected making sure it doesn't contain any
+	// children of its own items. this is O(n²) but that's ok, because
+	// n should be pretty small, and it will get smaller every iteration
 	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); )
 	{
 		QList<QTreeWidgetItem*>::iterator prevI = i;
@@ -438,10 +458,34 @@ void Meow::TreeView::removeSelected()
 		
 		for (QTreeWidgetItem *up = item->parent(); up; up = up->parent())
 		{
-			if (selected.count(up) > 0)
+			if (selected.contains(up))
 				selected.erase(prevI);
 		}
 	}
+	
+	QTreeWidgetItem *nextToBePlaying=0;
+	// also consider the situation in which I delete the currently playing item
+	for (QTreeWidgetItem *up = mCurrent; up; up = up->parent())
+	{
+		if (!selected.contains(up->parent()))
+		{
+			// so as up->parent() is not in the "to be deleted list"
+			// then the first sibling of "up" should be playable
+			// if it is also not in that list
+			nextToBePlaying = up;
+			do
+			{
+				nextToBePlaying = siblingAfter(nextToBePlaying);
+			} while (selected.contains(nextToBePlaying));
+			break;
+		}
+	}
+	if (nextToBePlaying)
+	{
+		mCurrent = 0;
+		player->stop();
+	}
+	
 	
 	std::vector<FileId> files;
 	// second pass: delete the stuff
@@ -449,12 +493,7 @@ void Meow::TreeView::removeSelected()
 	{
 		QTreeWidgetItem *const item = *i;
 		++i; // access the next item before we delete the old one
-		QTreeWidgetItem *const parent = item->parent() ? item->parent() : invisibleRootItem();
-		const int myself = parent->indexOfChild(item);
-		QTreeWidgetItem *const next
-			= parent->childCount() > myself+1
-				? parent->child(myself+1)
-				: 0;
+		QTreeWidgetItem *const next = nonChildAfter(item);
 		
 		for (QTreeWidgetItemIterator it(item); *it != next; ++it)
 		{
@@ -465,6 +504,33 @@ void Meow::TreeView::removeSelected()
 	collection->remove(files);
 	while (!selected.isEmpty())
 		delete selected.takeFirst();
+	
+	if (nextToBePlaying)
+		playAt(nextToBePlaying);
 }
+
+QTreeWidgetItem *Meow::TreeView::siblingAfter(QTreeWidgetItem *item)
+{
+	QTreeWidgetItem *parent = item->parent();
+	if (!parent) parent = invisibleRootItem();
+	int itemindex = parent->indexOfChild(item);
+	if (itemindex+1 == parent->childCount())
+		return 0;
+	return parent->child(itemindex+1);
+}
+
+QTreeWidgetItem *Meow::TreeView::nonChildAfter(QTreeWidgetItem *item)
+{
+	QTreeWidgetItem *next;
+	while (! (next = siblingAfter(item)))
+	{
+		item = item->parent();
+		if (!item)
+			return 0;
+	}
+	
+	return next;
+}
+
 
 // kate: space-indent off; replace-tabs off;

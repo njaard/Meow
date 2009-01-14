@@ -219,6 +219,7 @@ void Player::stop()
 	if (isStopped())
 		return;
 	d->mediaObject->stop();
+	d->currentItem.reset();
 }
 
 

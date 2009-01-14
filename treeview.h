@@ -53,7 +53,9 @@ protected:
 
 private:
 	Song *findAfter(QTreeWidgetItem *);
-
+	
+	QTreeWidgetItem *siblingAfter(QTreeWidgetItem *item);
+	QTreeWidgetItem *nonChildAfter(QTreeWidgetItem *item);
 };
 
 
