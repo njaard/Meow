@@ -536,10 +536,10 @@ void Meow::TreeView::removeSelected()
 	// also consider the situation in which I delete the currently playing item
 	for (QTreeWidgetItem *up = mCurrent; up; up = up->parent())
 	{
-		if (!selected.contains(up->parent()))
+		if (selected.contains(up))
 		{
-			// so as up->parent() is not in the "to be deleted list"
-			// then the first sibling of "up" should be playable
+			// so as up is in the "to be deleted" list
+			// then the first sibling of up should be playable
 			// if it is also not in that list
 			nextToBePlaying = up;
 			do
