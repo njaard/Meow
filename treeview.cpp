@@ -475,7 +475,7 @@ void Meow::TreeView::removeSelected()
 			nextToBePlaying = up;
 			do
 			{
-				nextToBePlaying = siblingAfter(nextToBePlaying);
+				nextToBePlaying = nonChildAfter(nextToBePlaying);
 			} while (selected.contains(nextToBePlaying));
 			break;
 		}
