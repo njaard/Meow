@@ -108,6 +108,8 @@ void Meow::Collection::add(const QString &file)
 
 void Meow::Collection::remove(const std::vector<FileId> &files)
 {
+	if (files.size() == 0)
+		return;
 	base->sql("begin transaction");
 	
 	QString songids;
