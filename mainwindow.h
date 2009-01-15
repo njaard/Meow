@@ -32,7 +32,6 @@ public:
 
 public slots:
 	void addFiles();
-	void addDirectory();
 	void addFile(const KUrl &url);
 	void toggleVisible();
 
@@ -45,9 +44,15 @@ private slots:
 	void adderDone();
 	void showItemContext(const QPoint &at);
 	void changeCaption(const File &f);
-	void showSettings();
 	void systemTrayClicked(QSystemTrayIcon::ActivationReason reason);
 	void itemProperties();
+	
+	void fileDialogAccepted();
+	void fileDialogClosed();
+
+	void showSettings();
+	void toggleToolBar();
+	void toggleMenuBar();
 
 private:
 	void beginDirectoryAdd(const KUrl &url);

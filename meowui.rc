@@ -4,7 +4,6 @@
 	<ToolBar name="mainToolBar" iconSize="22" iconText='icononly'>
 		<text>Main Toolbar</text>
 		<Action name="add_files" />
-		<Action name="add_dir" />
 		<separator />
 		<Action name="previous" />
 		<Action name="pause" />
@@ -15,7 +14,6 @@
 		<Menu name="file" >
 			<text>&amp;Library</text>
 			<Action name="add_files" />
-			<Action name="add_dir" />
 		</Menu>
 	</MenuBar>
 	<Menu name="item_context">

@@ -19,6 +19,10 @@
 #include <kconfig.h>
 #include <ksharedconfig.h>
 #include <kconfiggroup.h>
+#include <kwindowsystem.h>
+#include <ktoolbar.h>
+#include <kmenubar.h>
+#include <kmessagebox.h>
 
 #include <qpixmap.h>
 #include <qicon.h>
@@ -44,6 +48,8 @@ struct Meow::MainWindow::MainWindowPrivate
 	
 	ConfigDialog *settingsDialog;
 	Scrobble *scrobble;
+	
+	KFileDialog *openFileDialog;
 };
 
 Meow::MainWindow::MainWindow()
@@ -52,6 +58,7 @@ Meow::MainWindow::MainWindow()
 	d->adder = 0;
 	d->settingsDialog = 0;
 	d->nowFiltering = false;
+	d->openFileDialog = 0;
 	
 	d->db.open(KGlobal::dirs()->saveLocation("data", "meow/")+"collection");
 	
@@ -73,6 +80,8 @@ Meow::MainWindow::MainWindow()
 		);
 	
 	QMenu *const trayMenu = d->tray->contextMenu();
+	
+	KAction *toggleToolbarAction, *toggleMenubarAction;
 	
 	{
 		KAction *ac;
@@ -125,10 +134,6 @@ Meow::MainWindow::MainWindow()
 		connect(va, SIGNAL(volumeChanged(int)), d->player, SLOT(setVolume(int)));
 		connect(d->player, SIGNAL(volumeChanged(int)), va, SLOT(setVolume(int)));
 		
-		ac = actionCollection()->addAction("add_dir", this, SLOT(addDirectory()));
-		ac->setText(i18n("Add Fol&ders..."));
-		ac->setIcon(KIcon("folder"));
-		
 		ac = actionCollection()->addAction(
 				KStandardAction::Close,
 				this,
@@ -139,6 +144,18 @@ Meow::MainWindow::MainWindow()
 				KStandardAction::Preferences,
 				this,
 				SLOT(showSettings())
+			);
+#ifndef Q_WS_MAC
+		toggleMenubarAction = ac = actionCollection()->addAction(
+				KStandardAction::ShowMenubar,
+				this,
+				SLOT(toggleMenuBar())
+			);
+#endif
+		toggleToolbarAction = ac = actionCollection()->addAction(
+				KStandardAction::ShowToolbar,
+				this,
+				SLOT(toggleToolBar())
 			);
 	}
 	
@@ -156,8 +173,12 @@ Meow::MainWindow::MainWindow()
 	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(changeCaption(File)));
 	
 	
+	setAutoSaveSettings();
 	createGUI();
-
+	
+	toggleToolbarAction->setChecked(toolBar("mainToolBar")->isVisibleTo(this));
+	toggleMenubarAction->setChecked(menuBar()->isVisibleTo(this));
+	
 	KConfigGroup meow = KGlobal::config()->group("state");
 	d->player->setVolume(meow.readEntry<int>("volume", 50));
 	
@@ -197,26 +218,41 @@ void Meow::MainWindow::addFile(const KUrl &url)
 
 void Meow::MainWindow::addFiles()
 {
-	KUrl::List files = KFileDialog::getOpenUrls(
-			KUrl("kfiledialog:///mediadir"), d->player->mimeTypes().join(" "),
-			this, i18n("Select Files to Add")
+	if (d->openFileDialog)
+	{
+		d->openFileDialog->show();
+		d->openFileDialog->raise();
+		KWindowSystem::forceActiveWindow( d->openFileDialog->winId() );
+		return;
+	}
+	d->openFileDialog = new KFileDialog(
+			KUrl("kfiledialog:///mediadir"),
+			d->player->mimeTypes().join(" "),
+			this
 		);
-
-	for(KUrl::List::Iterator it=files.begin(); it!=files.end(); ++it)
-		addFile(*it);
+	d->openFileDialog->setOperationMode( KFileDialog::Opening );
+	
+	d->openFileDialog->setCaption(i18n("Add Files and Folders"));
+	d->openFileDialog->setMode(KFile::Files | KFile::Directory | KFile::ExistingOnly | KFile::LocalOnly);
+	
+	connect(d->openFileDialog, SIGNAL(accepted()), SLOT(fileDialogAccepted()));
+	connect(d->openFileDialog, SIGNAL(rejected()), SLOT(fileDialogClosed()));
+	d->openFileDialog->show();
 }
 
-void Meow::MainWindow::addDirectory()
+void Meow::MainWindow::fileDialogAccepted()
 {
-	QString folder = KFileDialog::getExistingDirectory(KUrl("kfiledialog:///mediadir"), this,
-		i18n("Select Folder to Add"));
+	KUrl::List files = d->openFileDialog->selectedUrls();
+	fileDialogClosed();
 	
-	if (folder.isEmpty())
-		return;
+	for(KUrl::List::Iterator it=files.begin(); it!=files.end(); ++it)
+		beginDirectoryAdd(*it);
+}
 
-	KUrl url;
-	url.setPath(folder);
-	beginDirectoryAdd(url);
+void Meow::MainWindow::fileDialogClosed()
+{
+	delete d->openFileDialog;
+	d->openFileDialog = 0;
 }
 
 void Meow::MainWindow::toggleVisible()
@@ -306,8 +342,42 @@ void Meow::MainWindow::showSettings()
 	}
 	
 	d->settingsDialog->show();
-
 }
+
+void Meow::MainWindow::toggleToolBar()
+{
+	bool showing = actionCollection()->action(
+			KStandardAction::name(KStandardAction::ShowToolbar)
+		)->isChecked();
+	if (toolBar("mainToolBar")->isVisible() == showing)
+		return;
+	toolBar("mainToolBar")->setVisible(showing);
+	saveAutoSaveSettings();
+}
+
+void Meow::MainWindow::toggleMenuBar()
+{
+	QAction *const action = actionCollection()->action(
+			KStandardAction::name(KStandardAction::ShowMenubar)
+		);
+	bool showing = action->isChecked();
+	if (menuBar()->isVisible() == showing)
+		return;
+	menuBar()->setVisible(showing);
+
+	if (!showing)
+		KMessageBox::information(
+				this,
+				i18n(
+						"If you want to show the menubar again, press %1", 
+						action->shortcut().toString()
+					),
+				i18n("Hiding Menubar"),
+				"hiding menu bar info"
+			);
+	saveAutoSaveSettings();
+}
+
 
 
 void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reason)
