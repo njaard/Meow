@@ -40,6 +40,7 @@ public:
 	void setEnabled(bool);
 	
 	QString username() const;
+	QString passwordIfKnown() const;
 	
 	void setUsername(const QString &);
 	void setPassword(const QString &);
@@ -66,6 +67,8 @@ private slots:
 	void lastSongFinishedPlaying();
 	void stopCountingTime();
 	void startCountingTimeAgain();
+	
+	void knowLengthOfCurrentSong(int msec);
 };
 
 
