@@ -361,7 +361,7 @@ int Player::volume() const
 void Player::setVolume(int percent)
 {
 	percent = qBound(percent, 0, 100);
-	double vol = (exp(percent*.01)-1)/(exp(1)-1);
+	double vol = (pow(10,percent*.01)-1)/(pow(10, 1)-1);
 	if (d->audioOutput)
 		d->audioOutput->setVolume(vol);
 	
