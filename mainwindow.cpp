@@ -251,7 +251,7 @@ void Meow::MainWindow::fileDialogAccepted()
 
 void Meow::MainWindow::fileDialogClosed()
 {
-	delete d->openFileDialog;
+	d->openFileDialog->deleteLater();
 	d->openFileDialog = 0;
 }
 
