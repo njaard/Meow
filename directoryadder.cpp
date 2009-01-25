@@ -2,6 +2,8 @@
 
 #include <kfileitem.h>
 
+#include <qfileinfo.h>
+
 Meow::DirectoryAdder::DirectoryAdder(const KUrl &dir, QObject *parent)
 	: QObject(parent)
 {
@@ -11,8 +13,15 @@ Meow::DirectoryAdder::DirectoryAdder(const KUrl &dir, QObject *parent)
 
 void Meow::DirectoryAdder::add(const KUrl &dir)
 {
-	pendingAddDirectories.append(dir);
-	addNextPending();
+	if (QFileInfo(dir.path()).isFile())
+	{
+		emit addFile(dir);
+	}
+	else
+	{
+		pendingAddDirectories.append(dir);
+		addNextPending();
+	}
 }
 
 void Meow::DirectoryAdder::addNextPending()
