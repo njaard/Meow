@@ -56,25 +56,46 @@ static void pad(QString &str)
 
 struct Meow::TreeView::Node : public QTreeWidgetItem
 {
-	bool autoExpanded:1;
-	QColor oldColor;
+	bool wasAutoExpanded:1;
 	Node(int type)
 		: QTreeWidgetItem(type)
 	{
-		autoExpanded = false;
+		wasAutoExpanded = false;
 	}
 	Node *parent() { return static_cast<Node*>(QTreeWidgetItem::parent()); }
 	
-	void setWasAutoExpanded(bool exp)
+	void setWasAutoExpanded(bool yes)
 	{
-		if (exp == autoExpanded)
-			return;
-		autoExpanded = exp;
-		if (exp)
+		if (yes == wasAutoExpanded) return;
+		wasAutoExpanded = yes;
+		handleAutoExpansionOfChildren();
+	}
+	
+	void handleAutoExpansionOfChildren()
+	{
+		const bool yes = wasAutoExpanded;
+		const int children = childCount();
+		for (int i=0; i < children; i++)
+		{
+			Node *const ch = static_cast<Node*>(child(i));
+			ch->changeColorsToReflectAutoExpansion(yes);
+		}
+	}
+	
+	void changeColorsToReflectAutoExpansion()
+	{
+		if (parent())
+			changeColorsToReflectAutoExpansion(parent()->wasAutoExpanded);
+	}
+	
+private:
+	void changeColorsToReflectAutoExpansion(bool parentState)
+	{
+		if (parentState)
 		{
 			const QColor bg = treeWidget()->palette().base().color();
 			QBrush brush = foreground(0);
-			QColor text = oldColor = brush.color();
+			QColor text = brush.color();
 	
 			int r = text.red() + bg.red();
 			int g = text.green() + bg.green();
@@ -86,8 +107,7 @@ struct Meow::TreeView::Node : public QTreeWidgetItem
 		}
 		else
 		{
-			QBrush b = foreground(0);
-			b.setColor(oldColor);
+			QBrush b = treeWidget()->palette().text().color();
 			setForeground(0, b);
 		}
 	}
@@ -275,30 +295,45 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 	Song *const cur = findAfter(_item);
 	if (!cur) return;
 
-	std::set<Node*> expanded;
-	if (mCurrent)
-	{
-		for (Node *up = mCurrent; up; up = up->parent())
+	{ // handle autoexpansion
+		// see who is already auto-expanded
+		std::set<Node*> previouslyExpanded;
+		if (mCurrent)
 		{
-			if (up->autoExpanded)
-				expanded.insert(up);
+			for (Node *up = mCurrent; up; up = up->parent())
+			{
+				if (up->wasAutoExpanded)
+					previouslyExpanded.insert(up);
+			}
 		}
-	}
-	currentlyProcessingAutomaticExpansion = true;
-	for (Node *up = cur; up; up = up->parent())
-	{
-		if (up->autoExpanded)
-			expanded.erase(up);
-		up->setExpanded(true);
-		up->setWasAutoExpanded(true);
-	}
-	for (std::set<Node*>::iterator i = expanded.begin(); i != expanded.end(); ++i)
-	{
-		(*i)->setExpanded(false);
-		(*i)->setWasAutoExpanded(false);
-	}
-	currentlyProcessingAutomaticExpansion = false;
 		
+		currentlyProcessingAutomaticExpansion = true;
+		
+		for (Node *up = cur; up; up = up->parent())
+		{
+			if (up->wasAutoExpanded)
+			{ // remove those from the list that will remain autoexpanded
+				previouslyExpanded.erase(up);
+			}
+			else
+			{ // and actually expand the rest
+				up->setExpanded(true);
+				up->setWasAutoExpanded(true);
+			}
+		}
+		
+		// those that were expanded but no longer need to be are collapsed
+		for (
+				std::set<Node*>::iterator i = previouslyExpanded.begin();
+				i != previouslyExpanded.end(); ++i
+			)
+		{
+			(*i)->setExpanded(false);
+			(*i)->setWasAutoExpanded(false);
+		}
+		currentlyProcessingAutomaticExpansion = false;
+	}
+	
 	removeItemWidget(mCurrent, 0);
 	mCurrent = cur;
 	File curFile = collection->getSong(cur->fileId());
@@ -371,6 +406,9 @@ void Meow::TreeView::mousePressEvent(QMouseEvent *e)
 
 Meow::TreeView::Song* Meow::TreeView::findAfter(QTreeWidgetItem *_item)
 {
+	if (!_item)
+		return 0;
+	
 	for (QTreeWidgetItemIterator it(_item); *it; ++it)
 	{
 		QTreeWidgetItem *n = *it;
@@ -426,6 +464,7 @@ static Child* fold(Parent *into, const QString &label)
 	// or make a new one
 	Child *const c = new Child(label);
 	insertSorted(into, c, clabel);
+	c->changeColorsToReflectAutoExpansion();
 	return c;
 }
 
@@ -446,6 +485,7 @@ void Meow::TreeView::addFile(const File &file)
 	Song *const song = new Song(file);
 	
 	insertSorted(album, song, canonical(song->text(0)));
+	song->changeColorsToReflectAutoExpansion();
 	
 	if (itemUnder)
 	{
@@ -520,6 +560,7 @@ void Meow::TreeView::reloadFile(const File &file)
 	Album *album   = fold<Album>(artist, file.album());
 	
 	insertSorted(album, s, canonical(s->text(0)));
+	s->changeColorsToReflectAutoExpansion();
 	s->setText(file);
 	if (s == mCurrent)
 		setItemWidget(s, 0, new SongWidget(this, this, player));

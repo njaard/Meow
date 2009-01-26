@@ -48,12 +48,12 @@ Player::State PlayerPrivate::convertState(Phonon::State s)
 {
 	switch(s)
 	{
+	case Phonon::LoadingState: // phonon gets stuck in this state sometimes
 	case Phonon::PlayingState:
 		return Player::PlayingState;
 	case Phonon::PausedState:
 		return Player::PausedState;
-	case Phonon::LoadingState: // map all these to stopped for now
-	case Phonon::StoppedState:
+	case Phonon::StoppedState: // map all these to stopped for now
 	case Phonon::BufferingState:
 	case Phonon::ErrorState:
 		break;
