@@ -603,6 +603,7 @@ void Meow::Scrobble::submissionResult()
 	}
 	else
 	{
+		d->numTracksSubmitting = 0;
 		std::cerr << "Meow: scrobbler submitting error: " << lines[0].data() << std::endl;
 		d->failureSubmitting = true;
 		QTimer::singleShot(240*1000, this, SLOT(sendSubmissionsRetry()));
