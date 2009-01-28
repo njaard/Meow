@@ -38,6 +38,8 @@ public slots:
 protected:
 	virtual void closeEvent(QCloseEvent *event);
 	virtual void wheelEvent(QWheelEvent *event);
+	virtual void dropEvent(QDropEvent *event);
+	virtual void dragEnterEvent(QDragEnterEvent *event);
 	virtual bool eventFilter(QObject *object, QEvent *event);
 	
 private slots:

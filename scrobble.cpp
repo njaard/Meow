@@ -596,10 +596,19 @@ void Meow::Scrobble::submissionResult()
 		return;
 	}
 	
+	d->recievedDataSubmission.clear();
+	
 	if (lines[0] == "OK")
 	{
 		while (d->numTracksSubmitting--)
 			d->submissionQueue.removeFirst();
+		QTimer::singleShot(10*1000, this, SLOT(sendSubmissions()));
+	}
+	else if (lines[0] == "BADSESSION")
+	{
+		d->sessionId = "";
+		// try logging again in 30 seconds
+		QTimer::singleShot(30*1000, this, SLOT(begin()));
 	}
 	else
 	{
@@ -610,8 +619,6 @@ void Meow::Scrobble::submissionResult()
 		return;
 	}
 	
-	d->recievedDataSubmission.clear();
-	QTimer::singleShot(10*1000, this, SLOT(sendSubmissions()));
 }
 
 void Meow::Scrobble::sendSubmissionsRetry()
@@ -655,10 +662,20 @@ void Meow::Scrobble::nowPlayingResult()
 		return;
 	}
 	
-	std::cerr << "Meow: scrobbler now playing: " << lines[0].data() << std::endl;
 	d->recievedData.clear();
-	if (d->nowPlayingQueue.count() > 0)
-		announceNowPlayingFromQueue();
+	std::cerr << "Meow: scrobbler now playing: " << lines[0].data() << std::endl;
+	
+	if (lines[0] == "BADSESSION")
+	{
+		d->sessionId = "";
+		// try logging again in 30 seconds
+		QTimer::singleShot(30*1000, this, SLOT(begin()));
+	}
+	else
+	{
+		if (d->nowPlayingQueue.count() > 0)
+			announceNowPlayingFromQueue();
+	}
 }
 
 // kate: space-indent off; replace-tabs off;

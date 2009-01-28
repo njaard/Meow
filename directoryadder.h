@@ -22,7 +22,7 @@ class DirectoryAdder : public QObject
 	KUrl currentJobUrl;
 
 public:
-	DirectoryAdder(const KUrl &dir, QObject *parent);
+	DirectoryAdder(QObject *parent);
 	
 public slots:
 	void add(const KUrl &dir);

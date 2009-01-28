@@ -172,7 +172,7 @@ Meow::MainWindow::MainWindow()
 	connect(d->view, SIGNAL(kdeContextMenu(QPoint)), SLOT(showItemContext(QPoint)));
 	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(changeCaption(File)));
 	
-	
+	setAcceptDrops(true);
 	setAutoSaveSettings();
 	createGUI();
 	
@@ -271,6 +271,21 @@ void Meow::MainWindow::wheelEvent(QWheelEvent *event)
 	if (!d->nowFiltering)
 		d->player->setVolume(d->player->volume() + event->delta()*10/120);
 }
+
+void Meow::MainWindow::dropEvent(QDropEvent *event)
+{
+	KUrl::List files = KUrl::List::fromMimeData(event->mimeData());
+	for(KUrl::List::Iterator it=files.begin(); it!=files.end(); ++it)
+		beginDirectoryAdd(*it);
+}
+
+void Meow::MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+	if (KUrl::List::canDecode(event->mimeData()))
+		event->acceptProposedAction();
+}
+
+
 bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
 {
 	if (!d->nowFiltering && object == d->view && event->type() == QEvent::Wheel)
@@ -295,16 +310,13 @@ void Meow::MainWindow::adderDone()
 
 void Meow::MainWindow::beginDirectoryAdd(const KUrl &url)
 {
-	if (d->adder)
+	if (!d->adder)
 	{
-		d->adder->add(url);
-	}
-	else
-	{
-		d->adder = new DirectoryAdder(url, this);
+		d->adder = new DirectoryAdder(this);
 		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
 		connect(d->adder, SIGNAL(addFile(KUrl)), SLOT(addFile(KUrl)));
 	}
+	d->adder->add(url);
 }
 
 void Meow::MainWindow::showItemContext(const QPoint &at)
