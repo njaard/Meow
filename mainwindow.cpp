@@ -11,6 +11,7 @@
 
 #include <klocale.h>
 #include <kactioncollection.h>
+#include <kselectaction.h>
 #include <kfiledialog.h>
 #include <ksystemtrayicon.h>
 #include <kstandarddirs.h>
@@ -43,6 +44,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	DirectoryAdder *adder;
 	
 	KAction *itemProperties, *itemRemove;
+	KSelectAction *playbackOrder;
 	
 	bool nowFiltering;
 	
@@ -134,6 +136,16 @@ Meow::MainWindow::MainWindow()
 		connect(va, SIGNAL(volumeChanged(int)), d->player, SLOT(setVolume(int)));
 		connect(d->player, SIGNAL(volumeChanged(int)), va, SLOT(setVolume(int)));
 		
+		{
+			QStringList playbackOrderItems;
+			// this order is significant
+			playbackOrderItems << i18n("All Files") << i18n("Random Song");
+			d->playbackOrder = new KSelectAction(i18n("Playback Order"), this);
+			d->playbackOrder->setItems(playbackOrderItems);
+			actionCollection()->addAction("playbackorder", d->playbackOrder);
+			connect(d->playbackOrder, SIGNAL(triggered(int)), SLOT(changePlaybackOrder(int)));
+		}
+		
 		ac = actionCollection()->addAction(
 				KStandardAction::Close,
 				this,
@@ -182,6 +194,18 @@ Meow::MainWindow::MainWindow()
 	KConfigGroup meow = KGlobal::config()->group("state");
 	d->player->setVolume(meow.readEntry<int>("volume", 50));
 	
+	{
+		QString order = meow.readEntry<QString>("selector", "linear");
+		int index;
+		if (order == "randomsong")
+			index = TreeView::RandomSong;
+		else
+			index = TreeView::Linear;
+		d->playbackOrder->setCurrentItem(index);
+		// why does setCurrentItem above not cause changePlaybackOrder slot to be called?
+		changePlaybackOrder(index);
+	}
+	
 	FileId first = meow.readEntry<FileId>("lastPlayed", 0);
 	
 	d->collection->getFilesAndFirst(first);
@@ -205,6 +229,10 @@ Meow::MainWindow::~MainWindow()
 	meow.writeEntry<int>("volume", d->player->volume());
 	meow.writeEntry<FileId>("lastPlayed", d->player->currentFile().fileId());
 
+	if (d->playbackOrder->currentItem() == TreeView::RandomSong)
+		meow.writeEntry("selector", "randomsong" );
+	else
+		meow.writeEntry( "selector", "linear" );
 	
 	delete d->collection;
 	delete d;
@@ -400,8 +428,16 @@ void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reaso
 
 void Meow::MainWindow::itemProperties()
 {
-	new FileProperties(d->view->selectedFiles(), d->collection, this);
+	QList<File> files = d->view->selectedFiles();
+	if (!files.isEmpty())
+		new FileProperties(files, d->collection, this);
 }
+
+void Meow::MainWindow::changePlaybackOrder(int index)
+{
+	d->view->setSelector( static_cast<TreeView::SelectorType>(index) );
+}
+
 
 
 class SpecialSlider : public QSlider

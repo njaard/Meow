@@ -13,15 +13,25 @@ class TreeView : public QTreeWidget
 {
 	Q_OBJECT
 	
-	class SongWidget;
 	struct Node;
 	struct Artist;
 	struct Album;
 	struct Song;
 	
+	class Selector;
+	class LinearSelector;
+	class RandomSongSelector;
+	class RandomAlbumSelector;
+	class RandomArtistSelector;
+	
+	class SongWidget;
+	
 	Player *const player;
 	Collection *const collection;
-	Song *mCurrent;
+	// mRandomPrevious is here so that when removing items, it's fast to check
+	Song *mCurrent, *mRandomPrevious;
+	
+	Selector *mSelector;
 	
 	bool currentlyProcessingAutomaticExpansion;
 	
@@ -32,6 +42,14 @@ public:
 	
 	int childCount() const { return topLevelItemCount(); }
 	QTreeWidgetItem *child(int i) const { return topLevelItem(i); }
+	
+	enum SelectorType
+	{ // this order is significant
+		Linear=0, RandomSong
+	};
+	
+	void setSelector(SelectorType t);
+	
 	
 public slots:
 	void removeSelected();
@@ -59,6 +77,7 @@ private:
 	
 	QTreeWidgetItem *siblingAfter(QTreeWidgetItem *item);
 	QTreeWidgetItem *nonChildAfter(QTreeWidgetItem *item);
+	inline static void callOnArtist(QTreeWidgetItem *parentOf, void (Artist::*function)());
 };
 
 

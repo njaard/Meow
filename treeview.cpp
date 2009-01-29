@@ -10,6 +10,8 @@
 #include <qcursor.h>
 #include <qapplication.h>
 
+#include <krandom.h>
+
 #include <set>
 #include <limits>
 
@@ -116,10 +118,18 @@ private:
 struct Meow::TreeView::Artist : public Node
 {
 	Artist(const QString &artist)
-		: Node(UserType+1)
+		: Node(UserType+1), mNumSongs(0)
 	{
 		setText(0, artist);
 	}
+	
+	int numSongs() const { return mNumSongs; }
+	
+	void songAdded() { mNumSongs++; }
+	void songRemoved() { mNumSongs--; }
+	
+private:
+	int mNumSongs;
 };
 
 
@@ -155,6 +165,178 @@ public:
 	FileId fileId() const { return mFileId; }
 	
 };
+
+
+class Meow::TreeView::Selector
+{
+	TreeView *const mTree;
+public:
+	Selector(TreeView *tv) : mTree(tv) { }
+	virtual ~Selector() { }
+
+	virtual QTreeWidgetItem *nextSong()=0;
+	virtual QTreeWidgetItem *previousSong()=0;
+
+protected:
+	TreeView *tree() { return mTree; }
+	Song *current() { return mTree->mCurrent; }
+};
+
+class Meow::TreeView::LinearSelector : public Meow::TreeView::Selector
+{
+public:
+	LinearSelector(TreeView *tv) : Selector(tv) { }
+	virtual QTreeWidgetItem *nextSong()
+	{
+		if (!current())
+			return tree()->invisibleRootItem();
+		
+		QTreeWidgetItemIterator it(tree()->mCurrent);
+		return *++it;
+	}
+	virtual QTreeWidgetItem *previousSong()
+	{
+		if (!current())
+			return 0;
+		
+		QTreeWidgetItemIterator it(current());
+		--it;
+		for (; *it; --it)
+		{
+			QTreeWidgetItem *n = *it;
+			if (Song *s = dynamic_cast<Song*>(n))
+				return s;
+		}
+		return 0;
+	}
+};
+
+
+class Meow::TreeView::RandomSongSelector : public Meow::TreeView::Selector
+{
+public:
+	RandomSongSelector(TreeView *tv) : Selector(tv) { }
+	virtual QTreeWidgetItem *nextSong()
+	{
+		int totalSongs=0;
+		const int totalArtists = tree()->childCount();
+		for (int i=0; i < totalArtists; i++)
+		{
+			if (Artist *artist = dynamic_cast<Artist*>(tree()->child(i)))
+				totalSongs += artist->numSongs();
+		}
+		
+		const int songIndex = KRandom::random() % totalSongs;
+		
+		int atSong=0;
+		
+		for (int i=0; i < totalArtists; i++)
+		{
+			Artist *const artist = dynamic_cast<Artist*>(tree()->child(i));
+			if (!artist)
+				continue;
+				
+			const int afterArtist = atSong + artist->numSongs();
+			if (songIndex < afterArtist)
+			{
+				QTreeWidgetItemIterator it(artist);
+				++i;
+				for (; *it; ++it)
+				{
+					if (Song *s = dynamic_cast<Song*>(*it))
+					{
+						atSong++;
+						if (atSong == songIndex)
+						{
+							tree()->mRandomPrevious = tree()->mCurrent;
+							return s;
+						}
+					}
+				}
+				// should never get here
+			}
+			else
+			{
+				atSong = afterArtist;
+			}
+		}
+		return 0;
+	}
+	virtual QTreeWidgetItem *previousSong()
+	{
+		Song *const p = tree()->mRandomPrevious;
+		tree()->mRandomPrevious = 0;
+		return p;
+	}
+};
+
+/*
+class Meow::TreeView::RandomArtistSelector : public Meow::TreeView::RandomSongSelector
+{
+public:
+	RandomArtistSelector(TreeView *tv) : RandomSongSelector(tv) { }
+	virtual QTreeWidgetItem *nextSong()
+	{
+		const int totalArtists = tree()->childCount();
+		
+		const int artistIndex = KRandom::random() % totalArtists;
+		tree()->randomPrevious = mCurrent;
+		
+		return tree()->child(artistIndex);
+	}
+};
+
+class Meow::TreeView::RandomAlbumSelector : public Meow::TreeView::RandomSongSelector
+{
+public:
+	RandomAlbumSelector(TreeView *tv) : RandomSongSelector(tv) { }
+	virtual QTreeWidgetItem *nextSong()
+	{
+		int totalAlbums=0;
+		const int totalArtists = tree()->childCount();
+		for (int i=0; i < totalArtists; i++)
+		{
+			if (Artist *artist = dynamic_cast<Artist*>(child(i)))
+				totalAlbums += artist->childCount();
+		}
+		
+		const int albumIndex = KRandom::random() % totalAlbums;
+		
+		int atAlbum=0;
+		
+		for (int i=0; i < totalArtists; i++)
+		{
+			Artist *const artist = dynamic_cast<Artist*>(child(i));
+			if (!artist)
+				continue;
+				
+			const int numAlbums = artist->childCount();
+			const int afterArtist = atAlbum + numAlbums;
+			if (albumIndex < afterArtist)
+			{
+				for (int i=0; i < numAlbums; i++)
+				{
+					if (Album *album = dynamic_cast<Album*>(artist->child(i)))
+					{
+						atAlbum++;
+						if (atAlbum == albumIndex)
+						{
+							tree()->randomPrevious = mCurrent;
+							return a;
+						}
+					}
+				}
+				// should never get here
+			}
+			else
+			{
+				atSong = afterArtist;
+			}
+		}
+		return 0;
+	}
+};
+*/
 
 
 class Meow::TreeView::SongWidget : public QWidget
@@ -250,6 +432,10 @@ Meow::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection
 	
 	headerItem()->setHidden(true);
 	mCurrent = 0;
+	mRandomPrevious = 0;
+	
+	mSelector = 0;
+	setSelector(Linear);
 	
 	// the SongWidget takes over painting
 	class CurrentItemDelegate : public QItemDelegate
@@ -288,6 +474,15 @@ QList<Meow::File> Meow::TreeView::selectedFiles()
 			files += collection->getSong(s->fileId());
 	}
 	return files;
+}
+
+void Meow::TreeView::setSelector(SelectorType t)
+{
+	delete mSelector;
+	if (t == Linear)
+		mSelector = new LinearSelector(this);
+	else if (t == RandomSong)
+		mSelector = new RandomSongSelector(this);
 }
 
 void Meow::TreeView::playAt(QTreeWidgetItem *_item)
@@ -345,32 +540,14 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 
 void Meow::TreeView::nextSong()
 {
-	if (!mCurrent)
-	{
-		playAt(invisibleRootItem());
-	}
-	else
-	{
-		QTreeWidgetItemIterator it(mCurrent);
-		playAt(*++it);
-	}
+	if (QTreeWidgetItem *item = mSelector->nextSong())
+		playAt(item);
 }
 
 void Meow::TreeView::previousSong()
 {
-	if (!mCurrent)
-		return;
-	QTreeWidgetItemIterator it(mCurrent);
-	--it;
-	for (; *it; --it)
-	{
-		QTreeWidgetItem *n = *it;
-		if (Song *s = dynamic_cast<Song*>(n))
-		{
-			playAt(s);
-			break;
-		}
-	}
+	if (QTreeWidgetItem *item = mSelector->previousSong())
+		playAt(item);
 }
 
 void Meow::TreeView::manuallyExpanded(QTreeWidgetItem *_item)
@@ -487,6 +664,8 @@ void Meow::TreeView::addFile(const File &file)
 	insertSorted(album, song, canonical(song->text(0)));
 	song->changeColorsToReflectAutoExpansion();
 	
+	artist->songAdded();
+	
 	if (itemUnder)
 	{
 		// requires: setVerticalScrollMode(ScrollPerPixel); in the ctor
@@ -509,6 +688,19 @@ static void deleteBranch(QTreeWidgetItem *parent)
 		else
 			break;
 		parent = p;
+	}
+}
+
+inline void Meow::TreeView::callOnArtist(QTreeWidgetItem *p, void (Artist::*function)())
+{
+	while (p)
+	{
+		if (Artist* artist = dynamic_cast<Artist*>(p))
+		{
+			(artist->*function)();
+			break;
+		}
+		p = p->parent();
 	}
 }
 
@@ -550,6 +742,8 @@ void Meow::TreeView::reloadFile(const File &file)
 	
 	// remove it
 	QTreeWidgetItem *parent = s->parent();
+	if (parent)
+		callOnArtist(parent, &Artist::songRemoved);
 	if (!parent) parent = invisibleRootItem();
 	int index = parent->indexOfChild(s);
 	parent->takeChild(index);
@@ -560,11 +754,22 @@ void Meow::TreeView::reloadFile(const File &file)
 	Album *album   = fold<Album>(artist, file.album());
 	
 	insertSorted(album, s, canonical(s->text(0)));
+	artist->songAdded();
+	
 	s->changeColorsToReflectAutoExpansion();
 	s->setText(file);
 	if (s == mCurrent)
 		setItemWidget(s, 0, new SongWidget(this, this, player));
-	
+}
+
+static QTreeWidgetItem* hasAsParent(QTreeWidgetItem *item, const QList<QTreeWidgetItem*> &oneOfThese)
+{
+	for (QTreeWidgetItem *up = item; up; up = up->parent())
+	{
+		if (oneOfThese.contains(up))
+			return up;
+	}
+	return 0;
 }
 
 void Meow::TreeView::removeSelected()
@@ -587,23 +792,21 @@ void Meow::TreeView::removeSelected()
 		}
 	}
 	
-	QTreeWidgetItem *nextToBePlaying=0;
+	QTreeWidgetItem *nextToBePlaying;
 	// also consider the situation in which I delete the currently playing item
-	for (QTreeWidgetItem *up = mCurrent; up; up = up->parent())
+	if ((nextToBePlaying = hasAsParent(mCurrent, selected)))
 	{
-		if (selected.contains(up))
+		// so as up is in the "to be deleted" list
+		// then the first sibling of up should be playable
+		// if it is also not in that list
+		do
 		{
-			// so as up is in the "to be deleted" list
-			// then the first sibling of up should be playable
-			// if it is also not in that list
-			nextToBePlaying = up;
-			do
-			{
-				nextToBePlaying = nonChildAfter(nextToBePlaying);
-			} while (selected.contains(nextToBePlaying));
-			break;
-		}
+			nextToBePlaying = nonChildAfter(nextToBePlaying);
+		} while (selected.contains(nextToBePlaying));
 	}
+	if (mRandomPrevious && hasAsParent(mRandomPrevious, selected))
+		mRandomPrevious = 0;
+	
 	if (nextToBePlaying)
 	{
 		mCurrent = 0;
@@ -630,6 +833,12 @@ void Meow::TreeView::removeSelected()
 	{
 		QTreeWidgetItem *const item = selected.takeFirst();
 		QTreeWidgetItem *const parent = item->parent();
+		if (parent)
+		{
+			if (dynamic_cast<Song*>(item))
+				callOnArtist(parent, &Artist::songRemoved);
+		}
+
 		delete item;
 		deleteBranch(parent);
 	}

@@ -48,6 +48,7 @@ private slots:
 	void changeCaption(const File &f);
 	void systemTrayClicked(QSystemTrayIcon::ActivationReason reason);
 	void itemProperties();
+	void changePlaybackOrder(int index);
 	
 	void fileDialogAccepted();
 	void fileDialogClosed();
