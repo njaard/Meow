@@ -217,7 +217,7 @@ Meow::MainWindow::MainWindow()
 		// furthermore, it will also load the rest of the files later on 
 		// in the event loop, which means that right now, first is the only
 		// item in the list
-		d->view->nextSong();
+		d->view->playFirst();
 	}
 	
 	d->scrobble->begin();
@@ -230,9 +230,9 @@ Meow::MainWindow::~MainWindow()
 	meow.writeEntry<FileId>("lastPlayed", d->player->currentFile().fileId());
 
 	if (d->playbackOrder->currentItem() == TreeView::RandomSong)
-		meow.writeEntry("selector", "randomsong" );
+		meow.writeEntry("selector", "randomsong");
 	else
-		meow.writeEntry( "selector", "linear" );
+		meow.writeEntry("selector", "linear");
 	
 	delete d->collection;
 	delete d;

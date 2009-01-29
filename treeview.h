@@ -50,6 +50,7 @@ public:
 	
 	void setSelector(SelectorType t);
 	
+	void playFirst();
 	
 public slots:
 	void removeSelected();

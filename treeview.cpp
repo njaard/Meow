@@ -485,6 +485,12 @@ void Meow::TreeView::setSelector(SelectorType t)
 		mSelector = new RandomSongSelector(this);
 }
 
+void Meow::TreeView::playFirst()
+{
+	if (QTreeWidgetItem *item = invisibleRootItem())
+		playAt(item);
+}
+
 void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 {
 	Song *const cur = findAfter(_item);
