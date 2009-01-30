@@ -270,73 +270,55 @@ public:
 	}
 };
 
-/*
-class Meow::TreeView::RandomArtistSelector : public Meow::TreeView::RandomSongSelector
+template<class BranchType>
+class Meow::TreeView::RandomBranchSelector : public Meow::TreeView::Selector
 {
+	// tree()->mRandomPrevious in this case stores the previous artist's last song
 public:
-	RandomArtistSelector(TreeView *tv) : RandomSongSelector(tv) { }
+	RandomBranchSelector(TreeView *tv) : Selector(tv) { }
 	virtual QTreeWidgetItem *nextSong()
+	{
+		Song *cur = current();
+		BranchType *curArtist = inside<BranchType>(cur);
+		
+		QTreeWidgetItemIterator it(cur);
+		while (*++it && inside<BranchType>(*it) == curArtist)
+		{
+			if (Song *s = dynamic_cast<Song*>(*it))
+				return s;
+		}
+		
+		return randomBranch();
+	}
+	virtual QTreeWidgetItem *previousSong()
+	{
+		Song *cur = current();
+		BranchType *curArtist = inside<BranchType>(cur);
+		QTreeWidgetItemIterator it(cur);
+		while (*--it && inside<BranchType>(*it) == curArtist)
+		{
+			if (Song *s = dynamic_cast<Song*>(*it))
+				return s;
+		}
+		
+		Song *const p = tree()->mRandomPrevious;
+		tree()->mRandomPrevious = 0;
+		return p;
+	}
+
+private:
+	QTreeWidgetItem *randomBranch()
 	{
 		const int totalArtists = tree()->childCount();
 		
 		const int artistIndex = KRandom::random() % totalArtists;
-		tree()->randomPrevious = mCurrent;
+		
+		tree()->mRandomPrevious = current();
 		
 		return tree()->child(artistIndex);
 	}
 };
 
-class Meow::TreeView::RandomAlbumSelector : public Meow::TreeView::RandomSongSelector
-{
-public:
-	RandomAlbumSelector(TreeView *tv) : RandomSongSelector(tv) { }
-	virtual QTreeWidgetItem *nextSong()
-	{
-		int totalAlbums=0;
-		const int totalArtists = tree()->childCount();
-		for (int i=0; i < totalArtists; i++)
-		{
-			if (Artist *artist = dynamic_cast<Artist*>(child(i)))
-				totalAlbums += artist->childCount();
-		}
-		
-		const int albumIndex = KRandom::random() % totalAlbums;
-		
-		int atAlbum=0;
-		
-		for (int i=0; i < totalArtists; i++)
-		{
-			Artist *const artist = dynamic_cast<Artist*>(child(i));
-			if (!artist)
-				continue;
-				
-			const int numAlbums = artist->childCount();
-			const int afterArtist = atAlbum + numAlbums;
-			if (albumIndex < afterArtist)
-			{
-				for (int i=0; i < numAlbums; i++)
-				{
-					if (Album *album = dynamic_cast<Album*>(artist->child(i)))
-					{
-						atAlbum++;
-						if (atAlbum == albumIndex)
-						{
-							tree()->randomPrevious = mCurrent;
-							return a;
-						}
-					}
-				}
-				// should never get here
-			}
-			else
-			{
-				atSong = afterArtist;
-			}
-		}
-		return 0;
-	}
-};
-*/
 
 
 class Meow::TreeView::SongWidget : public QWidget
@@ -483,6 +465,10 @@ void Meow::TreeView::setSelector(SelectorType t)
 		mSelector = new LinearSelector(this);
 	else if (t == RandomSong)
 		mSelector = new RandomSongSelector(this);
+	else if (t == RandomAlbum)
+		mSelector = new RandomAlbumSelector(this);
+	else if (t == RandomArtist)
+		mSelector = new RandomArtistSelector(this);
 }
 
 void Meow::TreeView::playFirst()
@@ -697,17 +683,25 @@ static void deleteBranch(QTreeWidgetItem *parent)
 	}
 }
 
-inline void Meow::TreeView::callOnArtist(QTreeWidgetItem *p, void (Artist::*function)())
+template <class T>
+inline T* Meow::TreeView::inside(QTreeWidgetItem *p)
 {
 	while (p)
 	{
-		if (Artist* artist = dynamic_cast<Artist*>(p))
-		{
-			(artist->*function)();
-			break;
-		}
+		if (T* t = dynamic_cast<T*>(p))
+			return t;
 		p = p->parent();
 	}
+	return 0;
+}
+
+template <class T, class RetType>
+inline RetType Meow::TreeView::callOn(QTreeWidgetItem *p, RetType (T::*function)())
+{
+	if (T *t = inside<T>(p))
+		return (t->*function)();
+	
+	return RetType();
 }
 
 void Meow::TreeView::reloadFile(const File &file)
@@ -749,7 +743,7 @@ void Meow::TreeView::reloadFile(const File &file)
 	// remove it
 	QTreeWidgetItem *parent = s->parent();
 	if (parent)
-		callOnArtist(parent, &Artist::songRemoved);
+		callOn(parent, &Artist::songRemoved);
 	if (!parent) parent = invisibleRootItem();
 	int index = parent->indexOfChild(s);
 	parent->takeChild(index);
@@ -842,7 +836,7 @@ void Meow::TreeView::removeSelected()
 		if (parent)
 		{
 			if (dynamic_cast<Song*>(item))
-				callOnArtist(parent, &Artist::songRemoved);
+				callOn(parent, &Artist::songRemoved);
 		}
 
 		delete item;

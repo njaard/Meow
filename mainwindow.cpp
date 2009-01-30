@@ -103,7 +103,7 @@ Meow::MainWindow::MainWindow()
 		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_Right), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
 		trayMenu->addAction(ac);
 		
-		ac = actionCollection()->addAction("previous", d->view, SLOT(nextSong()));
+		ac = actionCollection()->addAction("previous", d->view, SLOT(previousSong()));
 		ac->setText(i18n("Previous Song"));
 		ac->setIcon(KIcon("media-skip-backward"));
 		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_Left), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
@@ -139,7 +139,8 @@ Meow::MainWindow::MainWindow()
 		{
 			QStringList playbackOrderItems;
 			// this order is significant
-			playbackOrderItems << i18n("All Files") << i18n("Random Song");
+			playbackOrderItems << i18n("Each File") << i18n("Random Song")
+				<< i18n("Random Album") << i18n("Random Artist");
 			d->playbackOrder = new KSelectAction(i18n("Playback Order"), this);
 			d->playbackOrder->setItems(playbackOrderItems);
 			actionCollection()->addAction("playbackorder", d->playbackOrder);
@@ -197,7 +198,11 @@ Meow::MainWindow::MainWindow()
 	{
 		QString order = meow.readEntry<QString>("selector", "linear");
 		int index;
-		if (order == "randomsong")
+		if (order == "randomartist")
+			index = TreeView::RandomArtist;
+		else if (order == "randomalbum")
+			index = TreeView::RandomAlbum;
+		else if (order == "randomsong")
 			index = TreeView::RandomSong;
 		else
 			index = TreeView::Linear;
@@ -229,7 +234,11 @@ Meow::MainWindow::~MainWindow()
 	meow.writeEntry<int>("volume", d->player->volume());
 	meow.writeEntry<FileId>("lastPlayed", d->player->currentFile().fileId());
 
-	if (d->playbackOrder->currentItem() == TreeView::RandomSong)
+	if (d->playbackOrder->currentItem() == TreeView::RandomArtist)
+		meow.writeEntry("selector", "randomartist");
+	else if (d->playbackOrder->currentItem() == TreeView::RandomAlbum)
+		meow.writeEntry("selector", "randomalbum");
+	else if (d->playbackOrder->currentItem() == TreeView::RandomSong)
 		meow.writeEntry("selector", "randomsong");
 	else
 		meow.writeEntry("selector", "linear");

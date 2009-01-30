@@ -21,8 +21,12 @@ class TreeView : public QTreeWidget
 	class Selector;
 	class LinearSelector;
 	class RandomSongSelector;
-	class RandomAlbumSelector;
-	class RandomArtistSelector;
+	template<typename BranchType>
+	class RandomBranchSelector;
+	typedef RandomBranchSelector<Meow::TreeView::Album>
+		RandomAlbumSelector;
+	typedef RandomBranchSelector<Meow::TreeView::Artist>
+		RandomArtistSelector;
 	
 	class SongWidget;
 	
@@ -45,7 +49,7 @@ public:
 	
 	enum SelectorType
 	{ // this order is significant
-		Linear=0, RandomSong
+		Linear=0, RandomSong, RandomAlbum, RandomArtist
 	};
 	
 	void setSelector(SelectorType t);
@@ -78,7 +82,10 @@ private:
 	
 	QTreeWidgetItem *siblingAfter(QTreeWidgetItem *item);
 	QTreeWidgetItem *nonChildAfter(QTreeWidgetItem *item);
-	inline static void callOnArtist(QTreeWidgetItem *parentOf, void (Artist::*function)());
+	template <class T, class RetType>
+	inline static RetType callOn(QTreeWidgetItem *parentOf, RetType (T::*function)() );
+	template <class T>
+	inline static T* inside(QTreeWidgetItem *parentOf);
 };
 
 
