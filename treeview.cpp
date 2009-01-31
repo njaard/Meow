@@ -14,6 +14,7 @@
 
 #include <set>
 #include <limits>
+#include <iostream>
 
 static void pad(QString &str)
 {
@@ -245,15 +246,16 @@ public:
 				{
 					if (Song *s = dynamic_cast<Song*>(*it))
 					{
-						atSong++;
 						if (atSong == songIndex)
 						{
 							tree()->mRandomPrevious = tree()->mCurrent;
 							return s;
 						}
+						atSong++;
 					}
 				}
 				// should never get here
+				std::cerr << "Missed one?" << std::endl;
 			}
 			else
 			{
