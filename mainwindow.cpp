@@ -279,6 +279,8 @@ void Meow::MainWindow::addFiles()
 
 void Meow::MainWindow::fileDialogAccepted()
 {
+	if (!d->openFileDialog) return;
+
 	KUrl::List files = d->openFileDialog->selectedUrls();
 	fileDialogClosed();
 	
