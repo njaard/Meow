@@ -244,7 +244,7 @@ class Meow::Collection::LoadAll
 	: public QObject, private Meow::Collection::BasicLoader
 {
 	int index;
-	int count;
+	int maxid;
 	Base *const b;
 	Collection *const collection;
 	const FileId exceptThisOne;
@@ -256,7 +256,7 @@ public:
 		index=0;
 		numberInChunk = 0;
 		
-		count = b->sqlValue("select COUNT(*) from songs").toInt();
+		maxid = b->sqlValue("select max(song_id) from songs").toInt();
 		
 		startTimer(5);
 	}
@@ -283,7 +283,7 @@ protected:
 		}
 		
 		index += SIZE_OF_CHUNK_TO_LOAD;
-		if (index >= count)
+		if (index > maxid)
 		{
 			killTimer(e->timerId());
 			deleteLater();
