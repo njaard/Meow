@@ -221,6 +221,9 @@ public:
 				loader->numberInChunk++;
 				loader->songEntriesInChunk[loader->numberInChunk].songid = id;
 				loader->songEntriesInChunk[loader->numberInChunk].url = vals[1];
+				for (int i=0; i < numTags; ++i)
+					loader->songEntriesInChunk[loader->numberInChunk].tags[i] = QString();
+				
 				lastId = id;
 			}
 			
