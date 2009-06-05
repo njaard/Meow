@@ -421,6 +421,7 @@ void Meow::Scrobble::begin()
 	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(handshakeData(KIO::Job*, QByteArray)));
 	connect(job, SIGNAL(result(KJob*)), SLOT(slotHandshakeResult()));
 	d->failureSubmitting = false;
+	d->numTracksSubmitting = 0;
 }
 
 void Meow::Scrobble::handshakeData(KIO::Job*, const QByteArray &data)
