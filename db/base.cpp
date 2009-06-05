@@ -39,14 +39,14 @@ void Meow::Base::initialize()
 {
 	static const char *tables[] =
 		{
-			"create table songs ("
+			"create table if not exists songs ("
 				"song_id integer primary key autoincrement, "
 				"length int not null, "
-				"url char(255))",
-			"create table tags ("
+				"url char(255) not null)",
+			"create table if not exists tags ("
 				"song_id integer not null, "
-				"tag char(32), "
-				"value char(255))",
+				"tag char(32) not null, "
+				"value char(255) not null)",
 			0
 		};
 
