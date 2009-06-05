@@ -1,5 +1,6 @@
 #include "treeview.h"
 #include "player.h"
+#include "tooltip.h"
 #include <db/file.h>
 #include <db/collection.h>
 
@@ -334,6 +335,7 @@ public:
 		connect(player, SIGNAL(positionChanged(int)), SLOT(update()));
 		
 		setCursor(Qt::PointingHandCursor);
+		setMouseTracking(true);
 	}
 	
 	QRect drawArea() const
@@ -344,6 +346,21 @@ public:
 			rect.setWidth(rect.width() - mOwner->horizontalScrollBar()->maximum());
 		}
 		return rect;
+	}
+	
+	virtual void mouseMoveEvent(QMouseEvent *event)
+	{
+		QPoint xlated = mapTo(mOwner, event->pos());
+		xlated = mOwner->viewport()->mapFrom(mOwner, xlated);
+		
+		//forward this mouse event to the list
+		QMouseEvent e2(
+				event->type(),
+				xlated,
+				event->globalPos(), event->button(),
+				event->buttons(), event->modifiers()
+			);
+		QApplication::sendEvent(mOwner->viewport(), &e2);
 	}
 	
 	virtual void mousePressEvent(QMouseEvent *event)
@@ -357,7 +374,6 @@ public:
 		
 		QPoint xlated = mapTo(mOwner, event->pos());
 		xlated = mOwner->viewport()->mapFrom(mOwner, xlated);
-		
 		
 		//forward this mouse event to the list
 		QMouseEvent e2(
@@ -443,6 +459,9 @@ Meow::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection
 	setAlternatingRowColors(true);
 	// required for keeping the current item under the cursor while adding items
 	setVerticalScrollMode(ScrollPerPixel);
+	
+	// tooltips
+	setMouseTracking(true);
 	
 	connect(collection, SIGNAL(added(File)), SLOT(addFile(File)));
 	connect(collection, SIGNAL(reloaded(File)), SLOT(reloadFile(File)));
@@ -573,6 +592,30 @@ void Meow::TreeView::mousePressEvent(QMouseEvent *e)
 		emit kdeContextMenu(at, e->globalPos());
 		emit kdeContextMenu(e->globalPos());
 	}
+}
+
+void Meow::TreeView::mouseMoveEvent(QMouseEvent *event)
+{
+	if ( Song *const song = dynamic_cast<Song*>(itemAt(event->pos())) )
+	{
+		const File f = collection->getSong(song->fileId());
+		
+		QRect area = visualItemRect(song);
+		area.moveTo( viewport()->mapToGlobal(area.topLeft()) );
+		
+		Tooltip::create(area, f, player, this);
+	}
+	else
+	{
+		Tooltip::destroy();
+	}
+	return QTreeWidget::mouseMoveEvent(event);
+}
+
+void Meow::TreeView::hideEvent(QHideEvent *event)
+{
+	Tooltip::destroy();
+	return QTreeWidget::hideEvent(event);
 }
 
 Meow::TreeView::Song* Meow::TreeView::findAfter(QTreeWidgetItem *_item)
