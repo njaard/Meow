@@ -346,8 +346,8 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 
 Meow::Scrobble::~Scrobble()
 {
-	KConfigGroup meow = KGlobal::config()->group("audioscrobbler");
-	meow.writeEntry<bool>("enabled", d->isEnabled);
+	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");
+	conf.writeEntry<bool>("enabled", d->isEnabled);
 	
 	int index=0;
 	for (
@@ -355,7 +355,12 @@ Meow::Scrobble::~Scrobble()
 			i != d->submissionQueue.end(); ++i
 		)
 	{
-		meow.writeEntry("qi" + QString::number(index), *i);
+		conf.writeEntry("qi" + QString::number(index), *i);
+		index++;
+	}
+	while (conf.hasKey("qi" + QString::number(index)))
+	{
+		conf.deleteEntry("qi" + QString::number(index));
 		index++;
 	}
 	
@@ -485,7 +490,8 @@ void Meow::Scrobble::currentItemChanged(const File &file)
 
 void Meow::Scrobble::knowLengthOfCurrentSong(int msec)
 {
-	d->lengthOfLastSong = msec/1000;
+	if (msec >= 0)
+		d->lengthOfLastSong = msec/1000;
 }
 
 
@@ -601,7 +607,7 @@ void Meow::Scrobble::submissionResult()
 	
 	if (lines[0] == "OK")
 	{
-		while (d->numTracksSubmitting--)
+		for (; d->numTracksSubmitting; d->numTracksSubmitting--)
 			d->submissionQueue.removeFirst();
 		QTimer::singleShot(10*1000, this, SLOT(sendSubmissions()));
 	}
