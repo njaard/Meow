@@ -1,6 +1,6 @@
-/* This file is part of Noatun
+/* This file is part of Meow
 
-  Copyright 2000-2006 by Charles Samuels <charles@kde.org>
+  Copyright 2000-2009 by Charles Samuels <charles@kde.org>
   Copyright 2001-2007 by Stefan Gehn <mETz81@web.de>
 
   Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
 #include "player.h"
 
 #include <qregexp.h>
+#include <qfile.h>
 #include <qtimer.h>
 #include <qstringlist.h>
 #include <qlocale.h>
@@ -38,154 +39,145 @@
 #include <klocale.h>
 #include <kglobal.h>
 
+
 #include <cmath>
 
 namespace Meow
 {
 
 
-Player::State PlayerPrivate::convertState(Phonon::State s)
+Player::State PlayerPrivate::convertState(aKode::Player::State s)
 {
 	switch(s)
 	{
-	case Phonon::LoadingState: // phonon gets stuck in this state sometimes
-	case Phonon::PlayingState:
+	case aKode::Player::Open:
+	case aKode::Player::Loaded:
+	case aKode::Player::Playing:
 		return Player::PlayingState;
-	case Phonon::PausedState:
+	case aKode::Player::Paused:
 		return Player::PausedState;
-	case Phonon::StoppedState: // map all these to stopped for now
-	case Phonon::BufferingState:
-	case Phonon::ErrorState:
+	default:
+		return Player::StoppedState;
+	}
+}
+
+void PlayerPrivate::initAvKode()
+{
+	if (akPlayer)
+		return;
+	akPlayer = new aKode::Player;
+	akPlayer->open("auto");
+	akPlayer->setManager(this);
+
+	q->setVolume(volumePercent);
+	QObject::connect(
+			q, SIGNAL(stStateChangeEvent(int)),
+			q, SLOT(tStateChangeEvent(int)),
+			Qt::QueuedConnection
+		);
+	QObject::connect(
+			q, SIGNAL(stEofEvent()),
+			q, SLOT(tEofEvent()),
+			Qt::QueuedConnection
+		);
+	QObject::connect(
+			q, SIGNAL(stErrorEvent()),
+			q, SLOT(tErrorEvent()),
+			Qt::QueuedConnection
+		);
+}
+
+void PlayerPrivate::stateChangeEvent(aKode::Player::State state)
+{
+	emit q->stStateChangeEvent(state);
+}
+
+void PlayerPrivate::eofEvent()
+{
+	emit q->stEofEvent();
+}
+
+void PlayerPrivate::errorEvent()
+{
+	emit q->stErrorEvent();
+}
+
+void PlayerPrivate::tStateChangeEvent(int newState)
+{
+	kDebug(66666) << "new state: " << newState;
+	switch (newState)
+	{
+	case aKode::Player::Playing:
+		emit q->playing();
+		timer->start(500);
+		break;
+	case aKode::Player::Paused:
+		emit q->paused();
+		timer->stop();
+		break;
+	case aKode::Player::Loaded:
+		if (nowLoading)
+		{
+			nowLoading = false;
+			akPlayer->play();
+		}
+		else
+		{
+			emit q->stopped();
+			timer->stop();
+		}
+	default:
 		break;
 	}
-	return Player::StoppedState;
+	emit q->stateChanged(convertState(aKode::Player::State(newState)));
 }
 
-void PlayerPrivate::initPhonon()
+void PlayerPrivate::tEofEvent()
 {
-	if (mediaObject)
-		return;
-	mediaObject = new Phonon::MediaObject(q);
-	audioOutput = new Phonon::AudioOutput(Phonon::MusicCategory, q);
-	//videoPath = new Phonon::VideoPath(q);
-
-	Phonon::createPath(mediaObject, audioOutput);
-	//mediaObject->addVideoPath(videoPath);
-	//videoPath->addOutput(videoWidget);
-
-	mediaObject->setTickInterval(200);
-	q->setVolume(volumePercent);
-
-	QObject::connect(mediaObject, SIGNAL(stateChanged(Phonon::State, Phonon::State)),
-		q, SLOT(_n_updateState(Phonon::State, Phonon::State)));
-	QObject::connect(mediaObject, SIGNAL(finished()),
-		q, SLOT(_n_finishedPlaying()));
-	QObject::connect(mediaObject, SIGNAL(totalTimeChanged(qint64)),
-		q, SLOT(_n_updateLength(qint64)));
-	QObject::connect(mediaObject, SIGNAL(metaDataChanged()),
-		q, SLOT(_n_updateMetaData()));
-	QObject::connect(mediaObject, SIGNAL(tick(qint64)),
-		q, SLOT(_n_updatePosition(qint64)));
-}
-
-void PlayerPrivate::_n_updateState(Phonon::State newState, Phonon::State oldState)
-{
-	if (newState == Phonon::ErrorState)
-	{
-		kDebug(66666) << "error " << mediaObject->errorString();
-		mediaObject->stop();
-		emit q->stopped();
-		emit q->stateChanged(Player::StoppedState);
-		emit q->errorOccurred(Player::NormalError, mediaObject->errorString());
-	}
-	else
-	{
-		kDebug(66666) << "old: " << oldState << "; new: " << newState;
-		switch (newState)
-		{
-		case Phonon::PlayingState:
-			emit q->playing();
-			break;
-		case Phonon::StoppedState:
-			emit q->stopped();
-			break;
-		case Phonon::PausedState:
-			emit q->paused();
-			break;
-		default:
-			break;
-		}
-		emit q->stateChanged(convertState(newState));
-	}
-}
-
-void PlayerPrivate::_n_finishedPlaying()
-{
-	// delaying this is helpful for phonon-xine
 	emit q->finished();
 }
 
-void PlayerPrivate::_n_updateMetaData()
+void PlayerPrivate::tErrorEvent()
 {
-/* X == mapped keys
- X ALBUM
- X ARTIST
- X DATE
- DESCRIPTION (unmapped because it contains shoutcast serverinfos, ugly)
- X GENRE
- X TITLE
- TRACKNUMBER (unmapped, did we have a standard key in noatun for that one?)
-*/
-	foreach(const QString key, mediaObject->metaData().keys())
-		kDebug(66666) << key << " => " << mediaObject->metaData(key);
+	emit q->finished();
 }
 
-void PlayerPrivate::_n_updateLength(qint64 msecLen)
+void PlayerPrivate::tick()
 {
-	kDebug(66666) << "new length" << msecLen;
-//	currentItem.setProperty("length", QString::number(msecLen));
-	emit q->lengthChanged((int)msecLen);
+	if (aKode::Decoder *dec = akPlayer->decoder())
+	{
+		emit q->positionChanged(dec->length());
+		emit q->lengthChanged(dec->position());
+	}
 }
-
-void PlayerPrivate::_n_updatePosition(qint64 msecPos)
-{
-	//kDebug(66666) << "new pos" << msecPos;
-	emit q->positionChanged((int)msecPos);
-}
-
-
-
-
-
 
 // -----------------------------------------------------------------------------
-
 
 Player::Player()
     : d(new PlayerPrivate)
 {
 	d->q = this;
 	setObjectName("Player");
+	d->timer = new QTimer(this);
+	connect(d->timer, SIGNAL(timeout()), SLOT(tick()));
 
-	d->mediaObject = 0;
-	d->audioOutput = 0;
-	d->volumePercent = 50;
+	d->akPlayer = 0;
+	d->nowLoading = false;
 }
 
 
 Player::~Player()
 {
+	delete d->akPlayer;
 	delete d;
-	kDebug(66666) ;
+	kDebug(66666);
 }
 
 Player::State Player::state() const
 {
-	if (!d->mediaObject)
-	{
+	if (!d->akPlayer)
 		return Player::StoppedState;
-	}
-	return d->convertState(d->mediaObject->state());
+	return d->convertState(d->akPlayer->state());
 }
 
 
@@ -218,7 +210,7 @@ void Player::stop()
 {
 	if (isStopped())
 		return;
-	d->mediaObject->stop();
+	d->akPlayer->stop();
 	d->currentItem.reset();
 }
 
@@ -227,17 +219,19 @@ void Player::pause()
 {
 	if (!isPlaying())
 		return;
-	d->mediaObject->pause();
+	d->akPlayer->pause();
 }
 
 
 void Player::play()
 {
 	Player::State st = state();
-	if (st == Player::PlayingState)
+	if (d->nowLoading)
+		d->akPlayer->play();
+	else if (st == Player::PlayingState)
 		return;
-	if (st == Player::PausedState)
-		d->mediaObject->play(); // unpause
+	else if (st == Player::PausedState)
+		d->akPlayer->play(); // unpause
 	else if (d->currentItem.get())
 		play(*d->currentItem);
 }
@@ -245,15 +239,15 @@ void Player::play()
 
 void Player::play(const File &item)
 {
-	d->initPhonon();
+	d->initAvKode();
 	kDebug(66666) << "Attempting to play...";
-	if (!d->mediaObject)
+	if (!d->akPlayer)
 		return;
 
 	kDebug(66666) << "Starting to play new current track";
 	d->currentItem.reset(new File(item));
-	d->mediaObject->setCurrentSource(item.file());
-	d->mediaObject->play();
+	d->nowLoading = true;
+	d->akPlayer->load( QFile::encodeName(item.file()).data() );
 	emit currentItemChanged(*d->currentItem);
 }
 
@@ -268,22 +262,19 @@ void Player::playpause()
 
 void Player::setPosition(unsigned int msec)
 {
-	if (d->mediaObject && isActive())
+	if (d->akPlayer && d->akPlayer->decoder())
 	{
 		kDebug(66666) << "msec = " << msec;
-		d->mediaObject->seek(msec);
-		// Phonon is async, do not expect position() to have changed immediately
+		d->akPlayer->decoder()->seek(msec);
 	}
 }
 
 unsigned int Player::position() const
 {
-	if (!d->mediaObject)
-	{
-		kWarning(66666) << "NO MEDIAOBJECT";
+	if (d->akPlayer && d->akPlayer->decoder())
+		return d->akPlayer->decoder()->position();
+	else
 		return 0;
-	}
-	return d->mediaObject->currentTime();
 }
 
 static QString formatDuration(int duration)
@@ -340,12 +331,10 @@ QString Player::positionString() const
 
 unsigned int Player::currentLength() const
 {
-	if (!d->mediaObject)
-	{
-		kWarning(66666) << "NO MEDIAOBJECT";
+	if (d->akPlayer && d->akPlayer->decoder())
+		return d->akPlayer->decoder()->length();
+	else
 		return 0;
-	}
-	return d->mediaObject->totalTime();
 }
 
 QString Player::lengthString() const
@@ -362,8 +351,8 @@ void Player::setVolume(int percent)
 {
 	percent = qBound(0, percent, 100);
 	double vol = (pow(10,percent*.01)-1)/(pow(10, 1)-1);
-	if (d->audioOutput)
-		d->audioOutput->setVolume(vol);
+	if (d->akPlayer)
+		d->akPlayer->setVolume(vol);
 	
 	if (d->volumePercent != percent)
 	{
@@ -382,7 +371,27 @@ File Player::currentFile() const
 
 QStringList Player::mimeTypes() const
 {
-	return Phonon::BackendCapabilities::availableMimeTypes();
+	std::list<std::string> plugins = aKode::DecoderPluginHandler::listDecoderPlugins();
+	QStringList m;
+	for (
+			std::list<std::string>::iterator i =plugins.begin();
+			i != plugins.end();
+			++i
+		)
+	{
+		if ( *i == "mpeg")
+			m << "audio/mpeg";
+		else if ( *i == "xiph")
+			m << "audio/ogg" << "audio/x-flac" << "audio/x-flac-ogg"
+				<< "audio/x-speex" << "audio/x-speex+ogg";
+		else if ( *i == "mpc")
+			m << "audio/x-musepack";
+		else if ( *i == "wav")
+			m << "audio/x-wav";
+		else if ( *i == "ffmpeg")
+			m << "audio/x-ms-wma" << "audio/vnd.rn-realaudio";
+	}
+	return m;
 }
 
 } // namespace

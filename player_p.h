@@ -26,15 +26,14 @@
 #ifndef PLAYER_P_H
 #define PLAYER_P_H
 
-#include <phonon/mediaobject.h>
-#include <phonon/path.h>
-#include <phonon/audiooutput.h>
-//#include <phonon/videopath.h>
-//#include <phonon/ui/videowidget.h>
-#include <phonon/backendcapabilities.h>
 
 #include "player.h"
 #include <db/file.h>
+
+#include <kde/akode/player.h>
+#include <kde/akode/decoder.h>
+
+#include <qtimer.h>
 
 #include <memory>
 
@@ -42,25 +41,32 @@ namespace Meow
 {
 
 
-class PlayerPrivate
+class PlayerPrivate : public aKode::Player::Manager
 {
 public:
+	virtual ~PlayerPrivate() { }
 	Player              *q;
-	Phonon::MediaObject *mediaObject;
-	//Phonon::VideoPath *videoPath;
-	Phonon::AudioOutput *audioOutput;
-	//Phonon::VideoWidget *videoWidget;
+	aKode::Player       *akPlayer;
 	std::auto_ptr<File> currentItem; // TODO: remove
+	
+	QTimer *timer;
+	
+	bool nowLoading;
 	int volumePercent;
 
-	void initPhonon();
-	Player::State convertState(Phonon::State s);
+	void initAvKode();
 
-	void _n_updateState(Phonon::State, Phonon::State);
-	void _n_finishedPlaying();
-	void _n_updateLength(qint64);
-	void _n_updateMetaData();
-	void _n_updatePosition(qint64);
+	virtual void stateChangeEvent(aKode::Player::State);
+	virtual void eofEvent();
+	virtual void errorEvent();
+	
+	void tStateChangeEvent(int);
+	void tEofEvent();
+	void tErrorEvent();
+	
+	void tick();
+	
+	static Player::State convertState(aKode::Player::State s);
 };
 
 }

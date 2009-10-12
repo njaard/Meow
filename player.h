@@ -239,11 +239,15 @@ private:
 	PlayerPrivate * const d;
 
 private:
-	Q_PRIVATE_SLOT(d, void _n_updateState(Phonon::State, Phonon::State))
-	Q_PRIVATE_SLOT(d, void _n_finishedPlaying())
-	Q_PRIVATE_SLOT(d, void _n_updateLength(qint64))
-	Q_PRIVATE_SLOT(d, void _n_updateMetaData())
-	Q_PRIVATE_SLOT(d, void _n_updatePosition(qint64))
+	Q_PRIVATE_SLOT(d, void tStateChangeEvent(int))
+	Q_PRIVATE_SLOT(d, void tEofEvent())
+	Q_PRIVATE_SLOT(d, void tErrorEvent())
+	Q_PRIVATE_SLOT(d, void tick())
+
+signals:
+	void stStateChangeEvent(int);
+	void stEofEvent();
+	void stErrorEvent();
 };
 
 }

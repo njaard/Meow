@@ -6,7 +6,10 @@ include (KDE4Defaults)
 include (MacroLibrary)
 
 find_package(Boost REQUIRED)
-macro_log_feature(Boost_FOUND "boost" "Boost C++ Libraries" "http://www.boost.org" TRUE "1_33_0" "Needed by several critical PIM libraries.")
+macro_log_feature(Boost_FOUND "boost" "Boost C++ Libraries" "http://www.boost.org" TRUE "1_33_0" "Needed.")
+
+find_package(Akode REQUIRED)
+macro_log_feature(AKODE_FOUND "akode" "Akode" "http://carewolf.com/akode/" TRUE "" "Used for decoding.")
 
 find_package(Sqlite REQUIRED)
 macro_log_feature(SQLITE_FOUND "sqlite" "SQLite" "http://www.sqlite.org" TRUE "3" "Storing the playlist")
@@ -15,7 +18,7 @@ find_package(Taglib REQUIRED)
 macro_log_feature(TAGLIB_FOUND "taglib" "Taglib" "http://developer.kde.org/~wheeler/taglib/" TRUE "" "Reading id3/ogg/etc tags")
 
 add_definitions(${QT_DEFINITIONS} ${KDE4_DEFINITIONS} ${SQLITE_DEFINITIONS} ${TAGLIB_CFLAGS})
-include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${KDE4_INCLUDES})
+include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${KDE4_INCLUDES} ${AKODE_INCLUDE_DIR})
 
 macro_display_feature_log()
 
@@ -36,7 +39,7 @@ set(
 
 kde4_add_executable(meow ${meow_SRCS})
 
-target_link_libraries(meow ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS} ${KDE4_KIO_LIBS} ${KDE4_PHONON_LIBRARY} ${TAGLIB_LIBRARIES})
+target_link_libraries(meow ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS} ${KDE4_KIO_LIBS} ${AKODE_LIBRARIES} ${TAGLIB_LIBRARIES})
 
 install(FILES meow.desktop DESTINATION ${XDG_APPS_INSTALL_DIR})
 install(FILES meowui.rc DESTINATION ${DATA_INSTALL_DIR}/meow)
