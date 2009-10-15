@@ -187,7 +187,7 @@ public:
 	
 	static const int SIZE_OF_CHUNK_TO_LOAD = 32;
 	SongEntry songEntriesInChunk[SIZE_OF_CHUNK_TO_LOAD];
-	int numberInChunk;
+	int indexInChunk;
 	
 	static File toFile(const SongEntry &entry)
 	{
@@ -208,7 +208,7 @@ public:
 		
 		LoadEachFile(BasicLoader *loader) : loader(loader), lastId(0)
 		{
-			loader->numberInChunk = -1;
+			loader->indexInChunk = -1;
 		}
 		void operator() (const std::vector<QString> &vals)
 		{
@@ -218,11 +218,11 @@ public:
 			FileId id = vals[0].toLongLong();
 			if (id != lastId)
 			{
-				loader->numberInChunk++;
-				loader->songEntriesInChunk[loader->numberInChunk].songid = id;
-				loader->songEntriesInChunk[loader->numberInChunk].url = vals[1];
+				loader->indexInChunk++;
+				loader->songEntriesInChunk[loader->indexInChunk].songid = id;
+				loader->songEntriesInChunk[loader->indexInChunk].url = vals[1];
 				for (int i=0; i < numTags; ++i)
-					loader->songEntriesInChunk[loader->numberInChunk].tags[i] = QString();
+					loader->songEntriesInChunk[loader->indexInChunk].tags[i] = QString();
 				
 				lastId = id;
 			}
@@ -233,7 +233,7 @@ public:
 			{
 				if (tags[i] == tag)
 				{
-					loader->songEntriesInChunk[loader->numberInChunk].tags[i] = vals[3];
+					loader->songEntriesInChunk[loader->indexInChunk].tags[i] = vals[3];
 					break;
 				}
 			}
@@ -257,7 +257,7 @@ public:
 		: b(b), collection(collection), exceptThisOne(exceptThisOne)
 	{
 		index=0;
-		numberInChunk = 0;
+		indexInChunk = -1;
 		
 		maxid = b->sqlValue("select max(song_id) from songs").toInt();
 		
@@ -270,13 +270,13 @@ protected:
 	
 		QString select = "select songs.song_id, songs.url, tags.tag, tags.value "
 			"from songs natural join tags where songs.song_id > "
-			+ QString::number(index) + " and songs.song_id < "
+			+ QString::number(index) + " and songs.song_id <= "
 			+ QString::number(index+SIZE_OF_CHUNK_TO_LOAD);
 			
 		LoadEachFile l(this);
 		b->sql(select, l);
 		
-		for (int i=0; i < numberInChunk; i++)
+		for (int i=0; i <= indexInChunk; i++)
 		{
 			if (songEntriesInChunk[i].songid != exceptThisOne)
 			{
@@ -314,7 +314,7 @@ Meow::File Meow::Collection::getSong(FileId id) const
 	BasicLoader loader;
 	BasicLoader::LoadEachFile l(&loader);
 	base->sql(select, l);
-	if (loader.numberInChunk == 0)
+	if (loader.indexInChunk == 0)
 	{
 		file = BasicLoader::toFile(loader.songEntriesInChunk[0]);
 	}
