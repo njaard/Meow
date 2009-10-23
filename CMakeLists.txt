@@ -32,7 +32,6 @@ set(
 	scrobble.cpp
 	configdialog.cpp
 	fileproperties.cpp
-	tooltip.cpp
 	
 	db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
 	)

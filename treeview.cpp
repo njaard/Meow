@@ -1,6 +1,5 @@
 #include "treeview.h"
 #include "player.h"
-#include "tooltip.h"
 #include <db/file.h>
 #include <db/collection.h>
 
@@ -328,14 +327,19 @@ class Meow::TreeView::SongWidget : public QWidget
 {
 	TreeView *const mOwner;
 	Meow::Player *const player;
+    
+    bool mShowTime;
+    
 public:
 	SongWidget(QWidget *parent, TreeView *owner, Meow::Player *player)
-		: QWidget(parent), mOwner(owner), player(player)
+		: QWidget(parent), mOwner(owner), player(player), mShowTime(false)
 	{
 		connect(player, SIGNAL(positionChanged(int)), SLOT(update()));
 		
 		setCursor(Qt::PointingHandCursor);
-		setMouseTracking(true);
+		
+		connect(player, SIGNAL(positionChanged(int)), SLOT(update()));
+        connect(player, SIGNAL(lengthChanged(int)), SLOT(update()));
 	}
 	
 	QRect drawArea() const
@@ -347,21 +351,17 @@ public:
 		}
 		return rect;
 	}
-	
-	virtual void mouseMoveEvent(QMouseEvent *event)
-	{
-		QPoint xlated = mapTo(mOwner, event->pos());
-		xlated = mOwner->viewport()->mapFrom(mOwner, xlated);
-		
-		//forward this mouse event to the list
-		QMouseEvent e2(
-				event->type(),
-				xlated,
-				event->globalPos(), event->button(),
-				event->buttons(), event->modifiers()
-			);
-		QApplication::sendEvent(mOwner->viewport(), &e2);
-	}
+    
+    virtual void enterEvent(QEvent*)
+    {
+		mShowTime = true;
+		update();
+    }
+    virtual void leaveEvent(QEvent*)
+    {
+		mShowTime = false;
+		update();
+    }
 	
 	virtual void mousePressEvent(QMouseEvent *event)
 	{
@@ -388,12 +388,38 @@ public:
 	virtual void paintEvent(QPaintEvent *)
 	{
 		QPainter p(this);
-		unsigned int pos = player->position();
+		
+		const QString timeText
+			= player->positionString() + "/" + player->lengthString();
+		
+		QString titleText
+			= mOwner->mCurrent->text(0);
+		
+		int timeTextSize=0;
+		
+		QRect titleArea = rect();
+		QRect timeTextArea;
+		
+		if (mShowTime)
+		{
+			timeTextSize = p.fontMetrics().width(timeText);
+			timeTextSize += p.fontMetrics().averageCharWidth()*2;
+			
+			titleArea.setWidth(titleArea.width()-timeTextSize);
+			
+			titleText = p.fontMetrics().elidedText(
+					titleText, Qt::ElideRight, titleArea.width()
+				);
+			
+			timeTextArea = rect();
+		}
+		
+		const unsigned int pos = player->position();
 		unsigned int len = player->currentLength();
 		if (len == 0) len = std::numeric_limits<int>::max();
 		
-		QRect rect = drawArea();
-		rect.setWidth(pos*rect.width()/len);
+		QRect timeBoxRect = rect();
+		timeBoxRect.setWidth(pos*timeBoxRect.width()/len);
 		
 		const QColor hl = palette().highlight().color();
 		QBrush brush = palette().base().color();
@@ -404,13 +430,18 @@ public:
 		int b = bg.blue() + hl.blue();
 		bg.setRgb(r/2,g/2,b/2);
 		brush.setColor(bg);
-		p.fillRect(rect, bg);
+		p.fillRect(timeBoxRect, bg);
 		
 		QFont font = p.font();
+		
+		if (mShowTime)
+		{
+			p.drawText(timeTextArea, Qt::AlignRight|Qt::AlignVCenter, timeText);
+		}
+		
 		font.setUnderline(true);
 		p.setFont(font);
-		
-		p.drawText(this->rect(), Qt::AlignVCenter, mOwner->mCurrent->text(0));
+		p.drawText(titleArea, Qt::AlignVCenter, titleText);
 	}
 };
 
@@ -592,30 +623,6 @@ void Meow::TreeView::mousePressEvent(QMouseEvent *e)
 		emit kdeContextMenu(at, e->globalPos());
 		emit kdeContextMenu(e->globalPos());
 	}
-}
-
-void Meow::TreeView::mouseMoveEvent(QMouseEvent *event)
-{
-	if ( Song *const song = dynamic_cast<Song*>(itemAt(event->pos())) )
-	{
-		const File f = collection->getSong(song->fileId());
-		
-		QRect area = visualItemRect(song);
-		area.moveTo( viewport()->mapToGlobal(area.topLeft()) );
-		
-		Tooltip::create(area, f, player, this);
-	}
-	else
-	{
-		Tooltip::destroy();
-	}
-	return QTreeWidget::mouseMoveEvent(event);
-}
-
-void Meow::TreeView::hideEvent(QHideEvent *event)
-{
-	Tooltip::destroy();
-	return QTreeWidget::hideEvent(event);
 }
 
 Meow::TreeView::Song* Meow::TreeView::findAfter(QTreeWidgetItem *_item)
