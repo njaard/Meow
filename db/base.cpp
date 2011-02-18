@@ -37,7 +37,7 @@ bool Meow::Base::open(const QString &database)
 
 void Meow::Base::initialize()
 {
-	static const char *tables[] =
+	static const char *const tables[] =
 		{
 			"create table if not exists songs ("
 				"song_id integer primary key autoincrement, "
