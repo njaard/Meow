@@ -30,8 +30,8 @@
 #include "player.h"
 #include <db/file.h>
 
-#include <kde/akode/player.h>
-#include <kde/akode/decoder.h>
+#include <akode/player.h>
+#include <akode/decoder.h>
 
 #include <qtimer.h>
 

@@ -8,7 +8,7 @@
 namespace Meow
 {
 class Collection;
-typedef uint64_t FileId;
+typedef unsigned long long FileId;
 
 class File
 {
