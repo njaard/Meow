@@ -32,6 +32,7 @@
 
 #include <akode/player.h>
 #include <akode/decoder.h>
+#include <akode/resampler.h>
 
 #include <qtimer.h>
 
@@ -53,6 +54,7 @@ public:
 	
 	bool nowLoading;
 	int volumePercent;
+	int speedPercent;
 
 	void initAvKode();
 

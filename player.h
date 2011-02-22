@@ -199,6 +199,9 @@ public Q_SLOTS:
 	void volumeUp() { setVolume(volume() + 5); }
 	void volumeDown() { setVolume(volume() - 5); }
 
+	void setSpeed(int percent);
+	int speed() const;
+
 Q_SIGNALS:
 
 	void currentItemChanged(const File &);
@@ -228,6 +231,7 @@ Q_SIGNALS:
 	Q_SCRIPTABLE void paused();
 
 	Q_SCRIPTABLE void volumeChanged(int percent);
+	Q_SCRIPTABLE void speedChanged(int percent);
 
 	Q_SCRIPTABLE void positionChanged(int msec);
 

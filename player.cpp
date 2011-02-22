@@ -70,6 +70,8 @@ void PlayerPrivate::initAvKode()
 	akPlayer->setManager(this);
 
 	q->setVolume(volumePercent);
+	q->setSpeed(100);
+	
 	QObject::connect(
 			q, SIGNAL(stStateChangeEvent(int)),
 			q, SLOT(tStateChangeEvent(int)),
@@ -359,6 +361,19 @@ void Player::setVolume(int percent)
 		d->volumePercent = percent;
 		emit volumeChanged(percent);
 	}
+}
+
+void Player::setSpeed(int percent)
+{
+	if (percent != d->speedPercent)
+		return;
+	d->speedPercent = percent;
+	d->akPlayer->resampler()->setSpeed( percent/100.0 );
+	emit speedChanged(percent);
+}
+int Player::speed() const
+{
+	return d->speedPercent;
 }
 
 File Player::currentFile() const
