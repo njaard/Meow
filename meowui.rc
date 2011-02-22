@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE kpartgui SYSTEM "kpartgui.dtd">
-<gui name="meow" version="1">
+<gui name="meow" version="2">
 	<ToolBar name="mainToolBar" iconSize="22" iconText='icononly'>
 		<text>Main Toolbar</text>
 		<Action name="add_files" />
@@ -18,8 +18,12 @@
 		</Menu>
 	</MenuBar>
 	<Menu name="item_context">
-		<Action name="remove_item"/> 
+		<Action name="remove_item"/>
 		<Action name="item_properties"/>
+	</Menu>
+	<Menu name="album_context">
+		<Action name="remove_item"/>
+		<Action name="group_by_album"/>
 	</Menu>
 </gui>
 <!-- kate: space-indent off; replace-tabs off; -->

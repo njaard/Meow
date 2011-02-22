@@ -61,7 +61,7 @@ struct Meow::TreeView::Node : public QTreeWidgetItem
 {
 	bool wasAutoExpanded:1;
 	Node(int type)
-		: QTreeWidgetItem(type)
+		: QTreeWidgetItem(type), mNumSongs(0)
 	{
 		wasAutoExpanded = false;
 	}
@@ -91,6 +91,12 @@ struct Meow::TreeView::Node : public QTreeWidgetItem
 			changeColorsToReflectAutoExpansion(parent()->wasAutoExpanded);
 	}
 	
+	int numSongs() const { return mNumSongs; }
+
+	void songAdded() { mNumSongs++; }
+	void songRemoved() { mNumSongs--; }
+
+
 private:
 	void changeColorsToReflectAutoExpansion(bool parentState)
 	{
@@ -114,20 +120,17 @@ private:
 			setForeground(0, b);
 		}
 	}
+
+	int mNumSongs;
 };
 
 struct Meow::TreeView::Artist : public Node
 {
 	Artist(const QString &artist)
-		: Node(UserType+1), mNumSongs(0)
+		: Node(UserType+1)
 	{
 		setText(0, artist);
 	}
-	
-	int numSongs() const { return mNumSongs; }
-	
-	void songAdded() { mNumSongs++; }
-	void songRemoved() { mNumSongs--; }
 	
 private:
 	int mNumSongs;
@@ -220,27 +223,27 @@ public:
 	virtual QTreeWidgetItem *nextSong()
 	{
 		int totalSongs=0;
-		const int totalArtists = tree()->childCount();
-		for (int i=0; i < totalArtists; i++)
+		const int totalRoot = tree()->childCount();
+		for (int i=0; i < totalRoot; i++)
 		{
-			if (Artist *artist = dynamic_cast<Artist*>(tree()->child(i)))
-				totalSongs += artist->numSongs();
+			if (Node *n = dynamic_cast<Node*>(tree()->child(i)))
+				totalSongs += n->numSongs();
 		}
 		
 		const int songIndex = KRandom::random() % totalSongs;
 		
 		int atSong=0;
 		
-		for (int i=0; i < totalArtists; i++)
+		for (int i=0; i < totalRoot; i++)
 		{
-			Artist *const artist = dynamic_cast<Artist*>(tree()->child(i));
-			if (!artist)
+			Node *const node = dynamic_cast<Node*>(tree()->child(i));
+			if (!node)
 				continue;
 				
-			const int afterArtist = atSong + artist->numSongs();
-			if (songIndex < afterArtist)
+			const int afterNode = atSong + node->numSongs();
+			if (songIndex < afterNode)
 			{
-				QTreeWidgetItemIterator it(artist);
+				QTreeWidgetItemIterator it(node);
 				++i;
 				for (; *it; ++it)
 				{
@@ -259,7 +262,7 @@ public:
 			}
 			else
 			{
-				atSong = afterArtist;
+				atSong = afterNode;
 			}
 		}
 		return 0;
@@ -510,6 +513,18 @@ QList<Meow::File> Meow::TreeView::selectedFiles()
 	return files;
 }
 
+QList<QString> Meow::TreeView::selectedAlbums()
+{
+	QList<QString> albums;
+	QList<QTreeWidgetItem*> selected = selectedItems();
+	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); ++i)
+	{
+		if (Album *s = dynamic_cast<Album*>(*i))
+			albums += s->text(0);
+	}
+	return albums;
+}
+
 void Meow::TreeView::setSelector(SelectorType t)
 {
 	delete mSelector;
@@ -534,52 +549,49 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 	Song *const cur = findAfter(_item);
 	if (!cur) return;
 
-	{ // handle autoexpansion
-		// see who is already auto-expanded
-		std::set<Node*> previouslyExpanded;
-		if (mCurrent)
-		{
-			for (Node *up = mCurrent; up; up = up->parent())
-			{
-				if (up->wasAutoExpanded)
-					previouslyExpanded.insert(up);
-			}
-		}
-		
-		currentlyProcessingAutomaticExpansion = true;
-		
-		for (Node *up = cur; up; up = up->parent())
+	// see who is already auto-expanded
+	std::set<Node*> previouslyExpanded;
+	if (mCurrent)
+	{
+		for (Node *up = mCurrent; up; up = up->parent())
 		{
 			if (up->wasAutoExpanded)
-			{ // remove those from the list that will remain autoexpanded
-				previouslyExpanded.erase(up);
-			}
-			else
-			{ // and actually expand the rest
-				up->setExpanded(true);
-				up->setWasAutoExpanded(true);
-			}
+				previouslyExpanded.insert(up);
 		}
-		
-		// those that were expanded but no longer need to be are collapsed
-		for (
-				std::set<Node*>::iterator i = previouslyExpanded.begin();
-				i != previouslyExpanded.end(); ++i
-			)
-		{
-			(*i)->setExpanded(false);
-			(*i)->setWasAutoExpanded(false);
-		}
-		currentlyProcessingAutomaticExpansion = false;
 	}
-	
+
+	currentlyProcessingAutomaticExpansion = true;
+
+	for (Node *up = cur; up; up = up->parent())
+	{
+		if (up->wasAutoExpanded)
+		{ // remove those from the list that will remain autoexpanded
+			previouslyExpanded.erase(up);
+		}
+		else
+		{ // and actually expand the rest
+			up->setExpanded(true);
+			up->setWasAutoExpanded(true);
+		}
+	}
+
+	// those that were expanded but no longer need to be are collapsed
+	for (
+			std::set<Node*>::iterator i = previouslyExpanded.begin();
+			i != previouslyExpanded.end(); ++i
+		)
+	{
+		(*i)->setExpanded(false);
+		(*i)->setWasAutoExpanded(false);
+	}
+	currentlyProcessingAutomaticExpansion = false;
+
 	removeItemWidget(mCurrent, 0);
 	mCurrent = cur;
 	File curFile = collection->getSong(cur->fileId());
 	player->play(curFile);
 	scrollToItem(cur);
 	setItemWidget(cur, 0, new SongWidget(this, this, player));
-
 }
 
 void Meow::TreeView::nextSong()
@@ -696,19 +708,27 @@ void Meow::TreeView::addFile(const File &file)
 	
 	// keep the current item under the cursor while adding items
 	QTreeWidgetItem *const itemUnder = itemAt(under);
-	int oldPos;
+	int oldPos=0;
 	if (itemUnder)
 		oldPos = visualItemRect(itemUnder).top();
 
-	Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
-	Album *album   = fold<Album>(artist, file.album());
-	
 	Song *const song = new Song(file);
+
+	if (file.displayByAlbum())
+	{
+		Album *album   = fold<Album>(invisibleRootItem(), file.album());
+		insertSorted(album, song, canonical(song->text(0)));
+		album->songAdded();
+	}
+	else
+	{
+		Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
+		Album *album  = fold<Album>(artist, file.album());
+		insertSorted(album, song, canonical(song->text(0)));
+		artist->songAdded();
+	}
 	
-	insertSorted(album, song, canonical(song->text(0)));
 	song->changeColorsToReflectAutoExpansion();
-	
-	artist->songAdded();
 	
 	if (itemUnder)
 	{
@@ -765,7 +785,7 @@ void Meow::TreeView::reloadFile(const File &file)
 	// maybe the reloaded file is currently playing...
 	if (mCurrent && mCurrent->fileId() == file.fileId())
 		s = mCurrent;
-	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); )
+	for (QList<QTreeWidgetItem*>::iterator i = selected.begin(); i != selected.end(); ++i)
 	{ // ... or selected
 		if (Song *_s = dynamic_cast<Song*>(*i))
 			if (_s->fileId() == file.fileId())
@@ -802,11 +822,19 @@ void Meow::TreeView::reloadFile(const File &file)
 	deleteBranch(parent);
 	
 	// ok now insert it again
-	Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
-	Album *album   = fold<Album>(artist, file.album());
-	
-	insertSorted(album, s, canonical(s->text(0)));
-	artist->songAdded();
+	if (file.displayByAlbum())
+	{
+		Album *album   = fold<Album>(invisibleRootItem(), file.album());
+		insertSorted(album, s, canonical(s->text(0)));
+		album->songAdded();
+	}
+	else
+	{
+		Artist *artist = fold<Artist>(invisibleRootItem(), file.artist());
+		Album *album  = fold<Album>(artist, file.album());
+		insertSorted(album, s, canonical(s->text(0)));
+		artist->songAdded();
+	}
 	
 	s->changeColorsToReflectAutoExpansion();
 	s->setText(file);

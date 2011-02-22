@@ -13,6 +13,7 @@
 #include <vector>
 #include <map>
 
+
 namespace
 {
 class AddFileEvent : public QEvent
@@ -72,6 +73,10 @@ public:
 };
 }
 
+// album must be tags[1]
+static const char *const tags[] = { "artist", "album", "title", "track" };
+static const int numTags = sizeof(tags)/sizeof(tags[0]);
+
 
 class Meow::Collection::AddThread : public QThread
 {
@@ -122,12 +127,50 @@ public:
 
 
 
+struct Meow::Collection::Private
+{
+	QString bigSelectJoin;
+	Base::Statement selectOneSql;
+
+	Base::Statement updateUrlSql, deleteTagsSql, insertSql, insertTagsSql;
+};
+
 Meow::Collection::Collection(Base *base)
 	: base(base), addThread(0)
 {
-		addThread = new AddThread(this);
-		addThread->start(AddThread::LowestPriority);
-		addThread->moveToThread(addThread);
+	d = new Private;
+
+	{
+		QString statement = "select songs.song_id, songs.url, albums.flags";
+		for (int i=0; i < numTags; i++)
+		{
+			QString tagCol = "tag_";
+			tagCol += 'a'+i;
+			statement += ", " + tagCol + ".value";
+		}
+		
+		statement += " from songs";
+		for (int i=0; i < numTags; i++)
+		{
+			QString tagCol = "tag_";
+			tagCol += 'a'+i;
+			statement += " left outer join tags as " + tagCol;
+			statement += " on " + tagCol + ".song_id=songs.song_id and " + tagCol + ".tag='" + Base::escape(tags[i]) +"'";
+		}
+
+		statement += " left outer join albums on tag_b.value=albums.album";
+		d->bigSelectJoin = statement;
+	}
+	
+	d->selectOneSql = base->sql(d->bigSelectJoin + " where songs.song_id=?");
+	d->updateUrlSql = base->sql("update songs set url=? where song_id=?");
+	d->deleteTagsSql = base->sql("delete from tags where song_id=?");
+	d->insertSql = base->sql("insert into songs values(null, 0, ?)");
+	d->insertTagsSql = base->sql("insert into tags values(?, ?, ?)");
+
+	addThread = new AddThread(this);
+	addThread->moveToThread(addThread);
+	addThread->start(AddThread::LowestPriority);
 }
 
 
@@ -138,9 +181,8 @@ Meow::Collection::~Collection()
 		addThread->quit();
 		addThread->wait();
 	}
+	delete d;
 }
-
-
 
 void Meow::Collection::add(const QString &file)
 {
@@ -157,7 +199,7 @@ void Meow::Collection::remove(const std::vector<FileId> &files)
 {
 	if (files.size() == 0)
 		return;
-	base->sql("begin transaction");
+	base->exec("savepoint remove");
 	
 	QString songids;
 	for (std::vector<FileId>::const_iterator i=files.begin(); i != files.end(); ++i)
@@ -167,13 +209,10 @@ void Meow::Collection::remove(const std::vector<FileId> &files)
 		songids += "song_id=" + QString::number(*i);
 	}
 	
-	base->sql("delete from songs where " + songids);
-	base->sql("delete from tags where " + songids);
-	base->sql("commit transaction");
+	base->exec("delete from songs where " + songids);
+	base->exec("delete from tags where " + songids);
+	base->exec("release savepoint remove");
 }
-
-static const char *const tags[] = { "artist", "album", "title", "track" };
-static const int numTags = sizeof(tags)/sizeof(tags[0]);
 
 class Meow::Collection::BasicLoader
 {
@@ -183,114 +222,77 @@ public:
 		FileId songid;
 		QString url;
 		QString tags[numTags];
+		unsigned flags;
 	};
 	
-	static const int SIZE_OF_CHUNK_TO_LOAD = 32;
-	SongEntry songEntriesInChunk[SIZE_OF_CHUNK_TO_LOAD];
-	int indexInChunk;
-	
+	static void toSongEntry(const std::vector<QString> &vals, SongEntry &e)
+	{
+		if (vals.size() != 3 + numTags)
+		{
+			std::cerr << "Vals had " << vals.size() << " item"<< std::endl;
+			return;
+		}
+
+		FileId id = vals[0].toLongLong();
+		e.songid = id;
+		e.url = vals[1];
+		e.flags = vals[2].toInt();
+		for (int i=0; i < numTags; i++)
+			e.tags[i] = vals[3+i];
+	}
+
 	static File toFile(const SongEntry &entry)
 	{
 		File f;
 		f.id = entry.songid;
 		f.mFile = entry.url;
 		for (int tagi=0; tagi < numTags; ++tagi)
-		{
 			f.tags[tagi] = entry.tags[tagi];
-		}
+		if (entry.flags & 1)
+			f.mDisplayByAlbum = true;
 		return f;
 	}
-	
-	struct LoadEachFile
-	{
-		BasicLoader *const loader;
-		FileId lastId;
-		
-		LoadEachFile(BasicLoader *loader) : loader(loader), lastId(0)
-		{
-			loader->indexInChunk = -1;
-		}
-		void operator() (const std::vector<QString> &vals)
-		{
-			if (vals.size() != 4)
-				return;
-			
-			FileId id = vals[0].toLongLong();
-			if (id != lastId)
-			{
-				loader->indexInChunk++;
-				loader->songEntriesInChunk[loader->indexInChunk].songid = id;
-				loader->songEntriesInChunk[loader->indexInChunk].url = vals[1];
-				for (int i=0; i < numTags; ++i)
-					loader->songEntriesInChunk[loader->indexInChunk].tags[i] = QString();
-				
-				lastId = id;
-			}
-			
-			QString tag = vals[2];
-			
-			for (int i=0; i < numTags; ++i)
-			{
-				if (tags[i] == tag)
-				{
-					loader->songEntriesInChunk[loader->indexInChunk].tags[i] = vals[3];
-					break;
-				}
-			}
-			
-		}
-	};
-	
 };
+
 
 class Meow::Collection::LoadAll
 	: public QObject, private Meow::Collection::BasicLoader
 {
-	int index;
-	int maxid;
-	Base *const b;
-	Collection *const collection;
-	const FileId exceptThisOne;
+	struct AddEachFile
+	{
+		Collection *const collection;
+		const FileId exceptThisOne;
+
+		AddEachFile(Collection *collection, FileId exceptThisOne)
+			: collection(collection), exceptThisOne(exceptThisOne)
+		{ }
+		void operator() (const std::vector<QString> &vals)
+		{
+			SongEntry e;
+			toSongEntry(vals, e);
+			if (exceptThisOne == e.songid)
+				return;
+			File f = toFile(e);
+			emit collection->added(f);
+			qApp->processEvents();
+		}
+	};
+
+	AddEachFile loader;
+	Base::Statement selectAll;
 
 public:
-	LoadAll(Base *b, Collection *collection, FileId exceptThisOne)
-		: b(b), collection(collection), exceptThisOne(exceptThisOne)
+	LoadAll(Collection *collection, Base::Statement selectAll, FileId exceptThisOne)
+		: loader(collection, exceptThisOne), selectAll(selectAll)
 	{
-		index=0;
-		indexInChunk = -1;
-		
-		maxid = b->sqlValue("select max(song_id) from songs").toInt();
-		
 		startTimer(5);
 	}
 	
 protected:
 	virtual void timerEvent(QTimerEvent *e)
 	{
-	
-		QString select = "select songs.song_id, songs.url, tags.tag, tags.value "
-			"from songs natural join tags where songs.song_id > "
-			+ QString::number(index) + " and songs.song_id <= "
-			+ QString::number(index+SIZE_OF_CHUNK_TO_LOAD);
-			
-		LoadEachFile l(this);
-		b->sql(select, l);
-		
-		for (int i=0; i <= indexInChunk; i++)
-		{
-			if (songEntriesInChunk[i].songid != exceptThisOne)
-			{
-				File f = toFile(songEntriesInChunk[i]);
-				emit collection->added(f);
-			}
-		}
-		
-		index += SIZE_OF_CHUNK_TO_LOAD;
-		if (index > maxid)
-		{
-			killTimer(e->timerId());
-			deleteLater();
-		}
+		killTimer(e->timerId());
+		selectAll.exec(loader);
 	}
 };
 
@@ -301,24 +303,78 @@ void Meow::Collection::getFilesAndFirst(Meow::FileId id)
 		File f = getSong(id);
 		emit added(f);
 	}
-	new LoadAll(base, this, id);
+	new LoadAll(this, base->sql(d->bigSelectJoin), id);
 }
 
-Meow::File Meow::Collection::getSong(FileId id) const
+struct Meow::Collection::ReloadEachFile : public BasicLoader
 {
-	File file;
-	QString select = "select songs.song_id, songs.url, tags.tag, tags.value "
-		"from songs natural join tags where songs.song_id="
-		+ QString::number(id);
-	
-	BasicLoader loader;
-	BasicLoader::LoadEachFile l(&loader);
-	base->sql(select, l);
-	if (loader.indexInChunk == 0)
+	Collection *const collection;
+
+	ReloadEachFile(Collection *collection)
+		: collection(collection)
+	{ }
+	void operator() (const std::vector<QString> &vals)
 	{
-		file = BasicLoader::toFile(loader.songEntriesInChunk[0]);
+		SongEntry e;
+		toSongEntry(vals, e);
+		File f = toFile(e);
+		emit collection->reloaded(f);
+		qApp->processEvents();
 	}
-	return file;
+};
+
+
+void Meow::Collection::setGroupByAlbum(const QString &album, bool yes)
+{
+	if (yes)
+		base->sql("insert or replace into albums (album, flags) values(?, 1)").arg(album).exec();
+	else
+		base->sql("delete from albums where album=?").arg(album).exec();
+
+	ReloadEachFile loader(this);
+	Base::Statement statement = base->sql(d->bigSelectJoin + " where album=?");
+	statement.arg(album).exec(loader);
+}
+
+bool Meow::Collection::groupByAlbum(const QString &album)
+{
+	return 1 & base->sql("select flags from albums where album=?").arg(album).execValue().toInt();
+}
+
+void Meow::Collection::startJob()
+{
+	base->exec("savepoint job");
+}
+void Meow::Collection::finishJob()
+{
+	base->exec("release savepoint job");
+}
+
+struct Meow::Collection::OneFile : public BasicLoader
+{
+	Collection *const collection;
+	File f;
+	bool gotOne;
+
+	OneFile(Collection *collection)
+		: collection(collection), gotOne(false)
+	{ }
+	void operator() (const std::vector<QString> &vals)
+	{
+		gotOne = true;
+		SongEntry e;
+		toSongEntry(vals, e);
+		f = toFile(e);
+	}
+};
+
+
+Meow::File Meow::Collection::getSong(FileId id)
+{
+	OneFile loader(this);
+	d->selectOneSql.arg(id).exec(loader);
+	
+	return loader.f;
 }
 
 
@@ -342,36 +398,30 @@ bool Meow::Collection::event(QEvent *e)
 		{ 0, 0, 0 }
 	};
 
-	const TagLib::FileRef *f;
+	const TagLib::FileRef *f=0;
 	if (e->type() == FileAddedEvent::type)
 		f = static_cast<FileAddedEvent*>(e)->f;
 	else if (e->type() == FileReloadedEvent::type)
 		f = static_cast<FileReloadedEvent*>(e)->f;
-
+	else
+	{
+		std::cerr << "Impossible." << std::endl;
+		return false;
+	}
 
 	const TagLib::Tag *const tag = f->tag();
 	
-	base->sql("begin transaction");
 	FileId last;
 	
 	if (e->type() == FileReloadedEvent::type)
 	{
 		last = fff.fileId();
-		base->sql(
-				"update songs set url='" +Base::escape(fff.mFile)
-					+"' where song_id=" + QString::number(fff.fileId())
-			);
-		base->sql(
-				"delete from tags where song_id=" + QString::number(fff.fileId())
-			);
+		d->updateUrlSql.arg(fff.mFile).arg(fff.fileId()).exec();
+		d->deleteTagsSql.arg(fff.fileId()).exec();
 	}
 	else
 	{
-		last = base->sql(
-				"insert into songs values(null, 0, '"
-					+ Base::escape(fff.mFile)
-					+ "')"
-			);
+		last = d->insertSql.arg(fff.mFile).exec();
 		fff.id = last;
 	}
 	
@@ -380,25 +430,16 @@ bool Meow::Collection::event(QEvent *e)
 		QString x = QString::fromUtf8(
 				(tag->*propertyMap[i].fn)().toCString(true)
 			);
-		base->sql(
-				"insert into tags values("
-					+ QString::number(last) + ", '"+ propertyMap[i].sql + "', '"
-					+ Base::escape(x) + "')"
-			);
+		d->insertTagsSql.arg(last).arg(propertyMap[i].sql).arg(x).exec();
 		if (propertyMap[i].tagIndex != -1)
 			fff.tags[propertyMap[i].tagIndex] = x;
 	}
 	
 	if (tag->track() > 0)
 	{
-		base->sql(
-				"insert into tags values("
-					+ QString::number(last) + ", 'track', '"
-					+ QString::number(tag->track()) + "')"
-			);
+		d->insertTagsSql.arg(last).arg("track").arg(int(tag->track())).exec();
 		fff.tags[3] = QString::number(tag->track());
 	}
-	base->sql("commit transaction");
 
 	if (e->type() == FileReloadedEvent::type)
 		emit reloaded(fff);

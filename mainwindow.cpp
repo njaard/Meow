@@ -43,7 +43,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	Collection *collection;
 	DirectoryAdder *adder;
 	
-	KAction *itemProperties, *itemRemove;
+	KAction *itemProperties;
 	KSelectAction *playbackOrder;
 	
 	bool nowFiltering;
@@ -173,11 +173,16 @@ Meow::MainWindow::MainWindow()
 	}
 	
 	{ // context menu
-		d->itemProperties = actionCollection()->addAction("remove_item", d->view, SLOT(removeSelected()));
-		d->itemProperties->setText(i18n("&Remove from playlist"));
-		d->itemProperties->setIcon(KIcon("edit-delete"));
-		d->itemProperties->setShortcut(Qt::Key_Delete);
-		
+		KAction *const remove = actionCollection()->addAction("remove_item", d->view, SLOT(removeSelected()));
+		remove->setText(i18n("&Remove from playlist"));
+		remove->setIcon(KIcon("edit-delete"));
+		remove->setShortcut(Qt::Key_Delete);
+
+		KAction *const albumGroup = actionCollection()->addAction("group_by_album");
+		albumGroup->setCheckable(true);
+		connect(albumGroup, SIGNAL(toggled(bool)), this, SLOT(groupByAlbum(bool)));
+		albumGroup->setText(i18n("&Group by album"));
+
 		d->itemProperties = actionCollection()->addAction("item_properties", this, SLOT(itemProperties()));
 		d->itemProperties->setText(i18n("&Properties"));
 	}
@@ -343,6 +348,7 @@ bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
 
 void Meow::MainWindow::adderDone()
 {
+	d->collection->finishJob();
 	delete d->adder;
 	d->adder = 0;
 }
@@ -351,6 +357,7 @@ void Meow::MainWindow::beginDirectoryAdd(const KUrl &url)
 {
 	if (!d->adder)
 	{
+		d->collection->startJob();
 		d->adder = new DirectoryAdder(this);
 		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
 		connect(d->adder, SIGNAL(addFile(KUrl)), SLOT(addFile(KUrl)));
@@ -360,7 +367,25 @@ void Meow::MainWindow::beginDirectoryAdd(const KUrl &url)
 
 void Meow::MainWindow::showItemContext(const QPoint &at)
 {
-	QMenu *const menu = static_cast<QMenu*>(factory()->container("item_context", this));
+	const char *menuName = "item_context";
+	QList<QString> albums = d->view->selectedAlbums();
+	bool isGrouping=false;
+	if (!albums.isEmpty())
+	{
+		for (QList<QString>::const_iterator i = albums.begin(); i != albums.end(); ++i)
+		{
+			if (d->collection->groupByAlbum(*i))
+			{
+				isGrouping = true;
+				break;
+			}
+		}
+		
+		actionCollection()->action("group_by_album")->setChecked(isGrouping);
+		menuName = "album_context";
+	}
+
+	QMenu *const menu = static_cast<QMenu*>(factory()->container(menuName, this));
 	menu->popup(at);
 }
 
@@ -437,19 +462,26 @@ void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reaso
 		d->player->playpause();
 }
 
+void Meow::MainWindow::changePlaybackOrder(int index)
+{
+	d->view->setSelector( static_cast<TreeView::SelectorType>(index) );
+}
+
+void Meow::MainWindow::groupByAlbum(bool x)
+{
+	QList<QString> albums = d->view->selectedAlbums();
+	for (QList<QString>::const_iterator i = albums.begin(); i != albums.end(); ++i)
+	{
+		d->collection->setGroupByAlbum(*i, x);
+	}
+}
+
 void Meow::MainWindow::itemProperties()
 {
 	QList<File> files = d->view->selectedFiles();
 	if (!files.isEmpty())
 		new FileProperties(files, d->collection, this);
 }
-
-void Meow::MainWindow::changePlaybackOrder(int index)
-{
-	d->view->setSelector( static_cast<TreeView::SelectorType>(index) );
-}
-
-
 
 class SpecialSlider : public QSlider
 {

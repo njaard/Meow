@@ -17,11 +17,16 @@ class Base;
 class Collection : public QObject
 {
 	Q_OBJECT
+
+	struct Private;
+	Private *d;
 	
 	Base *const base;
-	
+
 	class BasicLoader;
 	class LoadAll;
+	class ReloadEachFile;
+	class OneFile;
 	class AddThread;
 	
 	AddThread *addThread;
@@ -43,8 +48,14 @@ public:
 	/**
 	 * gets just this file by id. This function is slow
 	 **/
-	File getSong(FileId id) const;
-	
+	File getSong(FileId id);
+
+	void setGroupByAlbum(const QString &album, bool yes);
+
+	bool groupByAlbum(const QString &album);
+
+	void startJob();
+	void finishJob();
 
 signals:
 	void added(const File &file);
@@ -56,6 +67,7 @@ signals:
 	 **/
 	void slicesModified();
 
+
 protected:
 	virtual bool event(QEvent *e);
 };
@@ -64,5 +76,4 @@ protected:
 
 #endif
  
-// kate: space-indent off; replace-tabs off;
 // kate: space-indent off; replace-tabs off;

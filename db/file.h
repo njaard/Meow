@@ -19,9 +19,11 @@ class File
 	QString mFile;
 	// refer to Meow::Collection::LoadAll
 	QString tags[4];
+
+	bool mDisplayByAlbum;
 	
 public:
-	File() { id = 0; }
+	File() { id = 0; mDisplayByAlbum=false; }
 	FileId fileId() const { return id; }
 	operator bool() const { return !!fileId(); }
 	bool operator==(const File &other) const { return id == other.id; }
@@ -33,6 +35,8 @@ public:
 	QString album() const { return tags[1]; }
 	QString title() const { return tags[2]; }
 	QString track() const { return tags[3]; }
+
+	bool displayByAlbum() const { return mDisplayByAlbum; }
 };
 
 

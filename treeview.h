@@ -43,6 +43,7 @@ public:
 	TreeView(QWidget *parent, Player *player, Collection *collection);
 	
 	QList<File> selectedFiles();
+	QList<QString> selectedAlbums();
 	
 	int childCount() const { return topLevelItemCount(); }
 	QTreeWidgetItem *child(int i) const { return topLevelItem(i); }

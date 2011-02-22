@@ -8,7 +8,6 @@
 #include <vector>
 #include <iostream>
 
-#include <sqlite3.h>
 
 struct Meow::Base::BasePrivate
 {
@@ -16,15 +15,10 @@ struct Meow::Base::BasePrivate
 };
 
 template<class T>
-inline int64_t Meow::Base::sql(const QString &s, T &function)
+inline int64_t Meow::Base::Statement::exec(T &function)
 {
-	const QByteArray utf8 = s.toUtf8();
-	sqlite3_stmt *stmt;
-	if (SQLITE_OK != sqlite3_prepare_v2(d->db, utf8.data(), utf8.length(), &stmt, 0))
-	{
-		std::cerr << "SQLite error (prepare): " << sqlite3_errmsg(d->db) << std::endl;
-	}
-	
+	sqlite3_stmt *const stmt = shared->statement;
+//	std::cerr << "Q: " << sqlite3_sql(stmt) << std::endl;
 	int x;
 	while (1)
 	{
@@ -51,11 +45,12 @@ inline int64_t Meow::Base::sql(const QString &s, T &function)
 	
 	if (x == SQLITE_ERROR)
 	{
-		std::cerr << "SQLite error: " << sqlite3_errmsg(d->db) << std::endl;
+		std::cerr << "SQLite error: " << sqlite3_errmsg(shared->db) << ": <<<" << sqlite3_sql(stmt) << ">>>" << std::endl;
 	}
 	
-	sqlite3_finalize(stmt);
-	return sqlite3_last_insert_rowid(d->db);
+	sqlite3_reset(stmt);
+	shared->bindingIndex=0;
+	return sqlite3_last_insert_rowid(shared->db);
 }
 
 #endif

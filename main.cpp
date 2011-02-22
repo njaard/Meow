@@ -15,7 +15,6 @@ int main( int argc, char *argv[] )
 	
 	aboutData.addAuthor( ki18n("Charles Samuels"), ki18n("Developer"), "charles@kde.org" );
 	aboutData.addAuthor( ki18n("Allan Sandfeld Jensen"), ki18n("aKode"));
-	aboutData.addAuthor( ki18n("Nuno Pinheiro"), ki18n("Cute Icon"), "nuno@oxygen-icons.org" );
 	
 	KCmdLineArgs::init( argc, argv, &aboutData );
 	
