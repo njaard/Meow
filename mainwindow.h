@@ -59,6 +59,10 @@ private slots:
 	void toggleToolBar();
 	void toggleMenuBar();
 
+	void configureShortcuts();
+
+	void isPlaying(bool v);
+
 private:
 	void beginDirectoryAdd(const KUrl &url);
 	QIcon renderIcon(const QString& baseIcon, const QString &overlayIcon) const;

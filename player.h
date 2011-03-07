@@ -182,6 +182,11 @@ public Q_SLOTS:
 	void playpause();
 
 	/**
+	 * pause if @p is true, play otherwise
+	 **/
+	void playpause(bool p);
+
+	/**
 	 * @brief Set a new playback position (i.e. seek)
 	 * @param msec new position given in milliseconds
 	 **/
@@ -198,9 +203,6 @@ public Q_SLOTS:
 	
 	void volumeUp() { setVolume(volume() + 5); }
 	void volumeDown() { setVolume(volume() - 5); }
-
-	void setSpeed(int percent);
-	int speed() const;
 
 Q_SIGNALS:
 
@@ -224,12 +226,13 @@ Q_SIGNALS:
 	 * signal stateChanged(PlayingState)
 	 **/
 	Q_SCRIPTABLE void playing();
+	Q_SCRIPTABLE void playing(bool);
 	/**
 	 * Convenience signal that is emitted together with
 	 * signal stateChanged(PausedState)
 	 **/
 	Q_SCRIPTABLE void paused();
-
+	
 	Q_SCRIPTABLE void volumeChanged(int percent);
 	Q_SCRIPTABLE void speedChanged(int percent);
 

@@ -33,6 +33,7 @@
 #include <qtimer.h>
 #include <qstringlist.h>
 #include <qlocale.h>
+#include <qdbusconnection.h>
 
 #include <kdebug.h>
 #include <kurl.h>
@@ -70,7 +71,6 @@ void PlayerPrivate::initAvKode()
 	akPlayer->setManager(this);
 
 	q->setVolume(volumePercent);
-	q->setSpeed(100);
 	
 	QObject::connect(
 			q, SIGNAL(stStateChangeEvent(int)),
@@ -111,9 +111,11 @@ void PlayerPrivate::tStateChangeEvent(int newState)
 	{
 	case aKode::Player::Playing:
 		emit q->playing();
+		emit q->playing(true);
 		timer->start(500);
 		break;
 	case aKode::Player::Paused:
+		emit q->playing(false);
 		emit q->paused();
 		timer->stop();
 		break;
@@ -125,6 +127,7 @@ void PlayerPrivate::tStateChangeEvent(int newState)
 		}
 		else
 		{
+			emit q->playing(false);
 			emit q->stopped();
 			timer->stop();
 		}
@@ -165,6 +168,14 @@ Player::Player()
 
 	d->akPlayer = 0;
 	d->nowLoading = false;
+	QDBusConnection::sessionBus().registerObject(
+			QLatin1String("/Player"), this,
+			QDBusConnection::ExportScriptableSlots |
+			QDBusConnection::ExportScriptableProperties |
+			QDBusConnection::ExportAdaptors |
+			QDBusConnection::ExportAllContents
+		);
+
 }
 
 
@@ -260,6 +271,14 @@ void Player::playpause()
 		pause();
 	else
 		play();
+}
+
+void Player::playpause(bool p)
+{
+	if (p)
+		play();
+	else
+		pause();
 }
 
 void Player::setPosition(unsigned int msec)
@@ -361,19 +380,6 @@ void Player::setVolume(int percent)
 		d->volumePercent = percent;
 		emit volumeChanged(percent);
 	}
-}
-
-void Player::setSpeed(int percent)
-{
-	if (percent != d->speedPercent)
-		return;
-	d->speedPercent = percent;
-	d->akPlayer->resampler()->setSpeed( percent/100.0 );
-	emit speedChanged(percent);
-}
-int Player::speed() const
-{
-	return d->speedPercent;
 }
 
 File Player::currentFile() const

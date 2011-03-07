@@ -9,6 +9,7 @@
 #include <db/base.h>
 #include <db/collection.h>
 
+#include <kdeversion.h>
 #include <klocale.h>
 #include <kactioncollection.h>
 #include <kselectaction.h>
@@ -24,6 +25,7 @@
 #include <ktoolbar.h>
 #include <kmenubar.h>
 #include <kmessagebox.h>
+#include <kshortcutsdialog.h>
 
 #include <qpixmap.h>
 #include <qicon.h>
@@ -44,6 +46,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	DirectoryAdder *adder;
 	
 	KAction *itemProperties;
+	KAction *playPauseAction;
 	KSelectAction *playbackOrder;
 	
 	bool nowFiltering;
@@ -90,12 +93,14 @@ Meow::MainWindow::MainWindow()
 		ac = actionCollection()->addAction("add_files", this, SLOT(addFiles()));
 		ac->setText(i18n("Add &Files..."));
 		ac->setIcon(KIcon("list-add"));
-				
-		ac = actionCollection()->addAction("pause", d->player, SLOT(playpause()));
-		ac->setText(i18n("Paws"));
-		ac->setIcon(KIcon("media-playback-pause"));
-		ac->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_P), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
-		trayMenu->addAction(ac);
+
+		d->playPauseAction = actionCollection()->addAction("playpause", d->player, SLOT(playpause()));
+		d->playPauseAction->setText(i18n("Play"));
+		d->playPauseAction->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_P), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);
+		d->playPauseAction->setIcon(KIcon("media-playback-start"));
+		trayMenu->addAction(d->playPauseAction);
+
+		connect(d->player, SIGNAL(playing(bool)), SLOT(isPlaying(bool)));
 		
 		ac = actionCollection()->addAction("next", d->view, SLOT(nextSong()));
 		ac->setText(i18n("Next Song"));
@@ -170,6 +175,8 @@ Meow::MainWindow::MainWindow()
 				this,
 				SLOT(toggleToolBar())
 			);
+
+		KStandardAction::keyBindings(guiFactory(), SLOT(configureShortcuts()), actionCollection());
 	}
 	
 	{ // context menu
@@ -189,7 +196,7 @@ Meow::MainWindow::MainWindow()
 	
 	connect(d->view, SIGNAL(kdeContextMenu(QPoint)), SLOT(showItemContext(QPoint)));
 	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(changeCaption(File)));
-	
+
 	setAcceptDrops(true);
 	setAutoSaveSettings();
 	createGUI();
@@ -454,6 +461,26 @@ void Meow::MainWindow::toggleMenuBar()
 	saveAutoSaveSettings();
 }
 
+void Meow::MainWindow::configureShortcuts()
+{
+	KShortcutsDialog e;
+	e.addCollection(actionCollection());
+	e.configure();
+}
+
+void Meow::MainWindow::isPlaying(bool pl)
+{
+	if (pl)
+	{
+		d->playPauseAction->setIcon(KIcon("media-playback-pause"));
+		d->playPauseAction->setText(i18n("Paws"));
+	}
+	else
+	{
+		d->playPauseAction->setIcon(KIcon("media-playback-start"));
+		d->playPauseAction->setText(i18n("Play"));
+	}
+}
 
 
 void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reason)
