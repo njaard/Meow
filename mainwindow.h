@@ -1,12 +1,21 @@
 #ifndef MEOW_MAINWINDOW_H
 #define MEOW_MAINWINDOW_H
 
+#ifdef MEOW_WITH_KDE
+#include <kurl.h>
 #include <kxmlguiwindow.h>
+typedef KXmlGuiWindow MeowMainWindowType;
+typedef KUrl MeowUrlType;
 #include <ktoolbarpopupaction.h>
+#else
+#include <qmainwindow.h>
+#include <qurl.h>
+typedef QMainWindow MeowMainWindowType;
+typedef QUrl MeowUrlType;
+#endif
 
 #include <qsystemtrayicon.h>
 
-class KSystemTrayIcon;
 class KUrl;
 class QSlider;
 class QSignalMapper;
@@ -20,7 +29,7 @@ class Collection;
 class DirectoryAdder;
 class File;
 
-class MainWindow : public KXmlGuiWindow
+class MainWindow : public MeowMainWindowType
 {
 	Q_OBJECT
 	struct MainWindowPrivate;
@@ -32,7 +41,7 @@ public:
 
 public slots:
 	void addFiles();
-	void addFile(const KUrl &url);
+	void addFile(const MeowUrlType &url);
 	void toggleVisible();
 
 protected:
@@ -68,6 +77,7 @@ private:
 	QIcon renderIcon(const QString& baseIcon, const QString &overlayIcon) const;
 };
 
+#ifdef MEOW_WITH_KDE
 class VolumeAction : public KToolBarPopupAction
 {
 	Q_OBJECT
@@ -88,6 +98,7 @@ signals:
 private slots:
 	void showPopup(QWidget *button);
 };
+#endif
 
 }
 

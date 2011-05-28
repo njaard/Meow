@@ -1,6 +1,6 @@
 /* This file is part of Meow
 
-  Copyright 2000-2009 by Charles Samuels <charles@kde.org>
+  Copyright 2000-2011 by Charles Samuels <charles@kde.org>
   Copyright 2001-2007 by Stefan Gehn <mETz81@web.de>
 
   Redistribution and use in source and binary forms, with or without
@@ -33,15 +33,28 @@
 #include <qtimer.h>
 #include <qstringlist.h>
 #include <qlocale.h>
-#include <qdbusconnection.h>
+#include <qdir.h>
+#include <qpluginloader.h>
+#include <qcoreapplication.h>
 
+#ifdef WITH_KDE
 #include <kdebug.h>
-#include <kurl.h>
 #include <klocale.h>
 #include <kglobal.h>
+#endif
 
+#include "akode/plugins/mpeg_decoder.h"
+#include "akode/plugins/vorbis_decoder.h"
+
+#ifdef _WIN32
+#include "akode/plugins/dsound_sink.h"
+#elif __linux__
+#include "akode/plugins/alsa_sink.h"
+#endif
 
 #include <cmath>
+#include <iostream>
+
 
 namespace Meow
 {
@@ -67,7 +80,15 @@ void PlayerPrivate::initAvKode()
 	if (akPlayer)
 		return;
 	akPlayer = new aKode::Player;
-	akPlayer->open("auto");
+#ifdef _WIN32
+	akPlayer->open( aKode::dsound_sink().openSink() );
+#elif __linux__
+	akPlayer->open( aKode::alsa_sink().openSink() );
+#else
+#error No sink
+#endif
+	akPlayer->registerDecoderPlugin(&aKode::mpeg_decoder());
+	akPlayer->registerDecoderPlugin(&aKode::vorbis_decoder());
 	akPlayer->setManager(this);
 
 	q->setVolume(volumePercent);
@@ -106,7 +127,6 @@ void PlayerPrivate::errorEvent()
 
 void PlayerPrivate::tStateChangeEvent(int newState)
 {
-	kDebug(66666) << "new state: " << newState;
 	switch (newState)
 	{
 	case aKode::Player::Playing:
@@ -168,14 +188,6 @@ Player::Player()
 
 	d->akPlayer = 0;
 	d->nowLoading = false;
-	QDBusConnection::sessionBus().registerObject(
-			QLatin1String("/Player"), this,
-			QDBusConnection::ExportScriptableSlots |
-			QDBusConnection::ExportScriptableProperties |
-			QDBusConnection::ExportAdaptors |
-			QDBusConnection::ExportAllContents
-		);
-
 }
 
 
@@ -183,7 +195,6 @@ Player::~Player()
 {
 	delete d->akPlayer;
 	delete d;
-	kDebug(66666);
 }
 
 Player::State Player::state() const
@@ -253,11 +264,10 @@ void Player::play()
 void Player::play(const File &item)
 {
 	d->initAvKode();
-	kDebug(66666) << "Attempting to play...";
 	if (!d->akPlayer)
 		return;
 
-	kDebug(66666) << "Starting to play new current track";
+	std::cerr << "Starting to play new current track" << std::endl;
 	d->currentItem.reset(new File(item));
 	d->nowLoading = true;
 	d->akPlayer->load( QFile::encodeName(item.file()).data() );
@@ -285,7 +295,6 @@ void Player::setPosition(unsigned int msec)
 {
 	if (d->akPlayer && d->akPlayer->decoder())
 	{
-		kDebug(66666) << "msec = " << msec;
 		d->akPlayer->decoder()->seek(msec);
 	}
 }
@@ -306,6 +315,12 @@ static QString formatDuration(int duration)
 	int minutes = duration / 60 % 60;
 	int seconds = duration % 60;
 
+#ifndef WITH_KDE
+	return QString("%1%2:%3")
+			.arg(duration < 0 ? "-" : QString())
+			.arg(minutes, 2, 10, QChar('0'))
+			.arg(seconds, 2, 10, QChar('0'));
+#else
 	KLocale *loc = KGlobal::locale();
 	const QChar zeroDigit = QLocale::system().zeroDigit();
 	KLocalizedString str;
@@ -337,6 +352,7 @@ static QString formatDuration(int duration)
 				.subs(seconds, 2, 10, zeroDigit);
 	}
 	return str.toString();
+#endif
 }
 
 QString Player::positionString() const
@@ -392,26 +408,8 @@ File Player::currentFile() const
 
 QStringList Player::mimeTypes() const
 {
-	std::list<std::string> plugins = aKode::DecoderPluginHandler::listDecoderPlugins();
 	QStringList m;
-	for (
-			std::list<std::string>::iterator i =plugins.begin();
-			i != plugins.end();
-			++i
-		)
-	{
-		if ( *i == "mpeg")
-			m << "audio/mpeg";
-		else if ( *i == "xiph")
-			m << "audio/ogg" << "audio/x-flac" << "audio/x-flac-ogg"
-				<< "audio/x-speex" << "audio/x-speex+ogg";
-		else if ( *i == "mpc")
-			m << "audio/x-musepack";
-		else if ( *i == "wav")
-			m << "audio/x-wav";
-		else if ( *i == "ffmpeg")
-			m << "audio/x-ms-wma" << "audio/vnd.rn-realaudio";
-	}
+	m << "audio/mpeg";
 	return m;
 }
 

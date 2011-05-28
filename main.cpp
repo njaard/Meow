@@ -1,11 +1,12 @@
+#ifdef MEOW_WITH_KDE
+#include "mainwindow.h"
+
 #include <kaboutdata.h>
 #include <kuniqueapplication.h>
 #include <kcmdlineargs.h>
 #include <klocale.h>
 
-#include "mainwindow.h"
-
-int main( int argc, char *argv[] )
+int main( int argc, char **argv )
 {
 	KAboutData aboutData(
 			"meow", 0, ki18n( "Meow" ),
@@ -25,5 +26,23 @@ int main( int argc, char *argv[] )
 	
 	return app.exec();
 }
+
+#else
+#include "mainwindow-qt.h"
+
+#include <qapplication.h>
+
+int main( int argc, char **argv )
+{
+	QApplication app(argc, argv);
+	
+	Meow::MainWindow *dlg = new Meow::MainWindow;
+	dlg->show();
+	
+	app.setQuitOnLastWindowClosed(true);
+	return app.exec();
+}
+
+#endif
 
 // kate: space-indent off; replace-tabs off;
