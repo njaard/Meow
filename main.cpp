@@ -11,7 +11,7 @@ int main( int argc, char **argv )
 	KAboutData aboutData(
 			"meow", 0, ki18n( "Meow" ),
 			"1.0", ki18n("Cutest Music Player Ever"), KAboutData::License_BSD,
-			ki18n("(c) 2008, Charles Samuels")
+			ki18n("(c) 2008-2011, Charles Samuels")
 		);
 	
 	aboutData.addAuthor( ki18n("Charles Samuels"), ki18n("Developer"), "charles@kde.org" );
