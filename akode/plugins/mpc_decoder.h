@@ -21,7 +21,6 @@
 #ifndef _AKODE_MPC_DECODER_H
 #define _AKODE_MPC_DECODER_H
 
-#include <config.h>
 //#ifdef AKODE_COMPILE_MPC
 
 #include <akode/decoder.h>

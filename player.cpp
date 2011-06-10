@@ -45,6 +45,8 @@
 
 #include "akode/plugins/mpeg_decoder.h"
 #include "akode/plugins/vorbis_decoder.h"
+//#include "akode/plugins/mpc_decoder.h"
+#include "akode/plugins/flac113_decoder.h"
 
 #ifdef _WIN32
 #include "akode/plugins/dsound_sink.h"
@@ -89,6 +91,8 @@ void PlayerPrivate::initAvKode()
 #endif
 	akPlayer->registerDecoderPlugin(&aKode::mpeg_decoder());
 	akPlayer->registerDecoderPlugin(&aKode::vorbis_decoder());
+	akPlayer->registerDecoderPlugin(&aKode::flac_decoder());
+//	akPlayer->registerDecoderPlugin(&aKode::mpc_decoder());
 	akPlayer->setManager(this);
 
 	q->setVolume(volumePercent);
@@ -410,6 +414,10 @@ QStringList Player::mimeTypes() const
 {
 	QStringList m;
 	m << "audio/mpeg";
+	m << "audio/x-vorbis+ogg";
+	m << "audio/ogg";
+	m << "audio/flac";
+	m << "audio/x-musepack";
 	return m;
 }
 

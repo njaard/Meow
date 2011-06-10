@@ -41,7 +41,11 @@ public:
 
 public slots:
 	void addFiles();
+#ifdef MEOW_WITH_KDE
+	void addFile(const KUrl &url);
+#else
 	void addFile(const MeowUrlType &url);
+#endif
 	void toggleVisible();
 
 protected:

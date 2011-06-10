@@ -27,9 +27,12 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${EXTRALIBS}/lib/libmad.a
 		${EXTRALIBS}/lib/libvorbisfile.a ${EXTRALIBS}/lib/libvorbis.a
 		${EXTRALIBS}/lib/libogg.a
+		${EXTRALIBS}/lib/libFLAC.a
 
 		${EXTRALIBS}/lib/libpthreadGC1.a -lws2_32 -ldsound -limm32 -lwinmm
 	)
+	set(FLAC113_INCLUDE_DIR "${EXTRALIBS}/include")
+
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
 else()
@@ -68,11 +71,35 @@ else()
 	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(VORBIS DEFAULT_MSG VORBIS_LIBRARY VORBIS_INCLUDE_DIR)
 
-	add_definitions(${QT_DEFINITIONS} ${KDE4_DEFINITIONS} ${SQLITE_DEFINITIONS} ${TAGLIB_CFLAGS} "-DMEOW_WITH_KDE")
+	find_path(FLAC113_INCLUDE_DIR NAMES FLAC/stream_decoder.h
+		PATH_SUFFIXES flac113
+		DOC "FLAC 1.1.3 decoder include directory"
+	)
+	find_library(FLAC113_LIBRARY NAMES FLAC
+		DOC "FLAC 1.1.3 decoder  library"
+	)
+	FIND_PACKAGE_HANDLE_STANDARD_ARGS(FLAC113 DEFAULT_MSG FLAC113_LIBRARY FLAC113_INCLUDE_DIR)
+
+	add_definitions(
+			${QT_DEFINITIONS}
+			${KDE4_DEFINITIONS}
+			${SQLITE_DEFINITIONS}
+			${TAGLIB_CFLAGS}
+			"-DMEOW_WITH_KDE"
+		)
 	macro_display_feature_log()
-	include_directories(${KDE4_INCLUDES} ${ALSA_INCLUDE_DIR} ${MAD_INCLUDE_DIR} ${VORBIS_INCLUDE_DIR})
+	include_directories(
+			${KDE4_INCLUDES}
+			${ALSA_INCLUDE_DIR}
+			${MAD_INCLUDE_DIR}
+			${VORBIS_INCLUDE_DIR}
+			${FLAC113_INCLUDE_DIR}
+		)
 endif()
 
+if(FLAC113_INCLUDE_DIR)
+	add_definitions("-DHAVE_LIBFLAC113")
+endif()
 
 
 set(
@@ -90,6 +117,7 @@ set(
 	akode/volumefilter.cpp akode/wav_decoder.cpp
 	akode/plugins/mpeg_decoder.cpp
 	akode/plugins/vorbis_decoder.cpp
+	akode/plugins/flac113_decoder.cpp
 	${platform_sources}
 )
 if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
@@ -106,6 +134,7 @@ else()
 	target_link_libraries(meow ${CMAKE_THREAD_LIBS_INIT}
 		${ALSA_LIBRARY} ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS}
 		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MAD_LIBRARY} ${VORBIS_LIBRARY}
+		${FLAC113_LIBRARY}
 	)
 	kde4_install_icons(${ICON_INSTALL_DIR})
 
