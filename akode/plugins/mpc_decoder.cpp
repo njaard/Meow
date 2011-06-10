@@ -29,11 +29,37 @@
 #include <akode/file.h>
 #include <akode/audioframe.h>
 
-#include "mpc_dec.h"
+#include "mppdec/mpc_dec.h"
 
 #include "mpc_decoder.h"
 
-namespace aKode {
+using namespace aKode;
+
+namespace
+{
+    
+class MPCDecoder : public Decoder
+{
+public:
+    MPCDecoder(File* src);
+    virtual ~MPCDecoder();
+
+    virtual void initialize();
+    virtual bool readFrame(AudioFrame* frame);
+    virtual long length();
+    virtual long position();
+    virtual bool seek(long);
+    virtual bool seekable();
+    virtual bool eof();
+    virtual bool error();
+
+    virtual const AudioConfiguration* audioConfiguration();
+
+    struct private_data;
+private:
+    private_data *m_data;
+};
+
 
 class MPC_reader_impl : public MPC_reader
 {
@@ -56,15 +82,6 @@ private:
 	bool m_seekable;
 };
 
-bool MPCDecoderPlugin::canDecode(File* src) {
-    MPC_reader_impl reader(src, true);
-    StreamInfo si;
-
-    int r = si.ReadStreamInfo(&reader);
-    return r==0;
-}
-
-extern "C" { MPCDecoderPlugin mpc_decoder; }
 
 struct MPCDecoder::private_data
 {
@@ -212,6 +229,37 @@ const AudioConfiguration* MPCDecoder::audioConfiguration() {
     return &m_data->config;
 }
 
+class MpcDecoderPlugin : public DecoderPlugin
+{
+public:
+    MpcDecoderPlugin() : DecoderPlugin("mpc") { }
+    virtual bool canDecode(File* src)
+    {
+        src->openRO();
+        MPC_reader_impl reader(src, true);
+        StreamInfo si;
+
+        int r = si.ReadStreamInfo(&reader);
+        src->close();
+        return r==0;
+    }
+    virtual MPCDecoder* openDecoder(File* src)
+    {
+        return new MPCDecoder(src);
+    }
+} plugin;
+
 } // namespace
+
+namespace aKode
+{
+DecoderPlugin& mpc_decoder()
+{
+    return plugin;
+}
+
+} // namespace
+
+
 
 //#endif

@@ -27,40 +27,7 @@
 
 namespace aKode {
 
-class File;
-class AudioBuffer;
-
-class MPCDecoder : public Decoder {
-public:
-    MPCDecoder(File* src);
-    virtual ~MPCDecoder();
-
-    virtual void initialize();
-    virtual bool readFrame(AudioFrame* frame);
-    virtual long length();
-    virtual long position();
-    virtual bool seek(long);
-    virtual bool seekable();
-    virtual bool eof();
-    virtual bool error();
-
-    virtual const AudioConfiguration* audioConfiguration();
-
-    struct private_data;
-private:
-    private_data *m_data;
-};
-
-
-class MPCDecoderPlugin : public DecoderPlugin {
-public:
-    virtual bool canDecode(File*);
-    virtual MPCDecoder* openDecoder(File* src) {
-        return new MPCDecoder(src);
-    };
-};
-
-extern "C" MPCDecoderPlugin mpc_decoder;
+DecoderPlugin& mpc_decoder();
 
 } // namespace
 

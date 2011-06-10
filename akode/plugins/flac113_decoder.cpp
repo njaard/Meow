@@ -26,13 +26,15 @@
 #include <FLAC/format.h>
 #include <FLAC/stream_decoder.h>
 
-#include <akode/file.h>
+#include <akode/file.h> 
 #include <akode/audioframe.h>
 #include <akode/decoder.h>
 #include "flac113_decoder.h"
 
 
-namespace aKode
+using namespace aKode;
+
+namespace
 {
 
 class FLACDecoder : public Decoder

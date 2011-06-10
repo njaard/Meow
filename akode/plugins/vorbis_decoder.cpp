@@ -298,7 +298,6 @@ public:
         int r = ov_test_callbacks(src, &vf, 0, 0, _callbacks);
         ov_clear(&vf);
         src->close();
-        std::cerr << __FILE__ << ":" << __LINE__  << " " << r << std::endl;
         return r==0;
     }
     virtual VorbisDecoder* openDecoder(File* src)
