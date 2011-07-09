@@ -369,7 +369,7 @@ void Meow::MainWindow::beginDirectoryAdd(const KUrl &url)
 	{
 		d->collection->startJob();
 		d->adder = new DirectoryAdder(this);
-// 		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
+		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
 		connect(d->adder, SIGNAL(addFile(KUrl)), SLOT(addFile(KUrl)));
 	}
 	d->adder->add(url);
