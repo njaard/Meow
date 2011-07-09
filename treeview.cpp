@@ -10,7 +10,7 @@
 #include <qcursor.h>
 #include <qapplication.h>
 
-#ifdef WITH_KDE
+#ifdef MEOW_WITH_KDE
 #include <krandom.h>
 #endif
 
@@ -231,7 +231,7 @@ public:
 			if (Node *n = dynamic_cast<Node*>(tree()->child(i)))
 				totalSongs += n->numSongs();
 		}
-#ifdef WITH_KDE
+#ifdef MEOW_WITH_KDE
 		const int songIndex = KRandom::random() % totalSongs;
 #else
 		const int songIndex = rand() % totalSongs;
@@ -320,7 +320,7 @@ private:
 	{
 		const int totalArtists = tree()->childCount();
 		
-#ifdef WITH_KDE
+#ifdef MEOW_WITH_KDE
 		const int artistIndex = KRandom::random() % totalArtists;
 #else
 		const int artistIndex = rand() % totalArtists;

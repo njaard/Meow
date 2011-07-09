@@ -57,13 +57,22 @@ private slots:
 	void sendSubmissions();
 	void sendSubmissionsRetry();
 
+#ifdef MEOW_WITH_KDE
 	void handshakeData(KIO::Job*, const QByteArray &data);
 	void slotHandshakeResult();
 	void nowPlayingData(KIO::Job*, const QByteArray &data);
 	void nowPlayingResult();
 	void submissionData(KIO::Job*, const QByteArray &data);
 	void submissionResult();
-	
+#else
+	void handshakeData();
+	void slotHandshakeResult();
+	void nowPlayingData(KIO::Job*, const QByteArray &data);
+	void nowPlayingResult();
+	void submissionData(KIO::Job*, const QByteArray &data);
+	void submissionResult();
+
+#endif
 	void lastSongFinishedPlaying();
 	void stopCountingTime();
 	void startCountingTimeAgain();

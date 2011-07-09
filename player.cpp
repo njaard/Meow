@@ -37,7 +37,7 @@
 #include <qpluginloader.h>
 #include <qcoreapplication.h>
 
-#ifdef WITH_KDE
+#ifdef MEOW_WITH_KDE
 #include <kdebug.h>
 #include <klocale.h>
 #include <kglobal.h>
@@ -319,7 +319,7 @@ static QString formatDuration(int duration)
 	int minutes = duration / 60 % 60;
 	int seconds = duration % 60;
 
-#ifndef WITH_KDE
+#ifndef MEOW_WITH_KDE
 	return QString("%1%2:%3")
 			.arg(duration < 0 ? "-" : QString())
 			.arg(minutes, 2, 10, QChar('0'))

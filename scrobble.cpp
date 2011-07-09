@@ -3,6 +3,7 @@
 #include "db/file.h"
 #include "db/collection.h"
 
+#ifdef MEOW_WITH_KDE
 #include <kurl.h>
 #include <kio/job.h>
 #include <klocale.h>
@@ -12,6 +13,7 @@
 #include <kmessagebox.h>
 #include <kcodecs.h>
 #include <kdeversion.h>
+#endif
 
 #include <qprocess.h>
 #include <qbytearray.h>
@@ -30,6 +32,11 @@ static QByteArray md5(const QByteArray &data)
 	return KMD5(data).hexDigest();
 }
 
+#ifdef MEOW_WITH_KDE
+typedef KUrl MeowUrlType;
+#else
+typedef QUrl MeowUrlType;
+#endif
 
 struct Meow::ScrobbleConfigure::ScrobbleConfigurePrivate
 {
@@ -121,6 +128,8 @@ void Meow::ScrobbleConfigure::apply()
 	d->scrobble->setEnabled(d->isEnabled->isChecked());
 	d->scrobble->setUsername(d->username->text());
 	d->scrobble->setPassword(d->password->text());
+
+#ifdef MEOW_WITH_KDE
 	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");
 	conf.writeEntry<bool>("enabled", d->isEnabled->isChecked());
 	conf.deleteEntry("password");
@@ -187,6 +196,51 @@ void Meow::ScrobbleConfigure::apply()
 	}
 	
 	conf.sync();
+#else
+	QSettings conf;
+	conf.setValue("audioscrobbler/enabled", d->isEnabled->isChecked());
+	conf.remove("audioscrobbler/password");
+	conf.remove("audioscrobbler/usename");
+	conf.remove("audioscrobbler/password source");
+	
+	if (!d->isEnabled->isChecked())
+		return;
+	
+	{
+		QMessageBox messageBox(
+				QMessageBox::Question, 
+				tr(
+						"Meow can store your "
+						"AudioScrobbler password in its config file. It will "
+						"be encrypted, so others will not be able to determine "
+						"your password, but they could use it in order to "
+						"make rogue and potentially embarrassing track "
+						"submissions.\n\n"
+						"If you opt to not store the password, you will have to "
+						"manually reenable Scrobbler support next time you "
+						"start Meow."
+					),
+				tr("Store the password"),
+				QMessageBox::Yes|QMessageBox::No,
+				this
+			);
+		messageBox.button(QMessageBox::Yes)->setText(tr("Store password"));
+		messageBox.button(QMessageBox::No)->setText(tr("Only use my password this session"));
+		if (question == KMessageBox::Yes)
+		{
+			conf.setValue("audioscrobbler/password source", "here");
+			conf.setValue("audioscrobbler/password", md5(d->password->text().toUtf8()));
+			conf.setValue("audioscrobbler/username", d->username->text());
+		}
+		else
+		{
+			conf.setValue("audioscrobbler/password source", "nowhere");
+			conf.remove("audioscrobbler/password");
+		}
+	}
+
+#endif
+
 	d->scrobble->begin();
 }
 
@@ -243,7 +297,11 @@ static const char clientVersion[] = "1.0";
 static const char clientProtocol[] = "1.2.1";
 static QString userAgent()
 {
+#ifdef MEOW_WITH_KDE
 	QString agent("Meow/1.0 (KDE %1.%2.%3)");
+#else
+	QString agent("Meow/1.0 (Windows)");
+#endif
 	agent = agent.arg(KDE_VERSION_MAJOR).arg(KDE_VERSION_MINOR).arg(KDE_VERSION_RELEASE);
 	return agent;
 }
@@ -260,8 +318,8 @@ struct Meow::Scrobble::ScrobblePrivate
 	QByteArray sessionId;
 	QByteArray recievedData, recievedDataSubmission;
 	
-	KUrl nowPlaying;
-	KUrl submission;
+	MeowUrlType nowPlaying;
+	MeowUrlType submission;
 	
 	QList<File> nowPlayingQueue;
 	
@@ -272,6 +330,12 @@ struct Meow::Scrobble::ScrobblePrivate
 	File currentlyPlaying;
 	time_t startedPlayingLast, beginDurationOfPlayback, pausedPlayingLast;
 	int lengthOfLastSong;
+
+#ifndef MEOW_WITH_KDE
+	QNetworkAccessManager networkAccess;
+	QBuffer postedData;
+	std::auto_ptr<QNetworkReply> currentHttp;
+#endif
 };
 
 Meow::Scrobble::Scrobble(QObject *parent)
@@ -294,7 +358,8 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 	d->isEnabled = false;
 	d->numTracksSubmitting = 0;
 	d->failureSubmitting = false;
-	
+
+#ifdef MEOW_WITH_KDE
 	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");
 	d->isEnabled = conf.readEntry<bool>("enabled", false);
 	
@@ -327,6 +392,23 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 			d->username = conf.readEntry("username", "");
 		}
 	}
+#else
+	QSettings conf;
+	conf.beginGroup("audioscrobbler");
+	d->isEnabled = conf.value("enabled", false).toBool();
+	
+	if (d->isEnabled)
+	{
+		QString passwordSource = conf.readEntry("password source", "nowhere");
+		
+		if (passwordSource == "here")
+		{
+			d->passwordMd5 = conf.readEntry("password", "");
+			d->username = conf.readEntry("username", "");
+		}
+	}
+
+#endif
 	
 	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(currentItemChanged(File)));
 	connect(d->player, SIGNAL(lengthChanged(int)), SLOT(knowLengthOfCurrentSong(int)));
@@ -334,6 +416,7 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 	connect(d->player, SIGNAL(paused()), SLOT(stopCountingTime()));
 	
 	int index=0;
+#ifdef MEOW_WITH_KDE
 	while (conf.hasKey("qi" + QString::number(index)))
 	{
 		QStringList s = conf.readEntry<QStringList>("qi" + QString::number(index), QStringList());
@@ -341,11 +424,21 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 			d->submissionQueue += s;
 		index++;
 	}
+#else
+	while (conf.contains("qi" + QString::number(index)))
+	{
+		QStringList s = conf.value("qi" + QString::number(index), QStringList()).toStringList();
+		if ( s.count()!=0 && (s.count() % 2) == 0)
+			d->submissionQueue += s;
+		index++;
+	}
+#endif
 
 }
 
 Meow::Scrobble::~Scrobble()
 {
+#ifdef MEOW_WITH_KDE
 	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");
 	conf.writeEntry<bool>("enabled", d->isEnabled);
 	
@@ -363,7 +456,27 @@ Meow::Scrobble::~Scrobble()
 		conf.deleteEntry("qi" + QString::number(index));
 		index++;
 	}
+#else
+	QSettings conf;
+	conf.beginGroup("audioscrobbler");
+	conf.setValue("enabled", d->isEnabled);
 	
+	int index=0;
+	for (
+			QList<QStringList>::iterator i = d->submissionQueue.begin();
+			i != d->submissionQueue.end(); ++i
+		)
+	{
+		conf.setValue("qi" + QString::number(index), *i);
+		index++;
+	}
+	while (conf.contains("qi" + QString::number(index)))
+	{
+		conf.setValue("qi" + QString::number(index));
+		index++;
+	}
+
+#endif
 	delete d;
 }
 
@@ -412,6 +525,7 @@ void Meow::Scrobble::begin()
 	authToken = d->passwordMd5.toUtf8() + timestamp;
 	authToken = md5(authToken.toUtf8());
 
+#ifdef MEOW_WITH_KDE
 	KUrl handshake(handshakeUrl);
 	handshake.addQueryItem("hs", "true");
 	handshake.addQueryItem("p", clientProtocol);
@@ -425,17 +539,45 @@ void Meow::Scrobble::begin()
 	job->addMetaData( "UserAgent", "User-Agent: " + userAgent());
 	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(handshakeData(KIO::Job*, QByteArray)));
 	connect(job, SIGNAL(result(KJob*)), SLOT(slotHandshakeResult()));
+#else
+	QUrl handshake(handshakeUrl);
+	handshake.addQueryItem("hs", "true");
+	handshake.addQueryItem("p", clientProtocol);
+	handshake.addQueryItem("c", clientId);
+	handshake.addQueryItem("v", clientVersion);
+	handshake.addQueryItem("u", d->username);
+	handshake.addQueryItem("t", timestamp);
+	handshake.addQueryItem("a", authToken);
+	
+	QNetworkRequest req(handshake);
+	
+	req.setRawHeader( "User-Agent", userAgent());
+	d->currentHttp.reset( networkAccess.post(req, &d->postedData) );
+	connect(d->currentHttp, SIGNAL(readyRead()), SLOT(handshakeData()));
+	connect(d->currentHttp, SIGNAL(finished()), SLOT(slotHandshakeResult()));
+#endif
 	d->failureSubmitting = false;
 	d->numTracksSubmitting = 0;
 }
 
+#ifdef MEOW_WITH_KDE
 void Meow::Scrobble::handshakeData(KIO::Job*, const QByteArray &data)
 {
 	d->recievedData += data;
 }
 
+#else
+void Meow::Scrobble::handshakeData()
+{
+	d->recievedData += d->currentHttp->readAll();
+}
+#endif
+
 void Meow::Scrobble::slotHandshakeResult()
 {
+#ifndef MEOW_WITH_KDE
+	d->currentHttp.reset()
+#endif
 	QList<QByteArray> lines = d->recievedData.split('\n');
 	if (lines.size() < 1)
 	{
@@ -463,8 +605,8 @@ void Meow::Scrobble::slotHandshakeResult()
 	
 	d->sessionId = lines[1];
 	
-	d->nowPlaying = KUrl(lines[2]);
-	d->submission = KUrl(lines[3]);
+	d->nowPlaying = MeowUrlType(lines[2]);
+	d->submission = MeowUrlType(lines[3]);
 }
 
 void Meow::Scrobble::currentItemChanged(const File &file)
@@ -640,7 +782,7 @@ void Meow::Scrobble::announceNowPlayingFromQueue()
 	File file = d->nowPlayingQueue.takeLast();
 	d->nowPlayingQueue.clear();
 	
-	KUrl np = d->nowPlaying;
+	MeowUrlType np = d->nowPlaying;
 	np.addQueryItem("s", d->sessionId);
 	np.addQueryItem("a", file.artist());
 	np.addQueryItem("t", file.title());
