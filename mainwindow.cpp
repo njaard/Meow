@@ -295,9 +295,10 @@ void Meow::MainWindow::fileDialogAccepted()
 
 	KUrl::List files = d->openFileDialog->selectedUrls();
 	fileDialogClosed();
-	
+	d->collection->startJob();
 	for(KUrl::List::Iterator it=files.begin(); it!=files.end(); ++it)
 		beginDirectoryAdd(*it);
+	d->collection->finishJob();
 }
 
 void Meow::MainWindow::fileDialogClosed()
@@ -325,9 +326,11 @@ void Meow::MainWindow::wheelEvent(QWheelEvent *event)
 
 void Meow::MainWindow::dropEvent(QDropEvent *event)
 {
+	d->collection->startJob();
 	KUrl::List files = KUrl::List::fromMimeData(event->mimeData());
 	for(KUrl::List::Iterator it=files.begin(); it!=files.end(); ++it)
 		beginDirectoryAdd(*it);
+	d->collection->finishJob();
 }
 
 void Meow::MainWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -366,7 +369,7 @@ void Meow::MainWindow::beginDirectoryAdd(const KUrl &url)
 	{
 		d->collection->startJob();
 		d->adder = new DirectoryAdder(this);
-		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
+// 		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
 		connect(d->adder, SIGNAL(addFile(KUrl)), SLOT(addFile(KUrl)));
 	}
 	d->adder->add(url);
