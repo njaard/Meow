@@ -1,0 +1,10 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+	<file>list-add.png</file>
+	<file>media-playback-start.png</file>
+	<file>media-skip-forward.png</file>
+	<file>media-playback-pause.png</file>
+	<file>media-skip-backward.png</file>
+	<file>player-volume.png</file>
+</qresource>
+</RCC>

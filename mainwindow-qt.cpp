@@ -91,24 +91,28 @@ Meow::MainWindow::MainWindow()
 		ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
 		ac->setText(tr("Add &Files..."));
+		ac->setIcon(QIcon(":/list-add.png"));
 		topToolbar->addAction(ac);
 		fileMenu->addAction(ac);
 		
 		ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
 		ac->setText(tr("Paws"));
-		trayMenu->addAction(ac);
-		topToolbar->addAction(ac);
-		
-		ac = new QAction(this);
-		connect(ac, SIGNAL(triggered()), d->view, SLOT(nextSong()));
-		ac->setText(tr("Next Song"));
+		ac->setIcon(QIcon(":/media-playback-pause.png"));
 		trayMenu->addAction(ac);
 		topToolbar->addAction(ac);
 		
 		ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(previousSong()));
 		ac->setText(tr("Previous Song"));
+		ac->setIcon(QIcon(":/media-skip-backward.png"));
+		trayMenu->addAction(ac);
+		topToolbar->addAction(ac);
+
+		ac = new QAction(this);
+		connect(ac, SIGNAL(triggered()), d->view, SLOT(nextSong()));
+		ac->setText(tr("Next Song"));
+		ac->setIcon(QIcon(":/media-skip-forward.png"));
 		trayMenu->addAction(ac);
 		topToolbar->addAction(ac);
 		

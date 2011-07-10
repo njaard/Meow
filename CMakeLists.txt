@@ -37,7 +37,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp mainwindow.cpp
-		scrobble.cpp directoryadder.cpp configdialog.cpp fileproperties.cpp)
+		scrobble.cpp directoryadder.cpp configdialog.cpp fileproperties.cpp icons.cpp)
 
 	find_package(KDE4 REQUIRED)
 	include (KDE4Defaults)
@@ -138,7 +138,18 @@ set(
 	${platform_sources}
 )
 if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
-	AUTOMOC4_ADD_EXECUTABLE(meow ${meow_SRCS})
+	ADD_CUSTOM_COMMAND(
+		OUTPUT meowres.o
+		COMMAND i586-mingw32msvc-windres -o ${CMAKE_CURRENT_BINARY_DIR}/meowres.o ${CMAKE_CURRENT_SOURCE_DIR}/meowres.rc
+		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/meowres.rc
+	)
+	ADD_CUSTOM_COMMAND(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp
+		COMMAND rcc -name icons -o ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
+		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
+	)
+
+	AUTOMOC4_ADD_EXECUTABLE(meow ${meow_SRCS} meowres.o icons.cpp)
 	TARGET_LINK_LIBRARIES(
 		meow
 		${EXTRALIBS}

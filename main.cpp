@@ -20,7 +20,6 @@ int main( int argc, char **argv )
 	KCmdLineArgs::init( argc, argv, &aboutData );
 	
 	KUniqueApplication app;
-	
 	Meow::MainWindow *dlg = new Meow::MainWindow;
 	dlg->show();
 	
@@ -35,7 +34,7 @@ int main( int argc, char **argv )
 int main( int argc, char **argv )
 {
 	QApplication app(argc, argv);
-	
+	Q_INIT_RESOURCE(icons);
 	Meow::MainWindow *dlg = new Meow::MainWindow;
 	dlg->show();
 	
