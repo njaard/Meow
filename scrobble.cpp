@@ -13,6 +13,15 @@
 #include <kmessagebox.h>
 #include <kcodecs.h>
 #include <kdeversion.h>
+
+#else
+#include <qurl.h>
+#include <qsettings.h>
+#include <qmessagebox.h>
+#include <qnetworkaccessmanager.h>
+#include <qbuffer.h>
+#include <qnetworkrequest.h>
+#include <qnetworkreply.h>
 #endif
 
 #include <qprocess.h>
@@ -27,10 +36,26 @@
 
 #include <iostream>
 
-static QByteArray md5(const QByteArray &data)
+
+#ifdef MEOW_WITH_KDE
+static QString md5(const QByteArray &data)
 {
 	return KMD5(data).hexDigest();
 }
+#else
+#include "md5.h"
+static QString md5(const QByteArray &data)
+{
+	md5_state_t s;
+	md5_init(&s);
+	md5_append(&s, (const unsigned char*)data.constData(), data.length());
+	
+	md5_byte_t digest[16];
+	md5_finish(&s, digest);
+	return QByteArray((const char*)digest, 16).toHex();
+}
+
+#endif
 
 #ifdef MEOW_WITH_KDE
 typedef KUrl MeowUrlType;
@@ -47,6 +72,10 @@ struct Meow::ScrobbleConfigure::ScrobbleConfigurePrivate
 	QLabel *diagnostics;
 	QPushButton *test;
 };
+
+#ifndef MEOW_WITH_KDE
+#define i18n tr
+#endif
 
 Meow::ScrobbleConfigure::ScrobbleConfigure(QWidget *parent, Scrobble *scrobble)
 	: ConfigWidget(parent)
@@ -172,7 +201,7 @@ void Meow::ScrobbleConfigure::apply()
 						"As KWallet is not available, Meow can store your "
 						"AudioScrobbler password in its config file. It will "
 						"be encrypted, so others will not be able to determine "
-						"your password, but they could use it in order to "
+						"your password, but they could use the encrypted password to "
 						"make rogue and potentially embarrassing track "
 						"submissions.\n\n"
 						"If you opt to not store the password, you will have to "
@@ -209,24 +238,25 @@ void Meow::ScrobbleConfigure::apply()
 	{
 		QMessageBox messageBox(
 				QMessageBox::Question, 
+				tr("Store the password"),
 				tr(
 						"Meow can store your "
 						"AudioScrobbler password in its config file. It will "
 						"be encrypted, so others will not be able to determine "
-						"your password, but they could use it in order to "
+						"your password, but they could use the encrypted password "
 						"make rogue and potentially embarrassing track "
 						"submissions.\n\n"
 						"If you opt to not store the password, you will have to "
 						"manually reenable Scrobbler support next time you "
 						"start Meow."
 					),
-				tr("Store the password"),
 				QMessageBox::Yes|QMessageBox::No,
 				this
 			);
 		messageBox.button(QMessageBox::Yes)->setText(tr("Store password"));
 		messageBox.button(QMessageBox::No)->setText(tr("Only use my password this session"));
-		if (question == KMessageBox::Yes)
+		messageBox.exec();
+		if (messageBox.standardButton(messageBox.clickedButton()) == QMessageBox::Yes)
 		{
 			conf.setValue("audioscrobbler/password source", "here");
 			conf.setValue("audioscrobbler/password", md5(d->password->text().toUtf8()));
@@ -295,17 +325,19 @@ static const char handshakeUrl[] = "http://post.audioscrobbler.com/";
 static const char clientId[] = "tst";
 static const char clientVersion[] = "1.0";
 static const char clientProtocol[] = "1.2.1";
+#ifdef MEOW_WITH_KDE
 static QString userAgent()
 {
-#ifdef MEOW_WITH_KDE
 	QString agent("Meow/1.0 (KDE %1.%2.%3)");
-#else
-	QString agent("Meow/1.0 (Windows)");
-#endif
 	agent = agent.arg(KDE_VERSION_MAJOR).arg(KDE_VERSION_MINOR).arg(KDE_VERSION_RELEASE);
 	return agent;
 }
-
+#else
+static QByteArray userAgent()
+{
+	return "Meow/1.0 (Windows)";
+}
+#endif
 
 struct Meow::Scrobble::ScrobblePrivate
 {
@@ -333,7 +365,8 @@ struct Meow::Scrobble::ScrobblePrivate
 
 #ifndef MEOW_WITH_KDE
 	QNetworkAccessManager networkAccess;
-	QBuffer postedData;
+	QByteArray postedData;
+	QBuffer postedBuffer;
 	std::auto_ptr<QNetworkReply> currentHttp;
 #endif
 };
@@ -358,6 +391,10 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 	d->isEnabled = false;
 	d->numTracksSubmitting = 0;
 	d->failureSubmitting = false;
+
+#ifndef MEOW_WITH_KDE
+	d->postedBuffer.setBuffer(&d->postedData);
+#endif
 
 #ifdef MEOW_WITH_KDE
 	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");
@@ -394,17 +431,16 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 	}
 #else
 	QSettings conf;
-	conf.beginGroup("audioscrobbler");
-	d->isEnabled = conf.value("enabled", false).toBool();
+	d->isEnabled = conf.value("audioscrobbler/enabled", false).toBool();
 	
 	if (d->isEnabled)
 	{
-		QString passwordSource = conf.readEntry("password source", "nowhere");
+		QString passwordSource = conf.value("audioscrobbler/password source", "nowhere").toString();
 		
 		if (passwordSource == "here")
 		{
-			d->passwordMd5 = conf.readEntry("password", "");
-			d->username = conf.readEntry("username", "");
+			d->passwordMd5 = conf.value("audioscrobbler/password", "").toString();
+			d->username = conf.value("audioscrobbler/username", "").toString();
 		}
 	}
 
@@ -458,8 +494,7 @@ Meow::Scrobble::~Scrobble()
 	}
 #else
 	QSettings conf;
-	conf.beginGroup("audioscrobbler");
-	conf.setValue("enabled", d->isEnabled);
+	conf.setValue("audioscrobbler/enabled", d->isEnabled);
 	
 	int index=0;
 	for (
@@ -467,12 +502,12 @@ Meow::Scrobble::~Scrobble()
 			i != d->submissionQueue.end(); ++i
 		)
 	{
-		conf.setValue("qi" + QString::number(index), *i);
+		conf.setValue("audioscrobbler/qi" + QString::number(index), *i);
 		index++;
 	}
-	while (conf.contains("qi" + QString::number(index)))
+	while (conf.contains("audioscrobbler/qi" + QString::number(index)))
 	{
-		conf.setValue("qi" + QString::number(index));
+		conf.remove("audioscrobbler/qi" + QString::number(index));
 		index++;
 	}
 
@@ -548,13 +583,16 @@ void Meow::Scrobble::begin()
 	handshake.addQueryItem("u", d->username);
 	handshake.addQueryItem("t", timestamp);
 	handshake.addQueryItem("a", authToken);
-	
+
 	QNetworkRequest req(handshake);
 	
+	d->postedData.clear();
+	d->postedBuffer.setBuffer(&d->postedData);
+
 	req.setRawHeader( "User-Agent", userAgent());
-	d->currentHttp.reset( networkAccess.post(req, &d->postedData) );
-	connect(d->currentHttp, SIGNAL(readyRead()), SLOT(handshakeData()));
-	connect(d->currentHttp, SIGNAL(finished()), SLOT(slotHandshakeResult()));
+	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
+	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(handshakeData()));
+	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(slotHandshakeResult()));
 #endif
 	d->failureSubmitting = false;
 	d->numTracksSubmitting = 0;
@@ -576,7 +614,7 @@ void Meow::Scrobble::handshakeData()
 void Meow::Scrobble::slotHandshakeResult()
 {
 #ifndef MEOW_WITH_KDE
-	d->currentHttp.reset()
+	d->currentHttp.reset();
 #endif
 	QList<QByteArray> lines = d->recievedData.split('\n');
 	if (lines.size() < 1)
@@ -714,7 +752,8 @@ void Meow::Scrobble::sendSubmissions()
 	d->numTracksSubmitting = index;
 	
 	std::cerr << "Posting: " << submissionData.data() << std::endl;
-	
+
+#ifdef MEOW_WITH_KDE
 	KIO::TransferJob *job = KIO::http_post(
 			d->submission, submissionData, KIO::HideProgressInfo
 		);
@@ -729,12 +768,32 @@ void Meow::Scrobble::sendSubmissions()
 			job, SIGNAL(result(KJob*)),
 			SLOT(submissionResult())
 		);
+#else
+	QNetworkRequest req(d->submission);
+	req.setRawHeader( "User-Agent", userAgent());
+	req.setRawHeader( "Content-type", "application/x-www-form-urlencoded");
+	req.setRawHeader( "accept", userAgent());
+	
+	d->postedData = submissionData;
+
+	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
+	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(submissionData()));
+	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(submissionResult()));
+#endif
 }
 
+#ifdef MEOW_WITH_KDE
 void Meow::Scrobble::submissionData(KIO::Job*, const QByteArray &data)
 {
 	d->recievedDataSubmission += data;
 }
+#else
+void Meow::Scrobble::submissionData()
+{
+	d->recievedDataSubmission += d->currentHttp->readAll();
+}
+#endif
+
 
 void Meow::Scrobble::submissionResult()
 {
@@ -790,17 +849,33 @@ void Meow::Scrobble::announceNowPlayingFromQueue()
 	np.addQueryItem("l", QString::number(d->player->currentLength()/1000));
 	np.addQueryItem("n", file.track());
 	np.addQueryItem("m", "");
-	
+
+#ifdef MEOW_WITH_KDE
 	KIO::TransferJob *job = KIO::http_post(np, QByteArray(), KIO::HideProgressInfo);
 	job->addMetaData( "UserAgent", "User-Agent: " + userAgent());
 	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(nowPlayingData(KIO::Job*, QByteArray)));
 	connect(job, SIGNAL(result(KJob*)), SLOT(nowPlayingResult()));
+#else
+	QNetworkRequest req(np);
+	req.setRawHeader( "UserAgent", userAgent());
+	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
+	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(nowPlayingData(KIO::Job*, QByteArray)));
+	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(nowPlayingResult()));
+#endif
 }
 
+#ifdef MEOW_WITH_KDE
 void Meow::Scrobble::nowPlayingData(KIO::Job*, const QByteArray &data)
 {
 	d->recievedData += data;
 }
+#else
+void Meow::Scrobble::nowPlayingData()
+{
+	d->recievedData += d->currentHttp->readAll();
+}
+#endif
+
 
 void Meow::Scrobble::nowPlayingResult()
 {

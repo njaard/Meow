@@ -14,12 +14,12 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		MESSAGE( FATAL_ERROR "Specify -DEXTRALIBS with the path to the win32 library toolchain.")
 	endif()
 	set(CMAKE_EXE_LINKER_FLAGS -mwindows )
-	set(platform_sources akode/plugins/dsound_sink.cpp mainwindow-qt.cpp)
+	set(platform_sources akode/plugins/dsound_sink.cpp mainwindow-qt.cpp md5.c)
 	
 	include_directories(${EXTRALIBS}/include/taglib ${EXTRALIBS}/include)
 	set(EXTRALIBS
 		${TAGLIB_LIBRARIES} ${SQLITE_LIBRARIES}
-		${QT_LIBRARY_DIR}/libQtGui.a ${QT_LIBRARY_DIR}/libQtCore.a ${QT_LIBRARY_DIR}/libqtmain.a
+		${QT_LIBRARY_DIR}/libQtGui.a ${QT_LIBRARY_DIR}/libQtNetwork.a ${QT_LIBRARY_DIR}/libQtCore.a ${QT_LIBRARY_DIR}/libqtmain.a
 		${QT_LIBRARY_DIR}/../plugins/codecs/libqtwcodecs.a
 		${QT_LIBRARY_DIR}/../plugins/codecs/libqkrcodecs.a
 		${QT_LIBRARY_DIR}/../plugins/codecs/libqcncodecs.a
@@ -37,7 +37,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp mainwindow.cpp
-		scrobble.cpp directoryadder.cpp configdialog.cpp fileproperties.cpp)
+		directoryadder.cpp fileproperties.cpp)
 
 	find_package(KDE4 REQUIRED)
 	include (KDE4Defaults)
@@ -116,6 +116,8 @@ set(
 	meow_SRCS
 	main.cpp
 	player.cpp
+	scrobble.cpp
+	configdialog.cpp
 	
 	db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
 

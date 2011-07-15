@@ -34,6 +34,10 @@ int main( int argc, char **argv )
 int main( int argc, char **argv )
 {
 	QApplication app(argc, argv);
+	QCoreApplication::setOrganizationName("derkarl.org");
+	QCoreApplication::setOrganizationDomain("derkarl.org");
+	QCoreApplication::setApplicationName("Meow");
+
 	Q_INIT_RESOURCE(icons);
 	Meow::MainWindow *dlg = new Meow::MainWindow;
 	dlg->show();

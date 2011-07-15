@@ -67,9 +67,9 @@ private slots:
 #else
 	void handshakeData();
 	void slotHandshakeResult();
-	void nowPlayingData(KIO::Job*, const QByteArray &data);
+	void nowPlayingData();
 	void nowPlayingResult();
-	void submissionData(KIO::Job*, const QByteArray &data);
+	void submissionData();
 	void submissionResult();
 
 #endif

@@ -1,6 +1,7 @@
 #include "mainwindow-qt.h"
 #include "treeview.h"
 #include "player.h"
+#include "scrobble.h"
 
 #include <db/file.h>
 #include <db/base.h>
@@ -41,6 +42,9 @@ struct Meow::MainWindow::MainWindowPrivate
 	
 	bool nowFiltering;
 	
+	ConfigDialog *settingsDialog;
+	Scrobble *scrobble;
+
 	QFileDialog *openFileDialog;
 	
 	QMenu *contextMenu;
@@ -63,7 +67,9 @@ Meow::MainWindow::MainWindow()
 	d->player = new Player;
 	d->view = new TreeView(this, d->player, d->collection);
 	d->view->installEventFilter(this);
-	
+
+	d->scrobble = new Scrobble(this, d->player, d->collection);
+
 	setCentralWidget(d->view);
 	
 	d->tray = new QSystemTrayIcon(this);
@@ -195,11 +201,7 @@ Meow::MainWindow::MainWindow()
 	
 	d->toggleToolbarAction->setChecked(topToolbar->isVisibleTo(this));
 	d->toggleMenubarAction->setChecked(menuBar()->isVisibleTo(this));
-	
-	QCoreApplication::setOrganizationName("derkarl.org");
-	QCoreApplication::setOrganizationDomain("derkarl.org");
-	QCoreApplication::setApplicationName("Meow");	
-	
+		
 	QSettings settings;
 	d->player->setVolume(settings.value("state/volume", 50).toInt());
 	
@@ -412,15 +414,15 @@ void Meow::MainWindow::changeCaption(const File &f)
 
 void Meow::MainWindow::showSettings()
 {
-/*	if (!d->settingsDialog)
+	if (!d->settingsDialog)
 	{
 		d->settingsDialog = new ConfigDialog(this);
 		ScrobbleConfigure *sc=new ScrobbleConfigure(d->settingsDialog, d->scrobble);
-		d->settingsDialog->addPage(sc, i18n("AudioScrobbler"));
+		d->settingsDialog->addPage(sc, tr("AudioScrobbler"));
 	}
 	
 	d->settingsDialog->show();
-*/}
+}
 
 void Meow::MainWindow::toggleToolBar()
 {
