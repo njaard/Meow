@@ -63,6 +63,7 @@ bool MMapFile::openRO() {
     if(handle) return true;
     struct stat stat;
     std::cerr << "opening mmap " << __LINE__ <<std::endl;
+    pos = 0;
 
 #ifdef _WIN32
     fd = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
@@ -79,7 +80,6 @@ bool MMapFile::openRO() {
     fd = ::open(filename, O_RDONLY);
     if (fstat(fd, &stat) < 0) return false;
     len = stat.st_size;
-    pos = 0;
 
     handle = mmap(0, len, PROT_READ, MAP_SHARED, fd, 0);
     if (handle == MAP_FAILED) {

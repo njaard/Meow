@@ -101,7 +101,7 @@ static bool checkOggFLAC(File *src) {
 
 
 struct FLACDecoder::private_data {
-    private_data() : decoder(0), valid(false), out(0), source(0), eof(false), error(false) {};
+    private_data() : decoder(0), valid(false), out(0), source(0), eof(false), error(false) {}
 
     FLAC__StreamDecoder *decoder;
     const FLAC__StreamMetadata_StreamInfo* si;
@@ -146,7 +146,6 @@ static FLAC__StreamDecoderSeekStatus flac_seek_callback(
         void *client_data)
 {
     FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
-
     if(data->source->seek(absolute_byte_offset))
         return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
     else
@@ -215,14 +214,14 @@ static FLAC__StreamDecoderWriteStatus write_callback(
     outFrame->sample_rate = frame->header.sample_rate;
 
     if (channels == 1 || channels == 2)
-	outFrame->channel_config = aKode::MonoStereo;
+        outFrame->channel_config = aKode::MonoStereo;
     else if (channels > 2 && channels < 8)
-	outFrame->channel_config = aKode::Surround;
+        outFrame->channel_config = aKode::Surround;
     else
-	outFrame->channel_config = aKode::MultiChannel;
+        outFrame->channel_config = aKode::MultiChannel;
 
     for(int i = 0; i<channels; i++) {
-	if (outFrame->data[i] == 0) break;
+        if (outFrame->data[i] == 0) break;
         if (bits<=8) {
             int8_t** data = (int8_t**)outFrame->data;
             for(long j=0; j<frameSize; j++)
@@ -249,7 +248,6 @@ static void metadata_callback(
         void* client_data)
 {
     FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
-
     if (metadata->type == FLAC__METADATA_TYPE_STREAMINFO) {
         data->length         = metadata->data.stream_info.total_samples;
         data->config.sample_rate    = metadata->data.stream_info.sample_rate;
@@ -266,7 +264,7 @@ static void metadata_callback(
 
         data->si = &metadata->data.stream_info;
 
-	data->position = 0;
+        data->position = 0;
 
     } else
     if (metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT) {
@@ -277,8 +275,10 @@ static void metadata_callback(
 static void error_callback(
         const FLAC__StreamDecoder *,
 	FLAC__StreamDecoderErrorStatus status,
-        void* /* client_data */)
+        void *client_data)
 {
+    FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
+    
     std::cerr << "FLAC error: " << FLAC__StreamDecoderErrorStatusString[status] << "\n";
     switch (status) {
         case FLAC__STREAM_DECODER_ERROR_STATUS_LOST_SYNC:
@@ -317,6 +317,7 @@ FLACDecoder::FLACDecoder(File* src) {
         error_callback,
         m_data
     );
+    
     FLAC__stream_decoder_process_until_end_of_metadata(m_data->decoder);
 }
 
