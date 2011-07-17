@@ -13,7 +13,6 @@
 #include <kmessagebox.h>
 #include <kcodecs.h>
 #include <kdeversion.h>
-
 #else
 #include <qurl.h>
 #include <qsettings.h>
@@ -22,6 +21,7 @@
 #include <qbuffer.h>
 #include <qnetworkrequest.h>
 #include <qnetworkreply.h>
+#include <memory>
 #endif
 
 #include <qprocess.h>

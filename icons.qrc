@@ -6,5 +6,6 @@
 	<file>media-playback-pause.png</file>
 	<file>media-skip-backward.png</file>
 	<file>player-volume.png</file>
+	<file>meow.png</file>
 </qresource>
 </RCC>

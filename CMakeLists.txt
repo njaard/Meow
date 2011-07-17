@@ -20,10 +20,6 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	set(EXTRALIBS
 		${TAGLIB_LIBRARIES} ${SQLITE_LIBRARIES}
 		${QT_LIBRARY_DIR}/libQtGui.a ${QT_LIBRARY_DIR}/libQtNetwork.a ${QT_LIBRARY_DIR}/libQtCore.a ${QT_LIBRARY_DIR}/libqtmain.a
-		${QT_LIBRARY_DIR}/../plugins/codecs/libqtwcodecs.a
-		${QT_LIBRARY_DIR}/../plugins/codecs/libqkrcodecs.a
-		${QT_LIBRARY_DIR}/../plugins/codecs/libqcncodecs.a
-		${QT_LIBRARY_DIR}/../plugins/codecs/libqjpcodecs.a
 		${EXTRALIBS}/lib/libmad.a
 		${EXTRALIBS}/lib/libvorbisfile.a ${EXTRALIBS}/lib/libvorbis.a
 		${EXTRALIBS}/lib/libogg.a

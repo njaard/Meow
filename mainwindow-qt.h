@@ -53,11 +53,13 @@ private slots:
 	void fileDialogClosed();
 
 	void showSettings();
+	void showAbout();
 	void toggleToolBar();
 	void toggleMenuBar();
 
 private:
 	void beginDirectoryAdd(const QString &url);
+	static bool globalEventFilter(void *_m);
 };
 
 }

@@ -192,6 +192,7 @@ Player::Player()
 
 	d->akPlayer = 0;
 	d->nowLoading = false;
+	d->volumePercent = 50;
 }
 
 

@@ -21,8 +21,15 @@
 #include <qsettings.h>
 #include <qurl.h>
 #include <qmessagebox.h>
+#include <qabstracteventdispatcher.h>
 
 #include <map>
+
+#ifdef _WIN32
+#define _WIN32_WINNT 0x0500
+#include <windows.h>
+#include <winuser.h>
+#endif
 
 struct Meow::MainWindow::MainWindowPrivate
 {
@@ -38,6 +45,8 @@ struct Meow::MainWindow::MainWindowPrivate
 	QMenu *playbackOrder;
 	QToolBar *topToolbar;
 	
+	QAction *pauseAction, *prevAction, *nextAction, *volumeUpAction, *volumeDownAction, *muteAction;
+	
 	QAction *toggleToolbarAction, *toggleMenubarAction;
 	
 	bool nowFiltering;
@@ -52,8 +61,48 @@ struct Meow::MainWindow::MainWindowPrivate
 	std::map<QAction*, TreeView::SelectorType> selectors;
 };
 
+#ifdef _WIN32
+static Meow::MainWindow *mwEvents=0;
+
+bool Meow::MainWindow::globalEventFilter(void *_m)
+{
+	MSG *const m = (MSG*)_m;
+	if (m->message == WM_HOTKEY)
+	{
+		const quint32 keycode = HIWORD(m->lParam);
+		if (keycode == VK_MEDIA_PLAY_PAUSE || keycode == VK_MEDIA_STOP)
+			mwEvents->d->pauseAction->trigger();
+		else if (keycode == VK_MEDIA_NEXT_TRACK)
+			mwEvents->d->nextAction->trigger();
+		else if (keycode == VK_MEDIA_PREV_TRACK)
+			mwEvents->d->prevAction->trigger();
+		else if (keycode == VK_VOLUME_UP)
+			mwEvents->d->volumeUpAction->trigger();
+		else if (keycode == VK_VOLUME_DOWN)
+			mwEvents->d->volumeDownAction->trigger();
+		else if (keycode == VK_VOLUME_MUTE)
+			mwEvents->d->muteAction->trigger();
+	}
+	return false;
+}
+
+#endif
+
 Meow::MainWindow::MainWindow()
 {
+#ifdef _WIN32
+	mwEvents = this;
+	{
+		RegisterHotKey(winId(), VK_MEDIA_PLAY_PAUSE, 0, VK_MEDIA_PLAY_PAUSE);
+		RegisterHotKey(winId(), VK_MEDIA_STOP, 0, VK_MEDIA_STOP);
+		RegisterHotKey(winId(), VK_MEDIA_NEXT_TRACK, 0, VK_MEDIA_NEXT_TRACK);
+		RegisterHotKey(winId(), VK_MEDIA_PREV_TRACK, 0, VK_MEDIA_PREV_TRACK);
+		RegisterHotKey(winId(), VK_VOLUME_UP, 0, VK_VOLUME_UP);
+		RegisterHotKey(winId(), VK_VOLUME_DOWN, 0, VK_VOLUME_DOWN);
+		RegisterHotKey(winId(), VK_VOLUME_MUTE, 0, VK_VOLUME_MUTE);
+		QAbstractEventDispatcher::instance()->setEventFilter(globalEventFilter);
+	}
+#endif
 	setWindowTitle(tr("Meow"));
 	d = new MainWindowPrivate;
 	d->adder = 0;
@@ -72,17 +121,16 @@ Meow::MainWindow::MainWindow()
 
 	setCentralWidget(d->view);
 	
-	d->tray = new QSystemTrayIcon(this);
-	d->tray->setContextMenu(new QMenu(this));
+	QMenu *const trayMenu = new QMenu(this);
+	d->tray = new QSystemTrayIcon(QIcon(":/meow.png"), this);
+	d->tray->setContextMenu(trayMenu);
 	d->tray->installEventFilter(this);
 	d->tray->show();
 	connect(
 			d->tray, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
 			SLOT(systemTrayClicked(QSystemTrayIcon::ActivationReason))
 		);
-	
-	QMenu *const trayMenu = d->tray->contextMenu();
-	
+
 	QMenuBar *mbar = menuBar();
 	
 	QMenu *fileMenu = mbar->addMenu(tr("File"));
@@ -101,27 +149,29 @@ Meow::MainWindow::MainWindow()
 		topToolbar->addAction(ac);
 		fileMenu->addAction(ac);
 		
-		ac = new QAction(this);
+		d->pauseAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
 		ac->setText(tr("Paws"));
 		ac->setIcon(QIcon(":/media-playback-pause.png"));
-		trayMenu->addAction(ac);
 		topToolbar->addAction(ac);
+		trayMenu->addAction(ac);
 		
-		ac = new QAction(this);
+		d->prevAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(previousSong()));
 		ac->setText(tr("Previous Song"));
 		ac->setIcon(QIcon(":/media-skip-backward.png"));
-		trayMenu->addAction(ac);
 		topToolbar->addAction(ac);
+		trayMenu->addAction(ac);
 
-		ac = new QAction(this);
+		d->nextAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(nextSong()));
 		ac->setText(tr("Next Song"));
 		ac->setIcon(QIcon(":/media-skip-forward.png"));
-		trayMenu->addAction(ac);
 		topToolbar->addAction(ac);
 		
+		trayMenu->addAction(d->nextAction);
+		trayMenu->addAction(d->prevAction);
+
 		{
 			struct Selector
 			{
@@ -153,7 +203,7 @@ Meow::MainWindow::MainWindow()
 		trayMenu->addSeparator();
 		
 		ac = new QAction(this);
-		connect(ac, SIGNAL(triggered()), SLOT(deleteLater()));
+		connect(ac, SIGNAL(triggered()), qApp, SLOT(quit()));
 		ac->setText(tr("&Quit"));
 		trayMenu->addAction(ac);
 		fileMenu->addAction(ac);
@@ -162,7 +212,7 @@ Meow::MainWindow::MainWindow()
 #ifndef Q_WS_MAC
 		ac = d->toggleMenubarAction = new QAction(this);
 		connect(ac, SIGNAL(triggered()), SLOT(toggleMenuBar()));
-		ac->setShortcut(Qt::Key_Control + Qt::Key_M);
+		ac->setShortcut(QKeySequence("Ctrl+M"));
 		ac->setText(tr("Show &Menubar"));
 		settingsMenu->addAction(ac);
 #endif
@@ -178,6 +228,25 @@ Meow::MainWindow::MainWindow()
 		connect(ac, SIGNAL(triggered()), SLOT(showSettings()));
 		ac->setText(tr("&Configure Meow..."));
 		settingsMenu->addAction(ac);
+
+		d->volumeUpAction = ac = new QAction(this);
+		connect(ac, SIGNAL(triggered()), d->player, SLOT(volumeUp()));
+		ac->setText(tr("&Volume Up"));
+		
+		d->volumeDownAction = ac = new QAction(this);
+		connect(ac, SIGNAL(triggered()), d->player, SLOT(volumeDown()));
+		ac->setText(tr("&Volume Down"));
+		
+		d->muteAction = ac = new QAction(this);
+//		connect(ac, SIGNAL(triggered()), d->player, SLOT(volumeMute()));
+		ac->setText(tr("&Mute"));
+	}
+	
+	{
+		QAction *ac = new QAction(this);
+		connect(ac, SIGNAL(triggered()), SLOT(showAbout()));
+		ac->setText(tr("&About Meow..."));
+		helpMenu->addAction(ac);
 	}
 	
 	{ // context menu
@@ -372,11 +441,11 @@ bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
 		d->nowFiltering = false;
 		return true;
 	}
-	else if (object == d->tray && event->type() == QEvent::Wheel)
+/*	else if (object == d->tray && event->type() == QEvent::Wheel)
 	{
 		QApplication::sendEvent(this, event);
 	}
-	return false;
+*/	return false;
 }
 
 void Meow::MainWindow::adderDone()
@@ -424,6 +493,25 @@ void Meow::MainWindow::showSettings()
 	d->settingsDialog->show();
 }
 
+void Meow::MainWindow::showAbout()
+{
+	QMessageBox::about(
+			this, tr("About Meow"),
+			tr(
+					"<qt>This is Meow 1.0. The cutest music player ever.<br/><br/>"
+					"By <a href=\"mailto:charles@kde.org\">Charles Samuels</a>. He likes cats.<br/><br/>"
+					"<a href=\"http://derkarl.org/meow\">http://derkarl.org/meow</a><br/><br/>"
+					"Copyright (c) 2008-2011 Charles Samuels<br/>"
+					"Copyright (c) 2004-2006 Allen Sandfeld Jensen (Akode backend)<br/>"
+					"Copyright (c) 2000-2007 Josh Coalson (FLAC decoder)<br/>"
+					"Copyright (c) 1994-2010 the Xiph.Org Foundation (Vorbis decoder)<br/>"
+					"Copyright (c) 1999-2002 Buschmann/Klemm/Piecha/Wolf (Musepack decoder)<br/>"
+					"Copyright (c) 2003-2004 Peter Pawlowski (Musepack decoder)</qt>"
+					"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)</qt>"
+				)
+		);
+}
+
 void Meow::MainWindow::toggleToolBar()
 {
 	d->topToolbar->setVisible(d->toggleToolbarAction->isChecked());
@@ -449,6 +537,8 @@ void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reaso
 {
 	if (reason == QSystemTrayIcon::MiddleClick)
 		d->player->playpause();
+	else if (reason == QSystemTrayIcon::Trigger)
+		isVisible() ? hide() : show();
 }
 
 void Meow::MainWindow::itemProperties()
