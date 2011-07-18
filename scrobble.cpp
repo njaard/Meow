@@ -859,7 +859,7 @@ void Meow::Scrobble::announceNowPlayingFromQueue()
 	QNetworkRequest req(np);
 	req.setRawHeader( "UserAgent", userAgent());
 	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
-	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(nowPlayingData(KIO::Job*, QByteArray)));
+	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(nowPlayingData()));
 	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(nowPlayingResult()));
 #endif
 }

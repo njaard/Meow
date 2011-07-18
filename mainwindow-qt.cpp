@@ -24,6 +24,7 @@
 #include <qabstracteventdispatcher.h>
 
 #include <map>
+#include <iostream>
 
 #ifdef _WIN32
 #define _WIN32_WINNT 0x0500
@@ -49,7 +50,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	
 	QAction *toggleToolbarAction, *toggleMenubarAction;
 	
-	bool nowFiltering;
+	bool nowFiltering, quitting;
 	
 	ConfigDialog *settingsDialog;
 	Scrobble *scrobble;
@@ -108,6 +109,8 @@ Meow::MainWindow::MainWindow()
 	d->adder = 0;
 	d->nowFiltering = false;
 	d->openFileDialog = 0;
+	d->quitting=false;
+	d->settingsDialog=0;
 	
 	d->db.open(QDir::homePath() + "\\meow collection");
 	
@@ -203,7 +206,7 @@ Meow::MainWindow::MainWindow()
 		trayMenu->addSeparator();
 		
 		ac = new QAction(this);
-		connect(ac, SIGNAL(triggered()), qApp, SLOT(quit()));
+		connect(ac, SIGNAL(triggered()), this, SLOT(quitting()));
 		ac->setText(tr("&Quit"));
 		trayMenu->addAction(ac);
 		fileMenu->addAction(ac);
@@ -317,23 +320,8 @@ Meow::MainWindow::MainWindow()
 
 Meow::MainWindow::~MainWindow()
 {
-	QSettings settings;
-	
-	settings.setValue("state/volume", d->player->volume());
-	settings.setValue("state/lastPlayed", d->player->currentFile().fileId());
-
-	TreeView::SelectorType selector = d->selectors[d->selectorActions.checkedAction()];
-	if (selector == TreeView::RandomArtist)
-		settings.setValue("state/selector", "randomartist");
-	else if (selector == TreeView::RandomAlbum)
-		settings.setValue("state/selector", "randomalbum");
-	else if (selector == TreeView::RandomSong)
-		settings.setValue("state/selector", "randomsong");
-	else
-		settings.setValue("state/selector", "linear");
-	
-	delete d->collection;
-	delete d;
+//	delete d->collection;
+//	delete d;
 }
 
 void Meow::MainWindow::addFile(const QUrl &url)
@@ -408,8 +396,32 @@ void Meow::MainWindow::toggleVisible()
 	
 void Meow::MainWindow::closeEvent(QCloseEvent *event)
 {
-	toggleVisible();
-	event->ignore();
+	if (!d->quitting)
+	{
+		toggleVisible();
+		event->ignore();
+		return;
+	}
+	QSettings settings;
+	settings.setValue("state/volume", d->player->volume());
+	settings.setValue("state/lastPlayed", d->player->currentFile().fileId());
+
+	TreeView::SelectorType selector = d->selectors[d->selectorActions.checkedAction()];
+	if (selector == TreeView::RandomArtist)
+		settings.setValue("state/selector", "randomartist");
+	else if (selector == TreeView::RandomAlbum)
+		settings.setValue("state/selector", "randomalbum");
+	else if (selector == TreeView::RandomSong)
+		settings.setValue("state/selector", "randomsong");
+	else
+		settings.setValue("state/selector", "linear");
+	QMainWindow::closeEvent(event);
+}
+
+void Meow::MainWindow::quitting()
+{
+	d->quitting=true;
+	close();
 }
 
 void Meow::MainWindow::wheelEvent(QWheelEvent *event)
@@ -441,11 +453,11 @@ bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
 		d->nowFiltering = false;
 		return true;
 	}
-/*	else if (object == d->tray && event->type() == QEvent::Wheel)
+	else if (object == d->tray && event->type() == QEvent::Wheel)
 	{
 		QApplication::sendEvent(this, event);
 	}
-*/	return false;
+	return false;
 }
 
 void Meow::MainWindow::adderDone()

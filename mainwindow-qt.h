@@ -56,6 +56,7 @@ private slots:
 	void showAbout();
 	void toggleToolBar();
 	void toggleMenuBar();
+	void quitting();
 
 private:
 	void beginDirectoryAdd(const QString &url);
