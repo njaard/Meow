@@ -517,9 +517,13 @@ void Meow::MainWindow::showAbout()
 					"Copyright (c) 2004-2006 Allen Sandfeld Jensen (Akode backend)<br/>"
 					"Copyright (c) 2000-2007 Josh Coalson (FLAC decoder)<br/>"
 					"Copyright (c) 1994-2010 the Xiph.Org Foundation (Vorbis decoder)<br/>"
+					"Copyright (c) 2000-2004 Underbit Technologies, Inc (mp3 decoder)<br/>"
 					"Copyright (c) 1999-2002 Buschmann/Klemm/Piecha/Wolf (Musepack decoder)<br/>"
 					"Copyright (c) 2003-2004 Peter Pawlowski (Musepack decoder)</qt>"
-					"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)</qt>"
+					"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)<br/><br/>"
+					"Meow is Free software, you may modify and share it under the "
+					"<a href=\"http://www.gnu.org/licenses/gpl-3.0.html\">terms of the GPL version 3</a>."
+					"</qt>"
 				)
 		);
 }
