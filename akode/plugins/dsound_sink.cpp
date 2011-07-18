@@ -146,18 +146,7 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
          MessageBox(0, "failed to create sound buffer", "failure", MB_OK);
     }
     
-    HRESULT x = IDirectSoundBuffer_Play(d->dsBuffer, 0, 0, DSBPLAY_LOOPING);
-    if (x == DSERR_BUFFERLOST)
-        IDirectSoundBuffer_Restore( d->dsBuffer );
-    x = IDirectSoundBuffer_Play(d->dsBuffer, 0, 0, DSBPLAY_LOOPING);
-    if (x == DSERR_BUFFERLOST)
-         MessageBox(0, "failed to play sound buffer, bufferlost", "failure", MB_OK);
-    else if (x == DSERR_INVALIDCALL)
-         MessageBox(0, "failed to play sound buffer, DSERR_INVALIDCALL", "failure", MB_OK);
-    else if (x == DSERR_INVALIDPARAM)
-         MessageBox(0, "failed to play sound buffer, DSERR_INVALIDPARAM", "failure", MB_OK);
-    else if (x == DSERR_PRIOLEVELNEEDED)
-         MessageBox(0, "failed to play sound buffer, DSERR_PRIOLEVELNEEDED", "failure", MB_OK);
+    resume();
 
     d->config = *config;
     return 0;
@@ -270,11 +259,24 @@ bool DSoundSink::writeFrame(AudioFrame* frame)
 
 void DSoundSink::pause()
 {
+    IDirectSoundBuffer_Stop(d->dsBuffer);
 }
 
 // Do not confuse this with snd_pcm_resume which is used to resume from a suspend
 void DSoundSink::resume()
 {
+    HRESULT x = IDirectSoundBuffer_Play(d->dsBuffer, 0, 0, DSBPLAY_LOOPING);
+    if (x == DSERR_BUFFERLOST)
+        IDirectSoundBuffer_Restore( d->dsBuffer );
+    x = IDirectSoundBuffer_Play(d->dsBuffer, 0, 0, DSBPLAY_LOOPING);
+    if (x == DSERR_BUFFERLOST)
+         MessageBox(0, "failed to play sound buffer, bufferlost", "failure", MB_OK);
+    else if (x == DSERR_INVALIDCALL)
+         MessageBox(0, "failed to play sound buffer, DSERR_INVALIDCALL", "failure", MB_OK);
+    else if (x == DSERR_INVALIDPARAM)
+         MessageBox(0, "failed to play sound buffer, DSERR_INVALIDPARAM", "failure", MB_OK);
+    else if (x == DSERR_PRIOLEVELNEEDED)
+         MessageBox(0, "failed to play sound buffer, DSERR_PRIOLEVELNEEDED", "failure", MB_OK);
 }
 
 class DSoundSinkPlugin : public SinkPlugin
