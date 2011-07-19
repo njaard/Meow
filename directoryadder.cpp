@@ -1,8 +1,10 @@
 #include "directoryadder.h"
 
-#include <kfileitem.h>
-
+#include <qtimer.h>
 #include <qfileinfo.h>
+
+#ifdef MEOW_WITH_KDE
+#include <kfileitem.h>
 
 Meow::DirectoryAdder::DirectoryAdder(QObject *parent)
 	: QObject(parent)
@@ -69,5 +71,59 @@ void Meow::DirectoryAdder::slotRedirection(KIO::Job *, const KUrl & url)
 {
 	currentJobUrl= url;
 }
+
+#else
+
+Meow::DirectoryAdder::DirectoryAdder(QObject *parent)
+	: QObject(parent)
+{
+}
+
+void Meow::DirectoryAdder::add(const QUrl &dir)
+{
+	if (QFileInfo(dir.path()).isFile())
+	{
+		emit addFile(dir);
+		emit done();
+	}
+	else
+	{
+		pendingAddDirectories.append(dir);
+		addNextPending();
+	}
+}
+
+void Meow::DirectoryAdder::addNextPending()
+{
+	if (!pendingAddDirectories.isEmpty() && !busy)
+	{
+		currentIterator.reset(new QDirIterator(
+				QDir(pendingAddDirectories.takeFirst().toLocalFile()),
+				QDirIterator::Subdirectories
+			));
+		busy=true;
+	}
+	QTimer::singleShot(100, this, SLOT(processMore()));
+}
+
+void Meow::DirectoryAdder::processMore()
+{
+	int c=10;
+	while (currentIterator->hasNext() && c--)
+	{
+		currentIterator->next();
+		emit addFile(currentIterator->filePath());
+	}
+	
+	if (currentIterator->hasNext())
+		QTimer::singleShot(100, this, SLOT(processMore()));
+	else
+	{
+		busy = false;
+		emit done();
+	}
+}
+
+#endif
 
 // kate: space-indent off; replace-tabs off;

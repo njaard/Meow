@@ -33,7 +33,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp mainwindow.cpp
-		directoryadder.cpp fileproperties.cpp)
+		fileproperties.cpp)
 
 	find_package(KDE4 REQUIRED)
 	include (KDE4Defaults)
@@ -114,6 +114,7 @@ set(
 	player.cpp
 	scrobble.cpp
 	configdialog.cpp
+	directoryadder.cpp
 	
 	db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
 

@@ -2,6 +2,7 @@
 #include "treeview.h"
 #include "player.h"
 #include "scrobble.h"
+#include "directoryadder.h"
 
 #include <db/file.h>
 #include <db/base.h>
@@ -462,8 +463,8 @@ bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
 
 void Meow::MainWindow::adderDone()
 {
-//	delete d->adder;
-//	d->adder = 0;
+	delete d->adder;
+	d->adder = 0;
 }
 
 void Meow::MainWindow::beginDirectoryAdd(const QString &file)
@@ -474,14 +475,14 @@ void Meow::MainWindow::beginDirectoryAdd(const QString &file)
 		return;
 	}	
 	
-/*	if (!d->adder)
-	{
+	if (!d->adder)
+	{	
 		d->adder = new DirectoryAdder(this);
 		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
 		connect(d->adder, SIGNAL(addFile(QUrl)), SLOT(addFile(QUrl)));
 	}
 	d->adder->add(file);
-*/}
+}
 
 void Meow::MainWindow::showItemContext(const QPoint &at)
 {
