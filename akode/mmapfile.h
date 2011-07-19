@@ -49,7 +49,7 @@ class AKODE_EXPORT MMapFile : public File {
     long len;
     long pos;
 public:
-    MMapFile(const char* filename);
+    MMapFile(const FileName& filename);
     virtual ~MMapFile();
 
     bool openRO();

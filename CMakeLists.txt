@@ -120,7 +120,7 @@ set(
 
 	akode/audiobuffer.cpp akode/buffered_decoder.cpp
 	akode/bytebuffer.cpp akode/converter.cpp akode/crossfader.cpp
-	akode/fast_resampler.cpp akode/localfile.cpp
+	akode/fast_resampler.cpp
 	akode/mmapfile.cpp akode/player.cpp akode/plugin.cpp
 	akode/void_sink.cpp
 	akode/volumefilter.cpp akode/wav_decoder.cpp

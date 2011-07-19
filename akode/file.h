@@ -26,9 +26,17 @@ extern "C" {
 #include <unistd.h>
 }
 
+#include <string>
+
 namespace aKode {
 
 //! The generic interface to aKode's virtualised files
+
+#ifdef _WIN32
+typedef std::wstring FileName;
+#else
+typedef std::string FileName;
+#endif
 
 /*!
  * An interface with the all the needed file/stream-operations
@@ -39,7 +47,7 @@ public:
    /*!
     * Creates a File with the given \a filename.
     */
-    File(const char* filename) : filename(filename) {};
+    File(const FileName& filename) : filename(filename) {};
     virtual ~File() {};
    /*!
     * Opens the file as read-only.
@@ -113,7 +121,7 @@ public:
    /*!
     * The name of the file.
     */
-    const char *filename;
+    const FileName filename;
 };
 
 } //namespace

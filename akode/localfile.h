@@ -39,7 +39,7 @@ class AKODE_EXPORT LocalFile : public File {
     bool m_writeable;
     bool m_eof;
 public:
-    LocalFile(const char* filename);
+    LocalFile(const FileName& filename);
     virtual ~LocalFile();
 
     bool openRO();

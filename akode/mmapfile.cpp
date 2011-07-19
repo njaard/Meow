@@ -53,7 +53,7 @@ extern "C" {
 
 namespace aKode {
 
-MMapFile::MMapFile(const char* filename) : File(filename), fd(INVALID_FD), handle(0), len(0), pos(0) {}
+MMapFile::MMapFile(const FileName& filename) : File(filename), fd(INVALID_FD), handle(0), len(0), pos(0) {}
 
 MMapFile::~MMapFile() {
     close();
@@ -62,20 +62,15 @@ MMapFile::~MMapFile() {
 bool MMapFile::openRO() {
     if(handle) return true;
     struct stat stat;
-    std::cerr << "opening mmap " << __LINE__ <<std::endl;
     pos = 0;
 
 #ifdef _WIN32
-    fd = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
+    fd = CreateFileW(filename.c_str(), GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
     len = GetFileSize(fd, 0);
-    std::cerr << "opening mmap " << __LINE__ <<std::endl;
     if (len == INVALID_FILE_SIZE) return false;
-    std::cerr << "opening mmap " << __LINE__ <<std::endl;
     mapHandle = CreateFileMapping(fd, 0, PAGE_READONLY, 0, len, 0);
-    std::cerr << "opening mmap " << __LINE__ <<std::endl;
     if (!mapHandle) return false;
     handle = MapViewOfFile(mapHandle, FILE_MAP_READ, 0, 0, 0);
-    std::cerr << "opening mmap " << __LINE__ <<std::endl;
 #else
     fd = ::open(filename, O_RDONLY);
     if (fstat(fd, &stat) < 0) return false;

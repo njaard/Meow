@@ -279,7 +279,7 @@ void Player::close() {
     setState(Closed);
 }
 
-bool Player::load(const char* filename) {
+bool Player::load(const FileName& filename) {
     if (state() == Closed) return false;
 
     if (state() == Paused || state() == Playing)
@@ -294,6 +294,8 @@ bool Player::load(const char* filename) {
     // Test if the file _can_ be mmaped
     if (!d->src->openRO()) {
         delete d->src;
+        d->src = 0;
+#ifndef _WIN32
         d->src = new LocalFile(filename);
         if (!d->src->openRO()) {
             AKODE_DEBUG("Could not open " << filename);
@@ -301,6 +303,9 @@ bool Player::load(const char* filename) {
             d->src = 0;
             return false;
         }
+#else
+        return false;
+#endif
     }
     // Some of the later code expects it to be closed
     d->src->close();

@@ -22,6 +22,7 @@
 #define _AKODE_PLAYER_H
 
 #include "akode_export.h"
+#include "file.h"
 
 namespace aKode {
 
@@ -70,7 +71,7 @@ public:
      *
      * State: \a Open -> \a Loaded
      */
-    bool load(const char* filename);
+    bool load(const FileName &filename);
 
     /*!
      * Loads the file \a file and prepares for playing.

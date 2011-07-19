@@ -127,9 +127,6 @@ MPEGDecoder::MPEGDecoder(File *src) {
     if (!m_data->src->openRO())
     {
         m_data->error = true;
-        #ifdef MPEG_DEBUG
-        cerr << "Could not open file: " << m_data->src->filename << "\n";
-        #endif
     }
     m_data->src->fadvise();
 

@@ -41,7 +41,7 @@ extern "C" {
 
 namespace aKode {
 
-LocalFile::LocalFile(const char* filename) : File(filename)
+LocalFile::LocalFile(const FileName& filename) : File(filename)
                     , _fd(-1), pos(0), len(0)
                     , m_readable(false), m_writeable(false)
                     , m_eof(false)
@@ -57,7 +57,7 @@ bool LocalFile::openRO() {
     }
 
     struct stat stat;
-    _fd = ::open(filename, O_RDONLY);
+    _fd = ::open(filename.c_str(), O_RDONLY);
     if (fstat(_fd, &stat) < 0) return false;
     len = stat.st_size;
 
@@ -73,7 +73,7 @@ bool LocalFile::openRW() {
     }
 
     struct stat stat;
-    _fd = ::open(filename, O_RDWR);
+    _fd = ::open(filename.c_str(), O_RDWR);
     if (fstat(_fd, &stat) < 0) return false;
     len = stat.st_size;
 
@@ -87,7 +87,7 @@ bool LocalFile::openWO() {
         return seek(0) && m_writeable;
     }
 
-    _fd = ::open(filename, O_WRONLY);
+    _fd = ::open(filename.c_str(), O_WRONLY);
 
     m_readable = false;
     m_writeable = true;

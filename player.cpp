@@ -265,6 +265,21 @@ void Player::play()
 		play(*d->currentItem);
 }
 
+namespace
+{
+
+template<int x> class dirty_trick
+{
+public:
+	dirty_trick() { }
+};
+template<> class dirty_trick<0>
+{
+public:
+	dirty_trick();
+};
+
+}
 
 void Player::play(const File &item)
 {
@@ -275,7 +290,12 @@ void Player::play(const File &item)
 	std::cerr << "Starting to play new current track" << std::endl;
 	d->currentItem.reset(new File(item));
 	d->nowLoading = true;
+#ifdef _WIN32
+	dirty_trick<sizeof(wchar_t) == sizeof(ushort)>();
+	d->akPlayer->load( (wchar_t*)item.file().utf16() );
+#else
 	d->akPlayer->load( QFile::encodeName(item.file()).data() );
+#endif
 	emit currentItemChanged(*d->currentItem);
 }
 
