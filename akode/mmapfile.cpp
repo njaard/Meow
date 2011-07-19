@@ -72,7 +72,7 @@ bool MMapFile::openRO() {
     if (!mapHandle) return false;
     handle = MapViewOfFile(mapHandle, FILE_MAP_READ, 0, 0, 0);
 #else
-    fd = ::open(filename, O_RDONLY);
+    fd = ::open(filename.c_str(), O_RDONLY);
     if (fstat(fd, &stat) < 0) return false;
     len = stat.st_size;
 
