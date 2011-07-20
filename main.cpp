@@ -17,7 +17,7 @@ int main( int argc, char **argv )
 	aboutData.addAuthor( ki18n("Charles Samuels"), ki18n("Developer"), "charles@kde.org" );
 	aboutData.addAuthor( ki18n("Allan Sandfeld Jensen"), ki18n("Most of Akode backend"));
 	aboutData.addAuthor( ki18n("Stefan Gehn, Charles Samuels"), ki18n("Portions of playback controller"));
-	aboutData.setBugAddress( "http://derkarl.org/meow");
+	aboutData.setBugAddress( "meowbugs@charles.derkarl.org");
 
 	aboutData.addCredit( ki18n("Josh Coalson"), ki18n("FLAC decoder"));
 	aboutData.addCredit( ki18n("the Xiph.Org Foundation"), ki18n("Vorbis decoder"));
