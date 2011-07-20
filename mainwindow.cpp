@@ -35,6 +35,7 @@
 #include <qsignalmapper.h>
 #include <qtoolbutton.h>
 #include <qapplication.h>
+#include <qpainter.h>
 
 struct Meow::MainWindow::MainWindowPrivate
 {
@@ -401,16 +402,21 @@ void Meow::MainWindow::showItemContext(const QPoint &at)
 
 QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
 {
-	if (overlayIcon.isNull())
-		return KSystemTrayIcon::loadIcon(baseIcon);
-
-	QImage baseImg = KSystemTrayIcon::loadIcon(baseIcon).pixmap(22).toImage();
-	QImage overlayImg = KSystemTrayIcon::loadIcon(overlayIcon).pixmap(22).toImage();
-	KIconEffect::overlay(baseImg, overlayImg);
-
-	QPixmap base;
-	base.fromImage(baseImg);
-	return base;
+	QPixmap iconPixmap = KIcon(baseIcon).pixmap(KIconLoader::SizeSmallMedium, KIconLoader::SizeSmallMedium);
+	if (!overlayIcon.isEmpty())
+	{
+		QPixmap overlayPixmap
+			= KIcon(overlayIcon)
+				.pixmap(KIconLoader::SizeSmallMedium/2, KIconLoader::SizeSmallMedium/2);
+		QPainter p(&iconPixmap);
+		p.drawPixmap(
+				iconPixmap.width()-overlayPixmap.width(),
+				iconPixmap.height()-overlayPixmap.height(),
+				overlayPixmap
+			);
+		p.end();
+	}
+	return iconPixmap;
 }
 
 void Meow::MainWindow::changeCaption(const File &f)
@@ -477,11 +483,13 @@ void Meow::MainWindow::isPlaying(bool pl)
 	{
 		d->playPauseAction->setIcon(KIcon("media-playback-pause"));
 		d->playPauseAction->setText(i18n("Paws"));
+		d->tray->setIcon(renderIcon("speaker", "media-playback-start"));
 	}
 	else
 	{
 		d->playPauseAction->setIcon(KIcon("media-playback-start"));
 		d->playPauseAction->setText(i18n("Play"));
+		d->tray->setIcon(renderIcon("speaker", "media-playback-pause"));
 	}
 }
 
