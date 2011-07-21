@@ -258,15 +258,18 @@ Meow::MainWindow::MainWindow()
 		
 #ifndef Q_WS_MAC
 		ac = d->toggleMenubarAction = new QAction(this);
-		connect(ac, SIGNAL(triggered()), SLOT(toggleMenuBar()));
+		connect(ac, SIGNAL(toggled(bool)), SLOT(toggleMenuBar()));
 		ac->setShortcut(QKeySequence("Ctrl+M"));
 		ac->setText(tr("Show &Menubar"));
+		ac->setCheckable(true);
 		settingsMenu->addAction(ac);
+		addAction(ac);
 #endif
 		
 		ac = d->toggleToolbarAction = new QAction(this);
 		connect(ac, SIGNAL(triggered()), SLOT(toggleToolBar()));
 		ac->setText(tr("Show &Toolbar..."));
+		ac->setCheckable(true);
 		settingsMenu->addAction(ac);
 		
 		settingsMenu->addSeparator();
