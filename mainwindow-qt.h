@@ -57,10 +57,13 @@ private slots:
 	void toggleToolBar();
 	void toggleMenuBar();
 	void quitting();
+	void showVolume();
+	void isPlaying(bool pl);
 
 private:
 	void beginDirectoryAdd(const QString &url);
 	static bool globalEventFilter(void *_m);
+	QIcon renderIcon(const QString& baseIcon, const QString &overlayIcon) const;
 };
 
 }

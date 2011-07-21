@@ -23,6 +23,7 @@
 #include <qurl.h>
 #include <qmessagebox.h>
 #include <qabstracteventdispatcher.h>
+#include <qpainter.h>
 
 #include <map>
 #include <iostream>
@@ -32,6 +33,39 @@
 #include <windows.h>
 #include <winuser.h>
 #endif
+
+
+namespace
+{
+class SpecialSlider : public QSlider
+{
+public:
+	SpecialSlider(QWidget *parent)
+		: QSlider(Qt::Vertical, parent)
+	{
+		setWindowFlags(Qt::Popup);
+		setRange(0, 100);
+	}
+	virtual void mousePressEvent(QMouseEvent *event)
+	{
+		if (!rect().contains(event->pos()))
+			hide();
+		QSlider::mousePressEvent(event);
+	}
+	
+	virtual void keyPressEvent(QKeyEvent *event)
+	{
+		if (event->key() == Qt::Key_Escape)
+			hide();
+		QSlider::keyPressEvent(event);
+	}
+	virtual void hideEvent(QHideEvent *event)
+	{
+		releaseMouse();
+		QSlider::hideEvent(event);
+	}
+};
+}
 
 struct Meow::MainWindow::MainWindowPrivate
 {
@@ -47,7 +81,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	QMenu *playbackOrder;
 	QToolBar *topToolbar;
 	
-	QAction *pauseAction, *prevAction, *nextAction, *volumeUpAction, *volumeDownAction, *muteAction;
+	QAction *playPauseAction, *prevAction, *nextAction, *volumeUpAction, *volumeDownAction, *muteAction, *volumeAction;
 	
 	QAction *toggleToolbarAction, *toggleMenubarAction;
 	
@@ -61,6 +95,8 @@ struct Meow::MainWindow::MainWindowPrivate
 	QMenu *contextMenu;
 	QActionGroup selectorActions;
 	std::map<QAction*, TreeView::SelectorType> selectors;
+	
+	SpecialSlider *volumeSlider;
 };
 
 #ifdef _WIN32
@@ -73,7 +109,7 @@ bool Meow::MainWindow::globalEventFilter(void *_m)
 	{
 		const quint32 keycode = HIWORD(m->lParam);
 		if (keycode == VK_MEDIA_PLAY_PAUSE || keycode == VK_MEDIA_STOP)
-			mwEvents->d->pauseAction->trigger();
+			mwEvents->d->playPauseAction->trigger();
 		else if (keycode == VK_MEDIA_NEXT_TRACK)
 			mwEvents->d->nextAction->trigger();
 		else if (keycode == VK_MEDIA_PREV_TRACK)
@@ -112,6 +148,7 @@ Meow::MainWindow::MainWindow()
 	d->openFileDialog = 0;
 	d->quitting=false;
 	d->settingsDialog=0;
+	
 	
 	d->db.open(QDir::homePath() + "\\meow collection");
 	
@@ -153,24 +190,30 @@ Meow::MainWindow::MainWindow()
 		topToolbar->addAction(ac);
 		fileMenu->addAction(ac);
 		
-		d->pauseAction = ac = new QAction(this);
-		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
-		ac->setText(tr("Paws"));
-		ac->setIcon(QIcon(":/media-playback-pause.png"));
-		topToolbar->addAction(ac);
-		trayMenu->addAction(ac);
-		
 		d->prevAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(previousSong()));
 		ac->setText(tr("Previous Song"));
 		ac->setIcon(QIcon(":/media-skip-backward.png"));
 		topToolbar->addAction(ac);
 		trayMenu->addAction(ac);
-
+		
+		d->playPauseAction = ac = new QAction(this);
+		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
+		ac->setText(tr("Paws"));
+		ac->setIcon(QIcon(":/media-playback-pause.png"));
+		topToolbar->addAction(ac);
+		trayMenu->addAction(ac);
+		
 		d->nextAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(nextSong()));
 		ac->setText(tr("Next Song"));
 		ac->setIcon(QIcon(":/media-skip-forward.png"));
+		topToolbar->addAction(ac);
+		
+		d->volumeAction = ac = new QAction(this);
+		connect(ac, SIGNAL(triggered()), this, SLOT(showVolume()));
+		ac->setText(tr("Volume"));
+		ac->setIcon(QIcon(":/player-volume.png"));
 		topToolbar->addAction(ac);
 		
 		trayMenu->addAction(d->nextAction);
@@ -269,7 +312,12 @@ Meow::MainWindow::MainWindow()
 	
 	connect(d->view, SIGNAL(kdeContextMenu(QPoint)), SLOT(showItemContext(QPoint)));
 	connect(d->player, SIGNAL(currentItemChanged(File)), SLOT(changeCaption(File)));
-	
+	connect(d->player, SIGNAL(playing(bool)), SLOT(isPlaying(bool)));
+
+	d->volumeSlider = new SpecialSlider(this);
+	connect(d->volumeSlider, SIGNAL(sliderMoved(int)), d->player, SLOT(setVolume(int)));
+	connect(d->player, SIGNAL(volumeChanged(int)), d->volumeSlider, SLOT(setValue(int)));
+
 	setAcceptDrops(true);
 	
 	d->toggleToolbarAction->setChecked(topToolbar->isVisibleTo(this));
@@ -302,6 +350,7 @@ Meow::MainWindow::MainWindow()
 			}
 		}
 	}
+	
 	
 	FileId first = settings.value("state/lastPlayed", 0).toInt();
 	
@@ -423,6 +472,14 @@ void Meow::MainWindow::quitting()
 {
 	d->quitting=true;
 	close();
+}
+
+
+void Meow::MainWindow::showVolume()
+{
+	QPoint at = d->topToolbar->mapToGlobal(d->topToolbar->widgetForAction(d->volumeAction)->frameGeometry().bottomLeft());
+	d->volumeSlider->move(at);
+	d->volumeSlider->show();
 }
 
 void Meow::MainWindow::wheelEvent(QWheelEvent *event)
@@ -550,7 +607,21 @@ void Meow::MainWindow::toggleMenuBar()
 			);
 }
 
-
+void Meow::MainWindow::isPlaying(bool pl)
+{
+	if (pl)
+	{
+		d->playPauseAction->setIcon(QIcon(":/media-playback-pause.png"));
+		d->playPauseAction->setText(tr("Paws"));
+		d->tray->setIcon(renderIcon(":/meow.png", ":/media-playback-start.png"));
+	}
+	else
+	{
+		d->playPauseAction->setIcon(QIcon(":/media-playback-start"));
+		d->playPauseAction->setText(tr("Play"));
+		d->tray->setIcon(renderIcon(":/meow.png", ":/media-playback-pause.png"));
+	}
+}
 
 void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reason)
 {
@@ -558,6 +629,25 @@ void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reaso
 		d->player->playpause();
 	else if (reason == QSystemTrayIcon::Trigger)
 		isVisible() ? hide() : show();
+}
+
+QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
+{
+	QPixmap iconPixmap = QIcon(baseIcon).pixmap(16);
+	if (!overlayIcon.isEmpty())
+	{
+		QPixmap overlayPixmap
+			= QIcon(overlayIcon)
+				.pixmap(22/2);
+		QPainter p(&iconPixmap);
+		p.drawPixmap(
+				iconPixmap.width()-overlayPixmap.width(),
+				iconPixmap.height()-overlayPixmap.height(),
+				overlayPixmap
+			);
+		p.end();
+	}
+	return iconPixmap;
 }
 
 void Meow::MainWindow::itemProperties()
@@ -574,34 +664,6 @@ void Meow::MainWindow::selectorActivated(QAction* action)
 
 
 
-class SpecialSlider : public QSlider
-{
-public:
-	SpecialSlider()
-		: QSlider(Qt::Vertical, 0)
-	{
-		setWindowFlags(Qt::Popup);
-		setRange(0, 100);
-	}
-	virtual void mousePressEvent(QMouseEvent *event)
-	{
-		if (!rect().contains(event->pos()))
-			hide();
-		QSlider::mousePressEvent(event);
-	}
-	
-	virtual void keyPressEvent(QKeyEvent *event)
-	{
-		if (event->key() == Qt::Key_Escape)
-			hide();
-		QSlider::keyPressEvent(event);
-	}
-	virtual void hideEvent(QHideEvent *event)
-	{
-		releaseMouse();
-		QSlider::hideEvent(event);
-	}
-};
 
 
 // kate: space-indent off; replace-tabs off;
