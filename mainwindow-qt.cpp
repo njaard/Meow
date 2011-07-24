@@ -3,6 +3,7 @@
 #include "player.h"
 #include "scrobble.h"
 #include "directoryadder.h"
+#include "filter.h"
 
 #include <db/file.h>
 #include <db/base.h>
@@ -24,6 +25,7 @@
 #include <qmessagebox.h>
 #include <qabstracteventdispatcher.h>
 #include <qpainter.h>
+#include <qboxlayout.h>
 
 #include <map>
 #include <iostream>
@@ -97,6 +99,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	std::map<QAction*, TreeView::SelectorType> selectors;
 	
 	SpecialSlider *volumeSlider;
+	Filter *filter;
 };
 
 #ifdef _WIN32
@@ -154,13 +157,24 @@ Meow::MainWindow::MainWindow()
 	
 	d->collection = new Collection(&d->db);
 
+	QWidget *owner = new QWidget(this);
+	QVBoxLayout *ownerLayout = new QVBoxLayout(owner);
+	ownerLayout->setContentsMargins(0, 0, 0, 0);
+	ownerLayout->setSpacing(0);
+
 	d->player = new Player;
-	d->view = new TreeView(this, d->player, d->collection);
+	d->view = new TreeView(owner, d->player, d->collection);
 	d->view->installEventFilter(this);
-
+	ownerLayout->addWidget(d->view);
+	
+	d->filter = new Filter(owner);
+	d->filter->hide();
+	connect(d->filter, SIGNAL(textChanged(QString)), d->view, SLOT(filter(QString)));
+	connect(d->filter, SIGNAL(done()), d->view, SLOT(stopFilter()));
+	ownerLayout->addWidget(d->filter);
+	
 	d->scrobble = new Scrobble(this, d->player, d->collection);
-
-	setCentralWidget(d->view);
+	setCentralWidget(owner);
 	
 	QMenu *const trayMenu = new QMenu(this);
 	d->tray = new QSystemTrayIcon(QIcon(":/meow.png"), this);
@@ -190,6 +204,17 @@ Meow::MainWindow::MainWindow()
 		topToolbar->addAction(ac);
 		fileMenu->addAction(ac);
 		
+		ac = new QAction(this);
+		connect(ac, SIGNAL(triggered()), d->filter, SLOT(show()));
+		ac->setText(tr("&Find"));
+		{
+			QList<QKeySequence> shortcuts;
+			shortcuts.append(QKeySequence("/"));
+			shortcuts.append(QKeySequence("Ctrl+F"));
+			ac->setShortcuts(shortcuts);
+		}
+		fileMenu->addAction(ac);
+
 		d->prevAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(previousSong()));
 		ac->setText(tr("Previous Song"));
@@ -268,7 +293,7 @@ Meow::MainWindow::MainWindow()
 		
 		ac = d->toggleToolbarAction = new QAction(this);
 		connect(ac, SIGNAL(triggered()), SLOT(toggleToolBar()));
-		ac->setText(tr("Show &Toolbar..."));
+		ac->setText(tr("Show &Toolbar"));
 		ac->setCheckable(true);
 		settingsMenu->addAction(ac);
 		

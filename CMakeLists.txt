@@ -115,6 +115,7 @@ set(
 	scrobble.cpp
 	configdialog.cpp
 	directoryadder.cpp
+	filter.cpp
 	
 	db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
 

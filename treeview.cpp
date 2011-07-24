@@ -197,7 +197,7 @@ public:
 		if (!current())
 			return tree()->invisibleRootItem();
 		
-		QTreeWidgetItemIterator it(tree()->mCurrent);
+		QTreeWidgetItemIterator it(tree()->mCurrent, QTreeWidgetItemIterator::NotHidden);
 		return *++it;
 	}
 	virtual QTreeWidgetItem *previousSong()
@@ -205,7 +205,7 @@ public:
 		if (!current())
 			return 0;
 		
-		QTreeWidgetItemIterator it(current());
+		QTreeWidgetItemIterator it(current(), QTreeWidgetItemIterator::NotHidden);
 		--it;
 		for (; *it; --it)
 		{
@@ -608,6 +608,39 @@ void Meow::TreeView::nextSong()
 		playAt(item);
 }
 
+void Meow::TreeView::filter(const QString &text)
+{
+	QTreeWidgetItem *item = invisibleRootItem();
+	if (!item) return;
+	
+	for (int i=0; i < item->childCount(); i++)
+		filter(item->child(i), text);
+}
+
+void Meow::TreeView::stopFilter()
+{
+	filter("");
+}
+
+bool Meow::TreeView::filter(QTreeWidgetItem *branch, const QString &text)
+{
+	if (text.isEmpty() || branch->text(0).contains(text, Qt::CaseInsensitive))
+	{
+		branch->setHidden(false);
+		for (int i=0; i < branch->childCount(); i++)
+			filter(branch->child(i), "");
+		return true;
+	}
+	else
+	{
+		bool has = false;
+		for (int i=0; i < branch->childCount(); i++)
+			has = filter(branch->child(i), text) || has;
+		branch->setHidden(!has);
+		return has;
+	}
+}
+
 void Meow::TreeView::previousSong()
 {
 	if (QTreeWidgetItem *item = mSelector->previousSong())
@@ -650,7 +683,7 @@ Meow::TreeView::Song* Meow::TreeView::findAfter(QTreeWidgetItem *_item)
 	if (!_item)
 		return 0;
 	
-	for (QTreeWidgetItemIterator it(_item); *it; ++it)
+	for (QTreeWidgetItemIterator it(_item, QTreeWidgetItemIterator::NotHidden); *it; ++it)
 	{
 		QTreeWidgetItem *n = *it;
 		if (Song *s = dynamic_cast<Song*>(n))

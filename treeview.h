@@ -63,6 +63,12 @@ public slots:
 	void previousSong();
 	void nextSong();
 	
+	void filter(const QString &text);
+	void stopFilter();
+
+private:
+	bool filter(QTreeWidgetItem *branch, const QString &text);
+
 protected slots:
 	void addFile(const File &file);
 	void reloadFile(const File &file);

@@ -4,6 +4,7 @@
 #include "directoryadder.h"
 #include "scrobble.h"
 #include "fileproperties.h"
+#include "filter.h"
 
 #include <db/file.h>
 #include <db/base.h>
@@ -36,6 +37,7 @@
 #include <qtoolbutton.h>
 #include <qapplication.h>
 #include <qpainter.h>
+#include <qboxlayout.h>
 
 struct Meow::MainWindow::MainWindowPrivate
 {
@@ -56,6 +58,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	Scrobble *scrobble;
 	
 	KFileDialog *openFileDialog;
+	Filter *filter;
 };
 
 Meow::MainWindow::MainWindow()
@@ -70,12 +73,24 @@ Meow::MainWindow::MainWindow()
 	
 	d->collection = new Collection(&d->db);
 
+	QWidget *owner = new QWidget(this);
+	QVBoxLayout *ownerLayout = new QVBoxLayout(owner);
+	ownerLayout->setContentsMargins(0, 0, 0, 0);
+	ownerLayout->setSpacing(0);
+
 	d->player = new Player;
-	d->view = new TreeView(this, d->player, d->collection);
+	d->view = new TreeView(owner, d->player, d->collection);
 	d->view->installEventFilter(this);
+	ownerLayout->addWidget(d->view);
+	
+	d->filter = new Filter(owner);
+	d->filter->hide();
+	connect(d->filter, SIGNAL(textChanged(QString)), d->view, SLOT(filter(QString)));
+	connect(d->filter, SIGNAL(done()), d->view, SLOT(stopFilter()));
+	ownerLayout->addWidget(d->filter);
 	
 	d->scrobble = new Scrobble(this, d->player, d->collection);
-	setCentralWidget(d->view);
+	setCentralWidget(owner);
 	
 	d->tray = new KSystemTrayIcon("speaker", this);
 	d->tray->installEventFilter(this);
@@ -95,6 +110,15 @@ Meow::MainWindow::MainWindow()
 		ac->setText(i18n("Add &Files..."));
 		ac->setIcon(KIcon("list-add"));
 
+		ac = actionCollection()->addAction("find", d->filter, SLOT(show()));
+		ac->setText(i18n("&Find"));
+		{
+			QList<QKeySequence> shortcuts;
+			shortcuts.append(QKeySequence("/"));
+			shortcuts.append(QKeySequence("Ctrl+F"));
+			ac->setShortcuts(shortcuts);
+		}
+		
 		d->playPauseAction = actionCollection()->addAction("playpause", d->player, SLOT(playpause()));
 		d->playPauseAction->setText(i18n("Play"));
 		d->playPauseAction->setGlobalShortcut(KShortcut(Qt::CTRL+Qt::ALT+Qt::Key_P), KAction::ActiveShortcut | KAction::DefaultShortcut, KAction::NoAutoloading);

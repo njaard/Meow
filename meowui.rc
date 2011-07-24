@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE kpartgui SYSTEM "kpartgui.dtd">
-<gui name="meow" version="4">
+<gui name="meow" version="5">
 	<ToolBar name="mainToolBar" iconSize="22" iconText='icononly'>
 		<text>Main Toolbar</text>
 		<Action name="add_files" />
@@ -15,6 +15,7 @@
 			<text>&amp;Library</text>
 			<Action name="add_files" />
 			<Action name="playbackorder" />
+			<Action name="find" />
 		</Menu>
 	</MenuBar>
 	<Menu name="item_context">
