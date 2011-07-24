@@ -608,6 +608,8 @@ void Meow::MainWindow::showAbout()
 					"Copyright (c) 1999-2002 Buschmann/Klemm/Piecha/Wolf (Musepack decoder)<br/>"
 					"Copyright (c) 2003-2004 Peter Pawlowski (Musepack decoder)</qt>"
 					"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)<br/>"
+					"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)<br/>"
+					"Copyright (c) 2007-2009 Oxygen project (Icons)<br/>"
 					"The Public Domain's SQLite<br/><br/>"
 					"Meow is Free software, you may modify and share it under the "
 					"<a href=\"http://www.gnu.org/licenses/gpl-3.0.html\">terms of the GPL version 3</a>."
