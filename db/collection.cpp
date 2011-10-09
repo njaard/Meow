@@ -16,6 +16,7 @@
 
 namespace
 {
+
 class AddFileEvent : public QEvent
 {
 public:
@@ -71,6 +72,25 @@ public:
 	const QString file;
 	TagLib::FileRef *const f;
 };
+
+class DoneWithJobEvent : public QEvent
+{
+public:
+	static const Type type = QEvent::Type(QEvent::User+5);
+	DoneWithJobEvent()
+		: QEvent(type)
+	{}
+};
+class FinishJobEvent : public QEvent
+{
+public:
+	static const Type type = QEvent::Type(QEvent::User+6);
+	FinishJobEvent()
+		: QEvent(type)
+	{}
+};
+
+
 }
 
 // album must be tags[1]
@@ -119,6 +139,10 @@ public:
 			}
 			
 			QApplication::postEvent(c, new FileReloadedEvent(file, f));
+		}
+		else if (e->type() == FinishJobEvent::type)
+		{
+			QApplication::postEvent(c, new DoneWithJobEvent());
 		}
 		
 		return true;
@@ -345,9 +369,9 @@ void Meow::Collection::startJob()
 {
 	base->exec("savepoint job");
 }
-void Meow::Collection::finishJob()
+void Meow::Collection::scheduleFinishJob()
 {
-	base->exec("release savepoint job");
+	QApplication::postEvent(addThread, new FinishJobEvent());
 }
 
 struct Meow::Collection::OneFile : public BasicLoader
@@ -386,11 +410,18 @@ bool Meow::Collection::event(QEvent *e)
 		fff.mFile = static_cast<FileAddedEvent*>(e)->file;
 	else if (e->type() == FileReloadedEvent::type)
 		fff = static_cast<FileReloadedEvent*>(e)->file;
+	else if (e->type() == DoneWithJobEvent::type)
+	{
+		base->exec("release savepoint job");
+		return true;
+	}
 	else
 		return false;
 	
 	struct Map { TagLib::String (TagLib::Tag::*fn)() const; const char *sql; int tagIndex; };
 	static const Map propertyMap[] =
+//	
+
 	{
 		{ &TagLib::Tag::title, "title", 2 },
 		{ &TagLib::Tag::artist, "artist", 0 },

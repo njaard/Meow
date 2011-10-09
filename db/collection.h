@@ -55,7 +55,7 @@ public:
 	bool groupByAlbum(const QString &album);
 
 	void startJob();
-	void finishJob();
+	void scheduleFinishJob();
 
 signals:
 	void added(const File &file);

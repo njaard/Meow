@@ -323,7 +323,7 @@ void Meow::MainWindow::fileDialogAccepted()
 	d->collection->startJob();
 	for(KUrl::List::Iterator it=files.begin(); it!=files.end(); ++it)
 		beginDirectoryAdd(*it);
-	d->collection->finishJob();
+	d->collection->scheduleFinishJob();
 }
 
 void Meow::MainWindow::fileDialogClosed()
@@ -355,7 +355,7 @@ void Meow::MainWindow::dropEvent(QDropEvent *event)
 	KUrl::List files = KUrl::List::fromMimeData(event->mimeData());
 	for(KUrl::List::Iterator it=files.begin(); it!=files.end(); ++it)
 		beginDirectoryAdd(*it);
-	d->collection->finishJob();
+	d->collection->scheduleFinishJob();
 }
 
 void Meow::MainWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -383,7 +383,7 @@ bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
 
 void Meow::MainWindow::adderDone()
 {
-	d->collection->finishJob();
+	d->collection->scheduleFinishJob();
 	delete d->adder;
 	d->adder = 0;
 }
