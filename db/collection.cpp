@@ -356,7 +356,7 @@ void Meow::Collection::setGroupByAlbum(const QString &album, bool yes)
 		base->sql("delete from albums where album=?").arg(album).exec();
 
 	ReloadEachFile loader(this);
-	Base::Statement statement = base->sql(d->bigSelectJoin + " where album=?");
+	Base::Statement statement = base->sql(d->bigSelectJoin + " where tag_b.value=?");
 	statement.arg(album).exec(loader);
 }
 
