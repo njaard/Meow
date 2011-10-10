@@ -457,6 +457,7 @@ void Meow::MainWindow::fileDialogAccepted()
 	QStringList files = d->openFileDialog->selectedFiles();
 	fileDialogClosed();
 	
+	d->collection->startJob();
 	for(QStringList::Iterator it=files.begin(); it!=files.end(); ++it)
 		beginDirectoryAdd(*it);
 }
@@ -518,6 +519,7 @@ void Meow::MainWindow::wheelEvent(QWheelEvent *event)
 
 void Meow::MainWindow::dropEvent(QDropEvent *event)
 {
+	d->collection->startJob();
 	QList<QUrl> files = event->mimeData()->urls();
 	for(QList<QUrl>::Iterator it=files.begin(); it!=files.end(); ++it)
 		beginDirectoryAdd(it->toLocalFile());
@@ -548,6 +550,7 @@ bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
 
 void Meow::MainWindow::adderDone()
 {
+	d->collection->scheduleFinishJob();
 	delete d->adder;
 	d->adder = 0;
 }
@@ -558,10 +561,11 @@ void Meow::MainWindow::beginDirectoryAdd(const QString &file)
 	{
 		addFile(QUrl::fromLocalFile(file));
 		return;
-	}	
+	}
 	
 	if (!d->adder)
-	{	
+	{
+		d->collection->startJob();
 		d->adder = new DirectoryAdder(this);
 		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
 		connect(d->adder, SIGNAL(addFile(QUrl)), SLOT(addFile(QUrl)));
