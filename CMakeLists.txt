@@ -32,22 +32,42 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
 else()
-	set(platform_sources akode/plugins/alsa_sink.cpp mainwindow.cpp
-		fileproperties.cpp akode/localfile.cpp)
+	set(platform_sources akode/plugins/alsa_sink.cpp akode/localfile.cpp)
 
-	find_package(KDE4 REQUIRED)
-	include (KDE4Defaults)
-	include (MacroLibrary)
-	find_package(Sqlite REQUIRED)
-	macro_log_feature(SQLITE_FOUND "sqlite" "SQLite" "http://www.sqlite.org" TRUE "3" "Storing the playlist")
 
-	find_package(Taglib REQUIRED)
-	macro_log_feature(TAGLIB_FOUND "taglib" "Taglib" "http://developer.kde.org/~wheeler/taglib/" TRUE "" "Reading id3/ogg/etc tags")
+	if(${MEOW_QT})
+		find_package(Qt4 REQUIRED QtCore QtGui QtNetwork)
+		include(${QT_USE_FILE})
+		find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h
+			PATH_SUFFIXES sqlite3
+			DOC "sqlite3 include directory"
+		)
+		find_library(SQLITE3_LIBRARY NAMES sqlite3
+			DOC "sqlite3 library"
+		)
+		FIND_PACKAGE_HANDLE_STANDARD_ARGS(SQLITE3 DEFAULT_MSG SQLITE3_LIBRARY SQLITE3_INCLUDE_DIR)
+
+		find_path(TAGLIB_INCLUDE_DIR NAMES taglib.h
+			PATH_SUFFIXES taglib
+			DOC "taglib include directory"
+		)
+		find_library(TAGLIB_LIBRARY NAMES tag
+			DOC "taglib library"
+		)
+		FIND_PACKAGE_HANDLE_STANDARD_ARGS(TAGLIB DEFAULT_MSG TAGLIB_LIBRARY TAGLIB_INCLUDE_DIR)
+	else()
+		find_package(KDE4 REQUIRED)
+		include (KDE4Defaults)
+		find_package(Sqlite REQUIRED)
+		macro_log_feature(SQLITE_FOUND "sqlite" "SQLite" "http://www.sqlite.org" TRUE "3" "Storing the playlist")
+		find_package(Taglib REQUIRED)
+		macro_log_feature(TAGLIB_FOUND "taglib" "Taglib" "http://developer.kde.org/~wheeler/taglib/" TRUE "" "Reading id3/ogg/etc tags")
+	endif()
 
 	find_package(Threads REQUIRED)
 
 	find_package(ALSA REQUIRED)
-	macro_log_feature(ALSA_FOUND "alsa" "ALSA" "OS" TRUE "" "Only supported output on Linux")
+	# macro_log_feature(ALSA_FOUND "alsa" "ALSA" "OS" TRUE "" "Only supported output on Linux")
 
 	find_path(MAD_INCLUDE_DIR NAMES mad.h
 		PATH_SUFFIXES mad
@@ -85,22 +105,35 @@ else()
 #	)
 #	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPC DEFAULT_MSG MPC_LIBRARY MPC_INCLUDE_DIR)
 
-	add_definitions(
-			${QT_DEFINITIONS}
-			${KDE4_DEFINITIONS}
-			${SQLITE_DEFINITIONS}
-			${TAGLIB_CFLAGS}
-			"-DMEOW_WITH_KDE"
-		)
-	macro_display_feature_log()
+	if(${MEOW_QT})
+		set(platform_sources ${platform_sources} mainwindow-qt.cpp md5.c)
+	else()
+		add_definitions(
+				"-DMEOW_WITH_KDE"
+			)
+		add_definitions(
+				${KDE4_DEFINITIONS}
+			)
+		include_directories(
+				${KDE4_INCLUDES}
+			)
+		set(platform_sources ${platform_sources} mainwindow.cpp
+			fileproperties.cpp)
+	endif()
 	include_directories(
-			${KDE4_INCLUDES}
+			${QT_INCLUDES}
 			${ALSA_INCLUDE_DIR}
 			${MAD_INCLUDE_DIR}
 			${VORBIS_INCLUDE_DIR}
 			${FLAC113_INCLUDE_DIR}
 #			${MPC_INCLUDE_DIR}
 		)
+	add_definitions(
+			${QT_DEFINITIONS}
+			${SQLITE_DEFINITIONS}
+			${TAGLIB_CFLAGS}
+		)
+	# macro_display_feature_log()
 endif()
 
 if(FLAC113_INCLUDE_DIR)
@@ -154,6 +187,22 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		meow
 		${EXTRALIBS}
 	)
+elseif(${MEOW_QT})
+	install(FILES meow.desktop DESTINATION ${CMAKE_PREFIX}/share/applications)
+	ADD_CUSTOM_COMMAND(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp
+		COMMAND rcc -name icons -o ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
+		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
+	)
+	AUTOMOC4_ADD_EXECUTABLE(meow-qt ${meow_SRCS} icons.cpp)
+	target_link_libraries(meow-qt
+		${ALSA_LIBRARY} ${SQLITE3_LIBRARY}
+		${TAGLIB_LIBRARY} ${MAD_LIBRARY} ${VORBIS_LIBRARY}
+		${FLAC113_LIBRARY}
+		${QT_LIBRARIES}
+#		${MPC_LIBRARY}
+	)
+	install(TARGETS meow-qt DESTINATION bin)
 else()
 	kde4_add_executable(meow ${meow_SRCS})
 	install(FILES meow.desktop DESTINATION ${XDG_APPS_INSTALL_DIR})
@@ -181,22 +230,31 @@ SET(CPACK_SET_DESTDIR "on")
 SET(CPACK_PACKAGING_INSTALL_PREFIX "/tmp")
 SET(CPACK_GENERATOR "DEB")
 
-SET(CPACK_PACKAGE_DESCRIPTION "The cutest music player ever")
-SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE")
+if(${MEOW_QT})
+	SET(CPACK_PACKAGE_DESCRIPTION "The cutest music player ever")
+	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE, this is the Qt version")
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0)")
+	SET(PROJECT_NAME_SUFFIX "-qt")
+	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+	SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
+	SET(CPACK_STRIP_FILES "bin/meow-qt")
+else()
+	SET(CPACK_PACKAGE_DESCRIPTION "The cutest music player ever")
+	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE")
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0)")
+	SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
+	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+	SET(CPACK_DEBIAN_PACKAGE_SECTION "kde")
+	SET(CPACK_STRIP_FILES "bin/meow")
+endif()
 SET(CPACK_PACKAGE_CONTACT "Charles Samuels")
 SET(CPACK_PACKAGE_VERSION_MAJOR "${MAJOR_VERSION}")
 SET(CPACK_PACKAGE_VERSION_MINOR "${MINOR_VERSION}")
 SET(CPACK_PACKAGE_VERSION_PATCH "${PATCH_VERSION}")
-SET(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}_${CMAKE_SYSTEM_PROCESSOR}")
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}")
-SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
+SET(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}_${CMAKE_SYSTEM_PROCESSOR}")
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}")
 
-SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0)")
-
-SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-SET(CPACK_DEBIAN_PACKAGE_SECTION "kde")
 SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
-SET(CPACK_STRIP_FILES "bin/meow")
 
 SET(CPACK_COMPONENTS_ALL Libraries ApplicationData)
 INCLUDE(CPack)

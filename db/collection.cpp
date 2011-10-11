@@ -2,8 +2,8 @@
 #include "file.h"
 #include "sqlt.h"
 
-#include <tag.h>
-#include <fileref.h>
+#include <taglib/tag.h>
+#include <taglib/fileref.h>
 
 #include <qfile.h>
 #include <qtimer.h>

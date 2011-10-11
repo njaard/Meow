@@ -152,9 +152,13 @@ Meow::MainWindow::MainWindow()
 	d->quitting=false;
 	d->settingsDialog=0;
 	
-	
+
+#ifdef _WIN32
 	d->db.open(QDir::homePath() + "\\meow collection");
-	
+#else
+	d->db.open(QDir::homePath() + "/.config/meow collection");
+#endif
+
 	d->collection = new Collection(&d->db);
 
 	QWidget *owner = new QWidget(this);
