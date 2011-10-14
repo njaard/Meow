@@ -188,7 +188,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${EXTRALIBS}
 	)
 elseif(${MEOW_QT})
-	install(FILES meow.desktop DESTINATION ${CMAKE_PREFIX}/share/applications)
+	install(FILES meow-qt.desktop DESTINATION ${CMAKE_PREFIX}/share/applications)
 	ADD_CUSTOM_COMMAND(
 		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp
 		COMMAND rcc -name icons -o ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
@@ -221,7 +221,7 @@ endif()
 
 SET(MAJOR_VERSION 0)
 SET(MINOR_VERSION 9)
-SET(PATCH_VERSION 1)
+SET(PATCH_VERSION 2)
 
 IF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
 INCLUDE(InstallRequiredSystemLibraries)
