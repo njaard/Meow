@@ -26,7 +26,12 @@
 #include <ktoolbar.h>
 #include <kmenubar.h>
 #include <kmessagebox.h>
+#include <kservice.h>
+#include <kmimetypetrader.h>
 #include <kshortcutsdialog.h>
+#include <kactionmenu.h>
+#include <krun.h>
+#include <kmenu.h>
 
 #include <qpixmap.h>
 #include <qicon.h>
@@ -51,6 +56,7 @@ struct Meow::MainWindow::MainWindowPrivate
 	KAction *itemProperties;
 	KAction *playPauseAction;
 	KSelectAction *playbackOrder;
+	KActionMenu *openWith;
 	
 	bool nowFiltering;
 	
@@ -215,6 +221,9 @@ Meow::MainWindow::MainWindow()
 		connect(albumGroup, SIGNAL(toggled(bool)), this, SLOT(groupByAlbum(bool)));
 		albumGroup->setText(i18n("&Group by album"));
 
+		d->openWith = new KActionMenu(i18n("Open &with"), this);
+		actionCollection()->addAction("open_with", d->openWith);
+
 		d->itemProperties = actionCollection()->addAction("item_properties", this, SLOT(itemProperties()));
 		d->itemProperties->setText(i18n("&Properties"));
 	}
@@ -264,9 +273,16 @@ Meow::MainWindow::MainWindow()
 	
 	d->scrobble->begin();
 }
-
+#include <iostream>
 Meow::MainWindow::~MainWindow()
 {
+	delete d->collection;
+	delete d;
+}
+
+bool Meow::MainWindow::queryExit()
+{
+	std::cerr << "exiting" << std::endl;
 	KConfigGroup meow = KGlobal::config()->group("state");
 	meow.writeEntry<int>("volume", d->player->volume());
 	meow.writeEntry<FileId>("lastPlayed", d->player->currentFile().fileId());
@@ -280,9 +296,10 @@ Meow::MainWindow::~MainWindow()
 	else
 		meow.writeEntry("selector", "linear");
 	
-	delete d->collection;
-	delete d;
+	meow.sync();
+	return true;
 }
+
 
 void Meow::MainWindow::addFile(const KUrl &url)
 {
@@ -336,7 +353,7 @@ void Meow::MainWindow::toggleVisible()
 {
 	d->tray->toggleActive();
 }
-	
+
 void Meow::MainWindow::closeEvent(QCloseEvent *event)
 {
 	toggleVisible();
@@ -402,7 +419,7 @@ void Meow::MainWindow::beginDirectoryAdd(const KUrl &url)
 
 void Meow::MainWindow::showItemContext(const QPoint &at)
 {
-	const char *menuName = "item_context";
+	const char *menuName = "album_context";
 	QList<QString> albums = d->view->selectedAlbums();
 	bool isGrouping=false;
 	if (!albums.isEmpty())
@@ -418,6 +435,29 @@ void Meow::MainWindow::showItemContext(const QPoint &at)
 		
 		actionCollection()->action("group_by_album")->setChecked(isGrouping);
 		menuName = "album_context";
+	}
+
+	QList<File> f = d->view->selectedFiles();
+	if (!f.isEmpty())
+	{
+		menuName = "item_context";
+		d->openWith->menu()->clear();
+		QSignalMapper *mapper=0;
+		
+		KMimeType::Ptr p = KMimeType::findByPath(f[0].file());
+		KService::List apps = KMimeTypeTrader::self()->query(p->name());
+		for (int i=0; i < apps.size(); i++)
+		{
+			KAction *const a = new KAction(KIcon(apps[i]->icon()), apps[i]->name(), d->openWith);
+			if (!mapper)
+			{
+				mapper = new QSignalMapper(a);
+				connect(mapper, SIGNAL(mapped(QString)), SLOT(openWith(QString)));
+			}
+			d->openWith->addAction(a);
+			mapper->setMapping(a, apps[i]->entryPath());
+			connect(a, SIGNAL(activated()), mapper, SLOT(map()));
+		}
 	}
 
 	QMenu *const menu = static_cast<QMenu*>(factory()->container(menuName, this));
@@ -517,6 +557,15 @@ void Meow::MainWindow::isPlaying(bool pl)
 	}
 }
 
+void Meow::MainWindow::openWith(const QString &desktopEntryPath)
+{
+	KService svc(desktopEntryPath);
+	QList<File> f = d->view->selectedFiles();
+	KUrl::List urls;
+	for (int i=0; i < f.size(); i++)
+		urls += KUrl(f[i].file());
+	KRun::run(svc, urls, this);
+}
 
 void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reason)
 {

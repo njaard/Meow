@@ -221,7 +221,7 @@ endif()
 
 SET(MAJOR_VERSION 0)
 SET(MINOR_VERSION 9)
-SET(PATCH_VERSION 2)
+SET(PATCH_VERSION 3)
 
 IF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
 INCLUDE(InstallRequiredSystemLibraries)
@@ -232,7 +232,7 @@ SET(CPACK_GENERATOR "DEB")
 
 if(${MEOW_QT})
 	SET(CPACK_PACKAGE_DESCRIPTION "The cutest music player ever")
-	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE, this is the Qt version")
+	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player, this is the Qt version")
 	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0)")
 	SET(PROJECT_NAME_SUFFIX "-qt")
 	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")

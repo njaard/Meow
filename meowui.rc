@@ -20,7 +20,12 @@
 	</MenuBar>
 	<Menu name="item_context">
 		<Action name="remove_item"/>
+		<separator />
+		<Action name="open_with"/>
 		<Action name="item_properties"/>
+	</Menu>
+	<Menu name="artist_context">
+		<Action name="remove_item"/>
 	</Menu>
 	<Menu name="album_context">
 		<Action name="remove_item"/>

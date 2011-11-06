@@ -54,7 +54,10 @@ protected:
 	virtual void dropEvent(QDropEvent *event);
 	virtual void dragEnterEvent(QDragEnterEvent *event);
 	virtual bool eventFilter(QObject *object, QEvent *event);
-	
+#ifdef MEOW_WITH_KDE
+	virtual bool queryExit();
+#endif
+
 private slots:
 	void adderDone();
 	void showItemContext(const QPoint &at);
@@ -75,6 +78,10 @@ private slots:
 	void configureShortcuts();
 
 	void isPlaying(bool v);
+
+#ifdef MEOW_WITH_KDE
+	void openWith(const QString &desktopEntryName);
+#endif
 
 private:
 	void beginDirectoryAdd(const KUrl &url);
