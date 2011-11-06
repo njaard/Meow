@@ -325,7 +325,8 @@ void Meow::Collection::getFilesAndFirst(Meow::FileId id)
 	if (id != 0)
 	{
 		File f = getSong(id);
-		emit added(f);
+		if (f)
+			emit added(f);
 	}
 	new LoadAll(this, base->sql(d->bigSelectJoin), id);
 }
