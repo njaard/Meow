@@ -1,24 +1,21 @@
 #ifndef MEOW_MAINWINDOW_H
 #define MEOW_MAINWINDOW_H
 
-#ifdef MEOW_WITH_KDE
 #include <kurl.h>
 #include <kxmlguiwindow.h>
+#include <ktoolbarpopupaction.h>
+#include <kdialog.h>
 typedef KXmlGuiWindow MeowMainWindowType;
 typedef KUrl MeowUrlType;
-#include <ktoolbarpopupaction.h>
-#else
-#include <qmainwindow.h>
-#include <qurl.h>
-typedef QMainWindow MeowMainWindowType;
-typedef QUrl MeowUrlType;
-#endif
+class KUrl;
 
 #include <qsystemtrayicon.h>
 
-class KUrl;
+#include <db/file.h>
+
 class QSlider;
 class QSignalMapper;
+class QLineEdit;
 
 namespace Meow
 {
@@ -39,13 +36,12 @@ public:
 	MainWindow();
 	~MainWindow();
 
+private slots:
+	void reloadCollections();
+
 public slots:
 	void addFiles();
-#ifdef MEOW_WITH_KDE
 	void addFile(const KUrl &url);
-#else
-	void addFile(const MeowUrlType &url);
-#endif
 	void toggleVisible();
 
 protected:
@@ -54,9 +50,8 @@ protected:
 	virtual void dropEvent(QDropEvent *event);
 	virtual void dragEnterEvent(QDragEnterEvent *event);
 	virtual bool eventFilter(QObject *object, QEvent *event);
-#ifdef MEOW_WITH_KDE
 	virtual bool queryExit();
-#endif
+
 
 private slots:
 	void adderDone();
@@ -78,6 +73,13 @@ private slots:
 	void configureShortcuts();
 
 	void isPlaying(bool v);
+
+	void newCollection();
+	void copyCollection();
+	void renameCollection();
+	void deleteCollection();
+	void loadCollection(const QString &collection, FileId first);
+	void loadCollection(const QString &collection) { loadCollection(collection, 0); }
 
 #ifdef MEOW_WITH_KDE
 	void openWith(const QString &desktopEntryName);

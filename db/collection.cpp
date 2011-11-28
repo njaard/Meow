@@ -157,13 +157,24 @@ struct Meow::Collection::Private
 	Base::Statement selectOneSql;
 
 	Base::Statement updateUrlSql, deleteTagsSql, insertSql, insertTagsSql;
+	
+	LoadAll *allLoader;
 };
 
 Meow::Collection::Collection(Base *base)
 	: base(base), addThread(0)
 {
 	d = new Private;
+	d->allLoader=0;
 
+
+	addThread = new AddThread(this);
+	addThread->moveToThread(addThread);
+	addThread->start(AddThread::LowestPriority);
+}
+
+void Meow::Collection::newDatabase()
+{
 	{
 		QString statement = "select songs.song_id, songs.url, albums.flags";
 		for (int i=0; i < numTags; i++)
@@ -191,10 +202,6 @@ Meow::Collection::Collection(Base *base)
 	d->deleteTagsSql = base->sql("delete from tags where song_id=?");
 	d->insertSql = base->sql("insert into songs values(null, 0, ?)");
 	d->insertTagsSql = base->sql("insert into tags values(?, ?, ?)");
-
-	addThread = new AddThread(this);
-	addThread->moveToThread(addThread);
-	addThread->start(AddThread::LowestPriority);
 }
 
 
@@ -322,14 +329,22 @@ protected:
 
 void Meow::Collection::getFilesAndFirst(Meow::FileId id)
 {
+	newDatabase();
 	if (id != 0)
 	{
 		File f = getSong(id);
 		if (f)
 			emit added(f);
 	}
-	new LoadAll(this, base->sql(d->bigSelectJoin), id);
+	d->allLoader = new LoadAll(this, base->sql(d->bigSelectJoin), id);
 }
+
+void Meow::Collection::stop()
+{
+	delete d->allLoader;
+	d->allLoader=0;
+}
+
 
 struct Meow::Collection::ReloadEachFile : public BasicLoader
 {

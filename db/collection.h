@@ -45,6 +45,8 @@ public:
 	 **/
 	void getFilesAndFirst(FileId id);
 	
+	void stop();
+	
 	/**
 	 * gets just this file by id. This function is slow
 	 **/
@@ -56,6 +58,7 @@ public:
 
 	void startJob();
 	void scheduleFinishJob();
+	
 
 signals:
 	void added(const File &file);
@@ -67,6 +70,8 @@ signals:
 	 **/
 	void slicesModified();
 
+private:
+	void newDatabase();
 
 protected:
 	virtual bool event(QEvent *e);

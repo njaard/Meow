@@ -241,6 +241,7 @@ void Player::stop()
 		return;
 	d->akPlayer->stop();
 	d->currentItem.reset();
+	emit currentItemChanged(File());
 }
 
 

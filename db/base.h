@@ -19,6 +19,7 @@ public:
 	~Base();
 
 	bool open(const QString &database);
+	bool close();
 
 	struct Statement
 	{

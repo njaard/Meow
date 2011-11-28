@@ -43,6 +43,8 @@
 #include <qapplication.h>
 #include <qpainter.h>
 #include <qboxlayout.h>
+#include <qlineedit.h>
+#include <qlabel.h>
 
 struct Meow::MainWindow::MainWindowPrivate
 {
@@ -56,7 +58,10 @@ struct Meow::MainWindow::MainWindowPrivate
 	KAction *itemProperties;
 	KAction *playPauseAction;
 	KSelectAction *playbackOrder;
-	KActionMenu *openWith;
+	KActionMenu *openWith, *collectionsAction;
+	QActionGroup *collectionsActionGroup;
+	
+	QList<KAction*> collectionActions;
 	
 	bool nowFiltering;
 	
@@ -67,6 +72,8 @@ struct Meow::MainWindow::MainWindowPrivate
 	Filter *filter;
 };
 
+#include "mainwindow_common.cpp"
+
 Meow::MainWindow::MainWindow()
 {
 	d = new MainWindowPrivate;
@@ -74,8 +81,6 @@ Meow::MainWindow::MainWindow()
 	d->settingsDialog = 0;
 	d->nowFiltering = false;
 	d->openFileDialog = 0;
-	
-	d->db.open(KGlobal::dirs()->saveLocation("data", "meow/")+"collection");
 	
 	d->collection = new Collection(&d->db);
 
@@ -183,6 +188,27 @@ Meow::MainWindow::MainWindow()
 			connect(d->playbackOrder, SIGNAL(triggered(int)), SLOT(changePlaybackOrder(int)));
 		}
 		
+		{
+			d->collectionsActionGroup = new QActionGroup(this);
+			
+			d->collectionsAction = new KActionMenu(i18n("&Collection"), this);
+			KAction *newCol = new KAction(i18n("&New Collection"), this);
+			connect(newCol, SIGNAL(activated()), this, SLOT(newCollection()));
+			KAction *copyCol = new KAction(i18n("&Copy Collection"), this);
+			connect(copyCol, SIGNAL(activated()), this, SLOT(copyCollection()));
+			KAction *renameCol = new KAction(i18n("&Rename Collection"), this);
+			connect(renameCol, SIGNAL(activated()), this, SLOT(renameCollection()));
+			KAction *delCol = new KAction(i18n("&Delete Collection"), this);
+			connect(delCol, SIGNAL(activated()), this, SLOT(deleteCollection()));
+			d->collectionsAction->addAction(newCol);
+			d->collectionsAction->addAction(copyCol);
+			d->collectionsAction->addAction(renameCol);
+			d->collectionsAction->addAction(delCol);
+			d->collectionsAction->addSeparator();
+			actionCollection()->addAction("collections", d->collectionsAction);
+			reloadCollections();
+		}
+
 		ac = actionCollection()->addAction(
 				KStandardAction::Close,
 				this,
@@ -259,17 +285,7 @@ Meow::MainWindow::MainWindow()
 	
 	FileId first = meow.readEntry<FileId>("lastPlayed", 0);
 	
-	d->collection->getFilesAndFirst(first);
-	if (first)
-	{
-		// clever trick here:
-		// if first is valid, that means that getFilesAndFirst has loaded it first
-		// and it did so right now (not later in the event loop)
-		// furthermore, it will also load the rest of the files later on 
-		// in the event loop, which means that right now, first is the only
-		// item in the list
-		d->view->playFirst();
-	}
+	loadCollection("collection", first);
 	
 	d->scrobble->begin();
 }
@@ -360,12 +376,6 @@ void Meow::MainWindow::closeEvent(QCloseEvent *event)
 	event->ignore();
 }
 
-void Meow::MainWindow::wheelEvent(QWheelEvent *event)
-{
-	if (!d->nowFiltering)
-		d->player->setVolume(d->player->volume() + event->delta()*10/120);
-}
-
 void Meow::MainWindow::dropEvent(QDropEvent *event)
 {
 	d->collection->startJob();
@@ -381,22 +391,6 @@ void Meow::MainWindow::dragEnterEvent(QDragEnterEvent *event)
 		event->acceptProposedAction();
 }
 
-
-bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
-{
-	if (!d->nowFiltering && object == d->view && event->type() == QEvent::Wheel)
-	{
-		d->nowFiltering = true;
-		QApplication::sendEvent(d->view, event);
-		d->nowFiltering = false;
-		return true;
-	}
-	else if (object == d->tray && event->type() == QEvent::Wheel)
-	{
-		QApplication::sendEvent(this, event);
-	}
-	return false;
-}
 
 void Meow::MainWindow::adderDone()
 {
@@ -464,40 +458,12 @@ void Meow::MainWindow::showItemContext(const QPoint &at)
 	menu->popup(at);
 }
 
-QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
-{
-	QPixmap iconPixmap = KIcon(baseIcon).pixmap(KIconLoader::SizeSmallMedium, KIconLoader::SizeSmallMedium);
-	if (!overlayIcon.isEmpty())
-	{
-		QPixmap overlayPixmap
-			= KIcon(overlayIcon)
-				.pixmap(KIconLoader::SizeSmallMedium/2, KIconLoader::SizeSmallMedium/2);
-		QPainter p(&iconPixmap);
-		p.drawPixmap(
-				iconPixmap.width()-overlayPixmap.width(),
-				iconPixmap.height()-overlayPixmap.height(),
-				overlayPixmap
-			);
-		p.end();
-	}
-	return iconPixmap;
-}
-
 void Meow::MainWindow::changeCaption(const File &f)
 {
-	setCaption(f.title());
-}
-
-void Meow::MainWindow::showSettings()
-{
-	if (!d->settingsDialog)
-	{
-		d->settingsDialog = new ConfigDialog(this);
-		ScrobbleConfigure *sc=new ScrobbleConfigure(d->settingsDialog, d->scrobble);
-		d->settingsDialog->addPage(sc, i18n("AudioScrobbler"));
-	}
-	
-	d->settingsDialog->show();
+	if (f)
+		setCaption(f.title());
+	else
+		setCaption("");
 }
 
 void Meow::MainWindow::toggleToolBar()
@@ -594,41 +560,32 @@ void Meow::MainWindow::itemProperties()
 		new FileProperties(files, d->collection, this);
 }
 
-class SpecialSlider : public QSlider
+QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
 {
-public:
-	SpecialSlider()
-		: QSlider(Qt::Vertical, 0)
+	QPixmap iconPixmap = KIcon(baseIcon).pixmap(KIconLoader::SizeSmallMedium, KIconLoader::SizeSmallMedium);
+	if (!overlayIcon.isEmpty())
 	{
-		setWindowFlags(Qt::Popup);
-		setRange(0, 100);
+		QPixmap overlayPixmap
+			= KIcon(overlayIcon)
+				.pixmap(KIconLoader::SizeSmallMedium/2, KIconLoader::SizeSmallMedium/2);
+		QPainter p(&iconPixmap);
+		p.drawPixmap(
+				iconPixmap.width()-overlayPixmap.width(),
+				iconPixmap.height()-overlayPixmap.height(),
+				overlayPixmap
+			);
+		p.end();
 	}
-	virtual void mousePressEvent(QMouseEvent *event)
-	{
-		if (!rect().contains(event->pos()))
-			hide();
-		QSlider::mousePressEvent(event);
-	}
-	
-	virtual void keyPressEvent(QKeyEvent *event)
-	{
-		if (event->key() == Qt::Key_Escape)
-			hide();
-		QSlider::keyPressEvent(event);
-	}
-	virtual void hideEvent(QHideEvent *event)
-	{
-		releaseMouse();
-		QSlider::hideEvent(event);
-	}
-};
+	return iconPixmap;
+}
+
 
 Meow::VolumeAction::VolumeAction(const KIcon& icon, const QString& text, QObject *parent)
 	: KToolBarPopupAction(icon, text, parent)
 {
 	signalMapper = new QSignalMapper(this);
 	
-	slider = new SpecialSlider;
+	slider = new SpecialSlider(0);
 	connect(slider, SIGNAL(valueChanged(int)), SIGNAL(volumeChanged(int)));
 	connect(
 			signalMapper, SIGNAL(mapped(QWidget*)),
@@ -665,6 +622,5 @@ void Meow::VolumeAction::showPopup(QWidget *button)
 	slider->raise();
 	slider->grabMouse();
 }
-
 
 // kate: space-indent off; replace-tabs off;

@@ -2,7 +2,7 @@
 
 #include "sqlt.h"
 
-
+#include <stdexcept>
 Meow::Base::Base()
 {
 	d = new BasePrivate;
@@ -13,6 +13,7 @@ Meow::Base::~Base()
 	sqlite3_close(d->db);
 	delete d;
 }
+
 
 bool Meow::Base::open(const QString &database)
 {
@@ -32,6 +33,14 @@ bool Meow::Base::open(const QString &database)
 		
 	initialize();
 
+	return true;
+}
+
+bool Meow::Base::close()
+{
+	if (SQLITE_BUSY == sqlite3_close(d->db))
+		return false;
+	d->db = 0;
 	return true;
 }
 

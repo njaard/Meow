@@ -36,38 +36,8 @@
 #include <winuser.h>
 #endif
 
-
-namespace
-{
-class SpecialSlider : public QSlider
-{
-public:
-	SpecialSlider(QWidget *parent)
-		: QSlider(Qt::Vertical, parent)
-	{
-		setWindowFlags(Qt::Popup);
-		setRange(0, 100);
-	}
-	virtual void mousePressEvent(QMouseEvent *event)
-	{
-		if (!rect().contains(event->pos()))
-			hide();
-		QSlider::mousePressEvent(event);
-	}
-	
-	virtual void keyPressEvent(QKeyEvent *event)
-	{
-		if (event->key() == Qt::Key_Escape)
-			hide();
-		QSlider::keyPressEvent(event);
-	}
-	virtual void hideEvent(QHideEvent *event)
-	{
-		releaseMouse();
-		QSlider::hideEvent(event);
-	}
-};
-}
+#define i18n tr
+class SpecialSlider;
 
 struct Meow::MainWindow::MainWindowPrivate
 {
@@ -82,6 +52,9 @@ struct Meow::MainWindow::MainWindowPrivate
 	QAction *itemProperties, *itemRemove;
 	QMenu *playbackOrder;
 	QToolBar *topToolbar;
+	
+	QAction *collectionsAction;
+	QActionGroup *collectionsActionGroup;
 	
 	QAction *playPauseAction, *prevAction, *nextAction, *volumeUpAction, *volumeDownAction, *muteAction, *volumeAction;
 	
@@ -101,6 +74,11 @@ struct Meow::MainWindow::MainWindowPrivate
 	SpecialSlider *volumeSlider;
 	Filter *filter;
 };
+
+typedef QIcon KIcon;
+
+#include "mainwindow_common.cpp"
+
 
 #ifdef _WIN32
 static Meow::MainWindow *mwEvents=0;
@@ -151,13 +129,6 @@ Meow::MainWindow::MainWindow()
 	d->openFileDialog = 0;
 	d->quitting=false;
 	d->settingsDialog=0;
-	
-
-#ifdef _WIN32
-	d->db.open(QDir::homePath() + "\\meow collection");
-#else
-	d->db.open(QDir::homePath() + "/.config/meow collection");
-#endif
 
 	d->collection = new Collection(&d->db);
 
@@ -275,6 +246,28 @@ Meow::MainWindow::MainWindow()
 			connect(&d->selectorActions, SIGNAL(triggered(QAction*)), SLOT(selectorActivated(QAction*)));
 		}
 		
+		{
+			d->collectionsActionGroup = new QActionGroup(this);
+			
+			d->collectionsAction = new QAction(i18n("&Collection"), this);
+			d->collectionsAction->setMenu(new QMenu(this));
+			QAction *newCol = new QAction(i18n("&New Collection"), this);
+			connect(newCol, SIGNAL(activated()), this, SLOT(newCollection()));
+			QAction *copyCol = new QAction(i18n("&Copy Collection"), this);
+			connect(copyCol, SIGNAL(activated()), this, SLOT(copyCollection()));
+			QAction *renameCol = new QAction(i18n("&Rename Collection"), this);
+			connect(renameCol, SIGNAL(activated()), this, SLOT(renameCollection()));
+			QAction *delCol = new QAction(i18n("&Delete Collection"), this);
+			connect(delCol, SIGNAL(activated()), this, SLOT(deleteCollection()));
+			d->collectionsAction->menu()->addAction(newCol);
+			d->collectionsAction->menu()->addAction(copyCol);
+			d->collectionsAction->menu()->addAction(renameCol);
+			d->collectionsAction->menu()->addAction(delCol);
+			d->collectionsAction->menu()->addSeparator();
+			fileMenu->addAction(d->collectionsAction);
+			reloadCollections();
+		}
+
 		fileMenu->addSeparator();
 		trayMenu->addSeparator();
 		
@@ -386,18 +379,7 @@ Meow::MainWindow::MainWindow()
 	
 	FileId first = settings.value("state/lastPlayed", 0).toInt();
 	
-	d->collection->getFilesAndFirst(first);
-	if (first)
-	{
-		// clever trick here:
-		// if first is valid, that means that getFilesAndFirst has loaded it first
-		// and it did so right now (not later in the event loop)
-		// furthermore, it will also load the rest of the files later on 
-		// in the event loop, which means that right now, first is the only
-		// item in the list
-		d->view->playFirst();
-	}
-	
+	loadCollection("collection", first);
 }
 
 Meow::MainWindow::~MainWindow()
@@ -405,6 +387,7 @@ Meow::MainWindow::~MainWindow()
 //	delete d->collection;
 //	delete d;
 }
+
 
 void Meow::MainWindow::addFile(const QUrl &url)
 {
@@ -516,11 +499,6 @@ void Meow::MainWindow::showVolume()
 	d->volumeSlider->show();
 }
 
-void Meow::MainWindow::wheelEvent(QWheelEvent *event)
-{
-	if (!d->nowFiltering)
-		d->player->setVolume(d->player->volume() + event->delta()*10/120);
-}
 
 void Meow::MainWindow::dropEvent(QDropEvent *event)
 {
@@ -536,22 +514,6 @@ void Meow::MainWindow::dragEnterEvent(QDragEnterEvent *event)
 		event->acceptProposedAction();
 }
 
-
-bool Meow::MainWindow::eventFilter(QObject *object, QEvent *event)
-{
-	if (!d->nowFiltering && object == d->view && event->type() == QEvent::Wheel)
-	{
-		d->nowFiltering = true;
-		QApplication::sendEvent(d->view, event);
-		d->nowFiltering = false;
-		return true;
-	}
-	else if (object == d->tray && event->type() == QEvent::Wheel)
-	{
-		QApplication::sendEvent(this, event);
-	}
-	return false;
-}
 
 void Meow::MainWindow::adderDone()
 {
@@ -585,19 +547,10 @@ void Meow::MainWindow::showItemContext(const QPoint &at)
 
 void Meow::MainWindow::changeCaption(const File &f)
 {
-	setWindowTitle(tr("%1 - Meow").arg(f.title()));
-}
-
-void Meow::MainWindow::showSettings()
-{
-	if (!d->settingsDialog)
-	{
-		d->settingsDialog = new ConfigDialog(this);
-		ScrobbleConfigure *sc=new ScrobbleConfigure(d->settingsDialog, d->scrobble);
-		d->settingsDialog->addPage(sc, tr("AudioScrobbler"));
-	}
-	
-	d->settingsDialog->show();
+	if (f)
+		setWindowTitle(tr("%1 - Meow").arg(f.title()));
+	else
+		setWindowTitle(tr("Meow"));
 }
 
 void Meow::MainWindow::showAbout()
@@ -670,6 +623,18 @@ void Meow::MainWindow::systemTrayClicked(QSystemTrayIcon::ActivationReason reaso
 		isVisible() ? hide() : show();
 }
 
+void Meow::MainWindow::itemProperties()
+{
+	QList<File> files = d->view->selectedFiles();
+	if (!files.isEmpty())
+		;
+}
+
+void Meow::MainWindow::selectorActivated(QAction* action)
+{
+	d->view->setSelector( d->selectors[action] );
+}
+
 QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
 {
 	QPixmap iconPixmap = QIcon(baseIcon).pixmap(16);
@@ -687,18 +652,6 @@ QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overl
 		p.end();
 	}
 	return iconPixmap;
-}
-
-void Meow::MainWindow::itemProperties()
-{
-	QList<File> files = d->view->selectedFiles();
-	if (!files.isEmpty())
-		;
-}
-
-void Meow::MainWindow::selectorActivated(QAction* action)
-{
-	d->view->setSelector( d->selectors[action] );
 }
 
 

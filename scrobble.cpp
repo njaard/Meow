@@ -649,7 +649,7 @@ void Meow::Scrobble::slotHandshakeResult()
 
 void Meow::Scrobble::currentItemChanged(const File &file)
 {
-	if (!isEnabled())
+	if (!isEnabled() && !file)
 		return;
 
 	std::cerr << "Something is playing now" << std::endl;

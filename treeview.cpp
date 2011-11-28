@@ -552,6 +552,14 @@ void Meow::TreeView::playFirst()
 		playAt(item);
 }
 
+void Meow::TreeView::clear()
+{
+	player->stop();
+	mCurrent = 0;
+	mRandomPrevious = 0;
+	QTreeWidget::clear();
+}
+
 void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 {
 	Song *const cur = findAfter(_item);
@@ -924,15 +932,11 @@ void Meow::TreeView::removeSelected()
 		{
 			nextToBePlaying = nonChildAfter(nextToBePlaying);
 		} while (selected.contains(nextToBePlaying));
-	}
-	if (mRandomPrevious && hasAsParent(mRandomPrevious, selected))
-		mRandomPrevious = 0;
-	
-	if (nextToBePlaying)
-	{
 		mCurrent = 0;
 		player->stop();
 	}
+	if (mRandomPrevious && hasAsParent(mRandomPrevious, selected))
+		mRandomPrevious = 0;
 	
 	
 	std::vector<FileId> files;

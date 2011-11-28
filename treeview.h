@@ -56,6 +56,9 @@ public:
 	void setSelector(SelectorType t);
 	
 	void playFirst();
+
+public slots:
+	void clear();
 	
 public slots:
 	void removeSelected();
