@@ -10,7 +10,7 @@ int main( int argc, char **argv )
 {
 	KAboutData aboutData(
 			"meow", 0, ki18n( "Meow" ),
-			"0.9.4", ki18n("A cute music player"), KAboutData::License_GPL_V3,
+			"0.9.5", ki18n("A cute music player"), KAboutData::License_GPL_V3,
 			ki18n("(c) 2008-2011, Charles Samuels. (c) 1994-2010 others")
 		);
 	

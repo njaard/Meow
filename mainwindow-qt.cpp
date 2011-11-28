@@ -558,7 +558,7 @@ void Meow::MainWindow::showAbout()
 	QMessageBox::about(
 			this, tr("About Meow"),
 			tr(
-					"<qt>This is Meow 0.9.4. A cute music player.<br/><br/>"
+					"<qt>This is Meow 0.9.5. A cute music player.<br/><br/>"
 					"By <a href=\"mailto:charles@kde.org\">Charles Samuels</a>. He likes cats.<br/><br/>"
 					"<a href=\"http://derkarl.org/meow\">http://derkarl.org/meow</a><br/><br/>"
 					"Copyright (c) 2008-2011 Charles Samuels<br/>"
