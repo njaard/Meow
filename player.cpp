@@ -439,6 +439,7 @@ QStringList Player::mimeTypes() const
 	m << "audio/x-vorbis+ogg";
 	m << "audio/ogg";
 	m << "audio/flac";
+	m << "audio/x-flac";
 	m << "audio/x-musepack";
 	return m;
 }
