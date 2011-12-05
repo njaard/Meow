@@ -96,14 +96,14 @@ else()
 	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(FLAC113 DEFAULT_MSG FLAC113_LIBRARY FLAC113_INCLUDE_DIR)
 
-#	find_path(MPC_INCLUDE_DIR NAMES mpc/mpcdec.h
-#		PATH_SUFFIXES mpc
-#		DOC "MPC decoder include directory"
-#	)
-#	find_library(MPC_LIBRARY NAMES mpcdec
-#		DOC "MPC decoder library"
-#	)
-#	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPC DEFAULT_MSG MPC_LIBRARY MPC_INCLUDE_DIR)
+	find_path(MPC_INCLUDE_DIR NAMES mpc/mpcdec.h
+		PATH_SUFFIXES mpc
+		DOC "MPC decoder include directory"
+	)
+	find_library(MPC_LIBRARY NAMES mpcdec
+		DOC "MPC decoder library"
+	)
+	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPC DEFAULT_MSG MPC_LIBRARY MPC_INCLUDE_DIR)
 
 	if(${MEOW_QT})
 		set(platform_sources ${platform_sources} mainwindow-qt.cpp md5.c)
@@ -126,7 +126,7 @@ else()
 			${MAD_INCLUDE_DIR}
 			${VORBIS_INCLUDE_DIR}
 			${FLAC113_INCLUDE_DIR}
-#			${MPC_INCLUDE_DIR}
+			${MPC_INCLUDE_DIR}
 		)
 	add_definitions(
 			${QT_DEFINITIONS}
@@ -162,12 +162,6 @@ set(
 	akode/plugins/vorbis_decoder.cpp
 	akode/plugins/flac113_decoder.cpp
 	akode/plugins/mpc_decoder.cpp
-
-	akode/plugins/mppdec/bitstream.cpp akode/plugins/mppdec/huffsv46.cpp
-	akode/plugins/mppdec/huffsv7.cpp akode/plugins/mppdec/idtag.cpp
-	akode/plugins/mppdec/mpc_dec.cpp akode/plugins/mppdec/requant.cpp
-	akode/plugins/mppdec/stdafx.cpp akode/plugins/mppdec/streaminfo.cpp
-	akode/plugins/mppdec/synth_filter.cpp
 	${platform_sources}
 )
 if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
@@ -200,7 +194,7 @@ elseif(${MEOW_QT})
 		${TAGLIB_LIBRARY} ${MAD_LIBRARY} ${VORBIS_LIBRARY}
 		${FLAC113_LIBRARY}
 		${QT_LIBRARIES}
-#		${MPC_LIBRARY}
+		${MPC_LIBRARY}
 	)
 	install(TARGETS meow-qt DESTINATION bin)
 else()
@@ -212,7 +206,7 @@ else()
 		${ALSA_LIBRARY} ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS}
 		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MAD_LIBRARY} ${VORBIS_LIBRARY}
 		${FLAC113_LIBRARY}
-#		${MPC_LIBRARY}
+		${MPC_LIBRARY}
 	)
 	kde4_install_icons(${ICON_INSTALL_DIR})
 
