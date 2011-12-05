@@ -1,11 +1,12 @@
 /*  aKode: Musepack(MPC) Decoder
 
     Copyright (C) 2004 Allan Sandfeld Jensen <kde@carewolf.com>
+    Copyright (C) 2011 Allan Sandfeld Jensen <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
     License as published by the Free Software Foundation; either
-    version 2 of the License, or (at your option) any later version.
+    version 3 of the License, or (at your option) any later version.
 
     This library is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,18 +19,10 @@
     Boston, MA 02110-1301, USA.
 */
 
-//#ifdef AKODE_COMPILE_MPC
-
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#else
-#include <stdint.h>
-#endif
-
 #include <akode/file.h>
 #include <akode/audioframe.h>
 
-#include "mppdec/mpc_dec.h"
+#include <mpc/mpcdec.h>
 
 #include "mpc_decoder.h"
 
@@ -37,216 +30,214 @@ using namespace aKode;
 
 namespace
 {
-    
+
+namespace mr
+{
+static mpc_int32_t read(mpc_reader *r, void *ptr, mpc_int32_t size)
+{
+	aKode::File *f = (aKode::File*)r->data;
+	return f->read( (char*)ptr, size);
+}
+
+mpc_bool_t seek(mpc_reader *r, mpc_int32_t offset)
+{
+	aKode::File *f = (aKode::File*)r->data;
+	return f->seek(offset);
+}
+
+mpc_int32_t tell(mpc_reader *r)
+{
+	aKode::File *f = (aKode::File*)r->data;
+	return f->position();
+}
+
+mpc_int32_t get_size(mpc_reader *r)
+{
+	aKode::File *f = (aKode::File*)r->data;
+	return f->length();
+}
+
+mpc_bool_t canseek(mpc_reader *r)
+{
+	aKode::File *f = (aKode::File*)r->data;
+	return f->seekable();
+}
+
+}
+
 class MPCDecoder : public Decoder
 {
 public:
-    MPCDecoder(File* src);
-    virtual ~MPCDecoder();
+	MPCDecoder(File* src);
+	virtual ~MPCDecoder();
 
-    virtual void initialize();
-    virtual bool readFrame(AudioFrame* frame);
-    virtual long length();
-    virtual long position();
-    virtual bool seek(long);
-    virtual bool seekable();
-    virtual bool eof();
-    virtual bool error();
+	void initialize();
+	
+	virtual bool readFrame(AudioFrame* frame);
+	virtual long length();
+	virtual long position();
+	virtual bool seek(long);
+	virtual bool seekable();
+	virtual bool eof();
+	virtual bool error();
 
-    virtual const AudioConfiguration* audioConfiguration();
+	virtual const AudioConfiguration* audioConfiguration();
 
-    struct private_data;
 private:
-    private_data *m_data;
+	AudioConfiguration config;
+	mpc_reader reader;
+	mpc_streaminfo si;
+	mpc_demux* demux;
+	
+	long mPos;
+
+	bool mEof;
+	bool mError;
+
+	MPC_SAMPLE_FORMAT *buffer;
 };
 
-
-class MPC_reader_impl : public MPC_reader
+MPCDecoder::MPCDecoder(File *src)
 {
-public:
-	MPC_reader_impl(aKode::File *file, bool p_seekable) : m_file(file), m_seekable(p_seekable)
+	mError = false;
+	mEof = false;
+	demux=0;
+	buffer = 0;
+	mPos = 0;
+
+	reader.read = mr::read;
+	reader.seek = mr::seek;
+	reader.tell = mr::tell;
+	reader.get_size = mr::get_size;
+	reader.canseek = mr::canseek;
+	reader.data = src;
+}
+
+MPCDecoder::~MPCDecoder()
+{
+	delete[] buffer;
+	if (demux)
+		mpc_demux_exit(demux);
+}
+
+void MPCDecoder::initialize()
+{
+	demux = mpc_demux_init(&reader);
+	
+	if(!demux)
 	{
-            m_file->openRO();
-            m_file->fadvise();
+		mError = true;
+		return;
 	}
-        virtual ~MPC_reader_impl() {
-            m_file->close();
-        }
-	size_t read ( void *ptr, size_t size ) {return m_file->read((char*)ptr,size);}
-	bool seek ( int offset, int origin ) {return m_file->seek(offset,origin);}
-	long tell () {return m_file->position();}
-	long get_size () {return m_file->length();}
-	bool canseek() {return m_file->seekable();}
-private:
-	aKode::File * m_file;
-	bool m_seekable;
-};
+	
+	mpc_demux_get_info(demux,  &si);
+	
+	config.channels = si.channels;
+	config.sample_rate = si.sample_freq;
+	config.sample_width = -32;
 
+	if (config.channels <=2)
+		config.channel_config = MonoStereo;
+	else
+		config.channel_config = MultiChannel;
+}
 
-struct MPCDecoder::private_data
+bool MPCDecoder::readFrame(AudioFrame* frame)
 {
-    private_data(File *src) : reader(src,true), decoder(&reader),
-                              initialized(false), buffer(0), position(0),
-                              eof(false), error(false)
-    {};
-    MPC_reader_impl reader;
-    StreamInfo si;
-    MPC_decoder decoder;
+	if (!demux)
+	{
+		initialize();
+		if (!demux)
+			return false;
+		buffer = new MPC_SAMPLE_FORMAT[MPC_DECODER_BUFFER_LENGTH];
+	}
+	
+	mpc_frame_info mpcframe;
+	mpcframe.buffer = buffer;
+	const mpc_status status = mpc_demux_decode(demux, &mpcframe);
+	if (mpcframe.bits < 0)
+		return false;
 
-    bool initialized;
-    MPC_SAMPLE_FORMAT *buffer;
+	mPos += mpcframe.samples;
+	
+	int channels = config.channels;
+	int length = mpcframe.samples;
+	frame->reserveSpace(&config, length);
 
-    long position;
-    bool eof;
-    bool error;
+	float** data = (float**)frame->data;
+	for(int i=0; i<length; i++)
+		for(int j=0; j<channels; j++)
+			data[j][i] = buffer[i*channels+j];
 
-    AudioConfiguration config;
-};
-
-MPCDecoder::MPCDecoder(File *src) {
-    m_data = new private_data(src);
+	frame->pos = position();
+	return true;
 }
 
-MPCDecoder::~MPCDecoder() {
-    if (m_data->initialized)
-        delete[] m_data->buffer;
-    delete m_data;
-}
-
-void MPCDecoder::initialize() {
-    if (m_data->initialized) return;
-
-    m_data->si.ReadStreamInfo(&m_data->reader);
-    m_data->error = !m_data->decoder.Initialize(&m_data->si);
-    m_data->buffer = new MPC_SAMPLE_FORMAT[MPC_decoder::DecodeBufferLength];
-    m_data->initialized = true;
-
-    m_data->config.channels = m_data->si.simple.Channels;
-    m_data->config.sample_rate = m_data->si.simple.SampleFreq;
-    m_data->config.sample_width = -32;
-
-    if (m_data->config.channels <=2)
-        m_data->config.channel_config = MonoStereo;
-    else
-        m_data->config.channel_config = MultiChannel;
-
-}
-/*
-template<int bits>
-static inline int32_t scale(float sample)
+long MPCDecoder::length()
 {
-  static const int32_t max = (1<<(bits-1))-1;
-
-  // scale
-  sample *= max;
-
-  // round
-  sample += 0.5;
-
-  // clip
-  if (sample > max)
-    sample = max;
-  else
-  if (sample < -max)
-    sample = -max;
-
-  return (int32_t)sample;
-}*/
-
-bool MPCDecoder::readFrame(AudioFrame* frame) {
-    if (!m_data->initialized) initialize();
-
-    int status = m_data->decoder.Decode(m_data->buffer);
-
-    if (status == -1) {
-        m_data->error=true;
-        return false;
-    }
-    if (status == 0) {
-        m_data->eof=true;
-        return false;
-    }
-
-    int channels = m_data->config.channels;
-    long length = status;
-    frame->reserveSpace(&m_data->config, length);
-    m_data->position+=length;
-
-    // Demux into frame
-    /*
-    int16_t** data = (int16_t**)frame->data;
-    for(int i=0; i<length; i++)
-        for(int j=0; j<channels; j++) {
-            data[j][i] = scale<16>(m_data->buffer[i*channels+j]);
-        }*/
-
-    float** data = (float**)frame->data;
-    for(int i=0; i<length; i++)
-        for(int j=0; j<channels; j++)
-            data[j][i] = m_data->buffer[i*channels+j];
-
-    frame->pos = position();
-    return true;
+	if (!demux) return -1;
+	return mpc_streaminfo_get_length(&si)*1000;
 }
 
-long MPCDecoder::length() {
-    if (!m_data->initialized) return -1;
-    return (long)(m_data->si.GetLength()*1000.0);
+long MPCDecoder::position()
+{
+	if (!demux) return -1;
+	return mPos/config.sample_rate * 1000;
 }
 
-long MPCDecoder::position() {
-    if (!m_data->initialized) return -1;
-    float mpcpos = ((float)m_data->position)/(float)m_data->si.simple.SampleFreq;
-    return (long)(mpcpos*1000.0);
+bool MPCDecoder::eof()
+{
+	return mEof;
 }
 
-bool MPCDecoder::eof() {
-    return m_data->eof;
+bool MPCDecoder::error()
+{
+	return mError;
 }
 
-bool MPCDecoder::error() {
-    return m_data->error;
+bool MPCDecoder::seekable()
+{
+	return reader.canseek(&reader);
 }
 
-bool MPCDecoder::seekable() {
-    return m_data->reader.canseek();
+bool MPCDecoder::seek(long pos)
+{
+	if (!demux) return -1;
+
+	const mpc_status status = mpc_demux_seek_second(demux, pos/1000);
+	if (MPC_STATUS_OK == status)
+	{
+		mPos = pos*config.sample_rate/1000;
+		return true;
+	}
+	else
+		return false;
 }
 
-bool MPCDecoder::seek(long pos) {
-    if (!m_data->initialized) return false;
-
-    long samplepos = (long)((pos*(float)m_data->si.simple.SampleFreq)/1000.0);
-
-    if (m_data->decoder.SeekSample(samplepos)) {
-        m_data->position = samplepos;
-        return true;
-    }
-    else
-        return false;
-}
-
-const AudioConfiguration* MPCDecoder::audioConfiguration() {
-    return &m_data->config;
+const AudioConfiguration* MPCDecoder::audioConfiguration()
+{
+    return &config;
 }
 
 class MpcDecoderPlugin : public DecoderPlugin
 {
 public:
-    MpcDecoderPlugin() : DecoderPlugin("mpc") { }
-    virtual bool canDecode(File* src)
-    {
-        src->openRO();
-        MPC_reader_impl reader(src, true);
-        StreamInfo si;
-
-        int r = si.ReadStreamInfo(&reader);
-        src->close();
-        return r==0;
-    }
-    virtual MPCDecoder* openDecoder(File* src)
-    {
-        return new MPCDecoder(src);
-    }
+	MpcDecoderPlugin() : DecoderPlugin("mpc") { }
+	virtual bool canDecode(File* src)
+	{
+		src->openRO();
+		MPCDecoder dec(src);
+		dec.initialize();
+		bool x = !dec.error();
+		src->close();
+		return x;
+	}
+	virtual MPCDecoder* openDecoder(File* src)
+	{
+		src->openRO();
+		src->fadvise();
+		return new MPCDecoder(src);
+	}
 } plugin;
 
 } // namespace
@@ -255,7 +246,7 @@ namespace aKode
 {
 DecoderPlugin& mpc_decoder()
 {
-    return plugin;
+	return plugin;
 }
 
 } // namespace
