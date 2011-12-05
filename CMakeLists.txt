@@ -1,3 +1,9 @@
+SET(MAJOR_VERSION 0)
+SET(MINOR_VERSION 9)
+SET(PATCH_VERSION 6)
+SET(PACKAGE_VERSION 1)
+
+
 cmake_minimum_required(VERSION 2.6)
 project(meow)
 
@@ -213,10 +219,6 @@ else()
 endif()
 
 
-SET(MAJOR_VERSION 0)
-SET(MINOR_VERSION 9)
-SET(PATCH_VERSION 5)
-SET(PACKAGE_VERSION 1)
 
 IF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
 INCLUDE(InstallRequiredSystemLibraries)
