@@ -30,6 +30,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${EXTRALIBS}/lib/libvorbisfile.a ${EXTRALIBS}/lib/libvorbis.a
 		${EXTRALIBS}/lib/libogg.a
 		${EXTRALIBS}/lib/libFLAC.a
+		${EXTRALIBS}/lib/libmpcdec_static.a
 
 		${EXTRALIBS}/lib/libpthreadGC1.a -lws2_32 -ldsound -limm32 -lwinmm
 	)

@@ -1,7 +1,7 @@
 /*  aKode: Musepack(MPC) Decoder
 
     Copyright (C) 2004 Allan Sandfeld Jensen <kde@carewolf.com>
-    Copyright (C) 2011 Allan Sandfeld Jensen <charles@kde.org>
+    Copyright (C) 2011 Charles Samuels <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -23,6 +23,8 @@
 #include <akode/audioframe.h>
 
 #include <mpc/mpcdec.h>
+
+#include <limits>
 
 #include "mpc_decoder.h"
 
@@ -134,7 +136,7 @@ void MPCDecoder::initialize()
 	
 	config.channels = si.channels;
 	config.sample_rate = si.sample_freq;
-	config.sample_width = -32;
+	config.sample_width = 16;
 
 	if (config.channels <=2)
 		config.channel_config = MonoStereo;
@@ -164,10 +166,12 @@ bool MPCDecoder::readFrame(AudioFrame* frame)
 	int length = mpcframe.samples;
 	frame->reserveSpace(&config, length);
 
-	float** data = (float**)frame->data;
+	uint16_t** data = (uint16_t**)frame->data;
 	for(int i=0; i<length; i++)
 		for(int j=0; j<channels; j++)
-			data[j][i] = buffer[i*channels+j];
+		{
+			data[j][i] = buffer[i*channels+j] * std::numeric_limits<int16_t>::max();
+		}
 
 	frame->pos = position();
 	return true;

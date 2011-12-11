@@ -123,12 +123,15 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
 
     WAVEFORMATEX wfx; 
     memset(&wfx, 0, sizeof(WAVEFORMATEX)); 
-    wfx.wFormatTag = WAVE_FORMAT_PCM; 
+    if (config->sample_width==16)
+    {
+        wfx.wFormatTag = WAVE_FORMAT_PCM;
+        wfx.wBitsPerSample = 16;
+    }
     wfx.nChannels = 2; 
     wfx.nSamplesPerSec = 44100; 
     wfx.nBlockAlign = 4; 
     wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign; 
-    wfx.wBitsPerSample = 16;
     
     DSBUFFERDESC bd;
     memset (&bd, 0, sizeof (DSBUFFERDESC));
@@ -137,7 +140,6 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     d->bufferSize = bd.dwBufferBytes = wfx.nAvgBytesPerSec/4;
     
     bd.lpwfxFormat = &wfx;
-    
     
     d->writingInBlocksOf = bd.dwBufferBytes/wfx.wBitsPerSample/wfx.nChannels/4;
     
@@ -245,12 +247,12 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
 
 bool DSoundSink::writeFrame(AudioFrame* frame)
 {
+    return _writeFrame<int16_t>(frame);
 /*    if (frame->sample_width<0)
         return _writeFrame<float>(frame);
     else if (frame->sample_width<=8)
         return _writeFrame<int8_t>(frame);
     else if (frame->sample_width<=16) */
-        return _writeFrame<int16_t>(frame);
 //    else if (frame->sample_width<=32)
 //        return _writeFrame<int32_t>(frame);
 
