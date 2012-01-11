@@ -50,10 +50,9 @@ protected:
 	virtual void dropEvent(QDropEvent *event);
 	virtual void dragEnterEvent(QDragEnterEvent *event);
 	virtual bool eventFilter(QObject *object, QEvent *event);
-	virtual bool queryExit();
-
 
 private slots:
+	void quitting();
 	void adderDone();
 	void showItemContext(const QPoint &at);
 	void changeCaption(const File &f);

@@ -288,17 +288,19 @@ Meow::MainWindow::MainWindow()
 	loadCollection("collection", first);
 	
 	d->scrobble->begin();
+	
+	connect(qApp, SIGNAL(aboutToQuit()), SLOT(quitting()));
 }
-#include <iostream>
+
 Meow::MainWindow::~MainWindow()
 {
+	quitting();
 	delete d->collection;
 	delete d;
 }
 
-bool Meow::MainWindow::queryExit()
+void Meow::MainWindow::quitting()
 {
-	std::cerr << "exiting" << std::endl;
 	KConfigGroup meow = KGlobal::config()->group("state");
 	meow.writeEntry<int>("volume", d->player->volume());
 	meow.writeEntry<FileId>("lastPlayed", d->player->currentFile().fileId());
@@ -313,7 +315,6 @@ bool Meow::MainWindow::queryExit()
 		meow.writeEntry("selector", "linear");
 	
 	meow.sync();
-	return true;
 }
 
 
