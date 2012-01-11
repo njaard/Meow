@@ -36,6 +36,7 @@
 #include <qdir.h>
 #include <qpluginloader.h>
 #include <qcoreapplication.h>
+#include <qdbusconnection.h>
 
 #ifdef MEOW_WITH_KDE
 #include <kdebug.h>
@@ -193,6 +194,9 @@ Player::Player()
 	d->akPlayer = 0;
 	d->nowLoading = false;
 	d->volumePercent = 50;
+	QDBusConnection connection = QDBusConnection::sessionBus();
+	connection.registerObject("/player", this, QDBusConnection::ExportScriptableContents);
+	connection.registerService("org.kde.meow");
 }
 
 
@@ -430,6 +434,20 @@ File Player::currentFile() const
 		return File();
 	else
 		return *d->currentItem;
+}
+
+QString Player::currentTitle() const
+{
+	if (File f = currentFile())
+		return f.title();
+	return "";
+}
+
+QString Player::currentArtist() const
+{
+	if (File f = currentFile())
+		return f.artist();
+	return "";
 }
 
 QStringList Player::mimeTypes() const

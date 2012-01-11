@@ -47,6 +47,7 @@ class PlayerPrivate;
 class Player : public QObject
 {
 	Q_OBJECT
+	Q_CLASSINFO("Player", "org.kde.meow")
 	friend class PlayerPrivate;
 
 public:
@@ -147,6 +148,9 @@ public:
 	QStringList mimeTypes() const;
 	
 	File currentFile() const;
+	
+	Q_SCRIPTABLE QString currentTitle() const;
+	Q_SCRIPTABLE QString currentArtist() const;
 
 public Q_SLOTS:
 	/**
@@ -199,7 +203,7 @@ public Q_SLOTS:
 	 * @brief Set playback volume
 	 * @param percent new playback volume in percent (0 - 100)
 	 **/
-	void setVolume(int percent);
+	Q_SCRIPTABLE void setVolume(int percent);
 	
 	void volumeUp() { setVolume(volume() + 5); }
 	void volumeDown() { setVolume(volume() - 5); }

@@ -13,7 +13,6 @@ set(QT_DIR, "/home/charles/dev/qt-mingw")
 
 
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
-
 if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	include_directories(${QT_DIR}/include/Qt ${QT_DIR}/include ${QT_INCLUDES})
 	if (NOT IS_DIRECTORY ${EXTRALIBS})
@@ -171,6 +170,7 @@ set(
 	akode/plugins/mpc_decoder.cpp
 	${platform_sources}
 )
+
 if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	ADD_CUSTOM_COMMAND(
 		OUTPUT meowres.o
