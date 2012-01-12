@@ -558,7 +558,7 @@ void Meow::MainWindow::showAbout()
 	QMessageBox::about(
 			this, tr("About Meow"),
 			tr(
-					"<qt>This is Meow 0.9.6. A cute music player.<br/><br/>"
+					"<qt>This is Meow %1. A cute music player.<br/><br/>"
 					"By <a href=\"mailto:charles@kde.org\">Charles Samuels</a>. He likes cats.<br/><br/>"
 					"<a href=\"http://derkarl.org/meow\">http://derkarl.org/meow</a><br/><br/>"
 					"Copyright (c) 2008-2011 Charles Samuels<br/>"
@@ -574,7 +574,7 @@ void Meow::MainWindow::showAbout()
 					"Meow is Free software, you may modify and share it under the "
 					"<a href=\"http://www.gnu.org/licenses/gpl-3.0.html\">terms of the GPL version 3</a>."
 					"</qt>"
-				)
+				).arg(MEOW_VERSION)
 		);
 }
 

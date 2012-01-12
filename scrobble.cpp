@@ -326,14 +326,14 @@ static const char sharedSecret[] = "2dd588e3897657af9422bf4a467f9d8d"; // this a
 #ifdef MEOW_WITH_KDE
 static QString userAgent()
 {
-	QString agent("Meow/0.0.1 (KDE %1.%2.%3)");
-	agent = agent.arg(KDE_VERSION_MAJOR).arg(KDE_VERSION_MINOR).arg(KDE_VERSION_RELEASE);
+	QString agent("Meow/%1 (KDE %2.%3.%4)");
+	agent = agent.arg(MEOW_VERSION).arg(KDE_VERSION_MAJOR).arg(KDE_VERSION_MINOR).arg(KDE_VERSION_RELEASE);
 	return agent;
 }
 #else
 static QByteArray userAgent()
 {
-	return "Meow/0.0.1 (Windows)";
+	return QString("Meow/%1 (Windows)").arg(MEOW_VERSION);
 }
 #endif
 

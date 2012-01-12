@@ -1,6 +1,6 @@
 SET(MAJOR_VERSION 0)
 SET(MINOR_VERSION 9)
-SET(PATCH_VERSION 6)
+SET(PATCH_VERSION 7)
 SET(PACKAGE_VERSION 1)
 
 
@@ -10,6 +10,10 @@ project(meow)
 find_package(Automoc4 REQUIRED)
 
 set(QT_DIR, "/home/charles/dev/qt-mingw")
+
+add_definitions(
+		"-DMEOW_VERSION=\"${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}\""
+	)
 
 
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
