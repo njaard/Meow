@@ -158,7 +158,10 @@ bool MPCDecoder::readFrame(AudioFrame* frame)
 	mpcframe.buffer = buffer;
 	const mpc_status status = mpc_demux_decode(demux, &mpcframe);
 	if (mpcframe.bits < 0)
+	{
+		mEof = true;
 		return false;
+	}
 
 	mPos += mpcframe.samples;
 	
@@ -211,7 +214,9 @@ bool MPCDecoder::seek(long pos)
 	const mpc_status status = mpc_demux_seek_second(demux, pos/1000);
 	if (MPC_STATUS_OK == status)
 	{
-		mPos = pos*config.sample_rate/1000;
+		uint64_t x= pos;
+		x *= config.sample_rate;
+		mPos = x/1000;
 		return true;
 	}
 	else
@@ -256,5 +261,6 @@ DecoderPlugin& mpc_decoder()
 } // namespace
 
 
+// kate: space-indent off; replace-tabs off;
 
 //#endif

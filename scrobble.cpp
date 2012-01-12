@@ -367,13 +367,17 @@ Meow::ScrobbleSession::ScrobbleSession(QObject *parent)
 {
 	d = new ScrobbleSessionPrivate;
 	d->response=0;
+#ifndef MEOW_WITH_KDE
 	d->currentHttp=0;
+#endif
 }
 
 Meow::ScrobbleSession::~ScrobbleSession()
 {
+#ifndef MEOW_WITH_KDE
 	if (d->currentHttp)
 		d->currentHttp->deleteLater();
+#endif
 	delete d;
 }
 

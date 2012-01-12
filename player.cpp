@@ -36,7 +36,7 @@
 #include <qdir.h>
 #include <qpluginloader.h>
 #include <qcoreapplication.h>
-#ifndef _WIN32
+#ifdef MEOW_WITH_DBUS
 #include <qdbusconnection.h>
 #endif
 
@@ -196,7 +196,7 @@ Player::Player()
 	d->akPlayer = 0;
 	d->nowLoading = false;
 	d->volumePercent = 50;
-#ifndef _WIN32
+#ifdef MEOW_WITH_DBUS
 	QDBusConnection connection = QDBusConnection::sessionBus();
 	connection.registerObject("/player", this, QDBusConnection::ExportScriptableContents);
 	connection.registerService("org.kde.meow");

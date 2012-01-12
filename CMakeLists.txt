@@ -48,7 +48,7 @@ else()
 
 
 	if(${MEOW_QT})
-		find_package(Qt4 REQUIRED QtCore QtGui QtNetwork QtXml QtDBus)
+		find_package(Qt4 REQUIRED QtCore QtGui QtNetwork QtXml)
 		include(${QT_USE_FILE})
 		find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h
 			PATH_SUFFIXES sqlite3
@@ -238,7 +238,7 @@ SET(CPACK_GENERATOR "DEB")
 if(${MEOW_QT})
 	SET(CPACK_PACKAGE_DESCRIPTION "A cute music player")
 	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player, this is the Qt version")
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libqtdbus4 (>= 4:4.6.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
 	SET(PROJECT_NAME_SUFFIX "-qt")
 	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 	SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
