@@ -331,7 +331,7 @@ static QString userAgent()
 	return agent;
 }
 #else
-static QByteArray userAgent()
+static QString userAgent()
 {
 	return QString("Meow/%1 (Windows)").arg(MEOW_VERSION);
 }
@@ -550,7 +550,7 @@ void Meow::ScrobbleSession::makeRequest(bool post, Query &query, void (ScrobbleS
 	d->postedData = posted;
 	d->postedBuffer.setBuffer(&d->postedData);
 
-	req.setRawHeader( "User-Agent", userAgent());
+	req.setRawHeader( "User-Agent", userAgent().toUtf8());
 	req.setRawHeader( "Content-type", "application/x-www-form-urlencoded");
 	req.setRawHeader( "accept", "");
 	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
@@ -633,10 +633,6 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 
 	d->session = new ScrobbleSession(this);
 	connect(d->session, SIGNAL(submitCompleted(bool)), SLOT(submitCompleted(bool)));
-
-#ifndef MEOW_WITH_KDE
-	d->postedBuffer.setBuffer(&d->postedData);
-#endif
 
 #ifdef MEOW_WITH_KDE
 	KConfigGroup conf = KGlobal::config()->group("audioscrobbler");

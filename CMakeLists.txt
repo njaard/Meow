@@ -28,7 +28,9 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	include_directories(${EXTRALIBS}/include/taglib ${EXTRALIBS}/include)
 	set(EXTRALIBS
 		${TAGLIB_LIBRARIES} ${SQLITE_LIBRARIES}
-		${QT_LIBRARY_DIR}/libQtGui.a ${QT_LIBRARY_DIR}/libQtNetwork.a ${QT_LIBRARY_DIR}/libQtCore.a ${QT_LIBRARY_DIR}/libqtmain.a
+		${QT_LIBRARY_DIR}/libQtGui.a ${QT_LIBRARY_DIR}/libQtNetwork.a
+		${QT_LIBRARY_DIR}/libQtCore.a ${QT_LIBRARY_DIR}/libQtXml.a
+		${QT_LIBRARY_DIR}/libqtmain.a
 		${EXTRALIBS}/lib/libmad.a
 		${EXTRALIBS}/lib/libvorbisfile.a ${EXTRALIBS}/lib/libvorbis.a
 		${EXTRALIBS}/lib/libogg.a
