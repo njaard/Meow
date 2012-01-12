@@ -344,7 +344,7 @@ struct Meow::ScrobbleSession::ScrobbleSessionPrivate
 	QNetworkAccessManager networkAccess;
 	QByteArray postedData;
 	QBuffer postedBuffer;
-	std::auto_ptr<QNetworkReply> currentHttp;
+	QNetworkReply *currentHttp;
 #endif
 
 	void (ScrobbleSession::*response)(QDomElement);
@@ -367,10 +367,13 @@ Meow::ScrobbleSession::ScrobbleSession(QObject *parent)
 {
 	d = new ScrobbleSessionPrivate;
 	d->response=0;
+	d->currentHttp=0;
 }
 
 Meow::ScrobbleSession::~ScrobbleSession()
 {
+	if (d->currentHttp)
+		d->currentHttp->deleteLater();
 	delete d;
 }
 
@@ -553,9 +556,9 @@ void Meow::ScrobbleSession::makeRequest(bool post, Query &query, void (ScrobbleS
 	req.setRawHeader( "User-Agent", userAgent().toUtf8());
 	req.setRawHeader( "Content-type", "application/x-www-form-urlencoded");
 	req.setRawHeader( "accept", "");
-	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
-	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(handshakeData()));
-	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(slotHandshakeResult()));
+	d->currentHttp = d->networkAccess.post(req, &d->postedBuffer);
+	connect(d->currentHttp, SIGNAL(readyRead()), SLOT(handshakeData()));
+	connect(d->currentHttp, SIGNAL(finished()), SLOT(slotHandshakeResult()));
 #endif
 }
 
@@ -575,7 +578,11 @@ void Meow::ScrobbleSession::handshakeData()
 void Meow::ScrobbleSession::slotHandshakeResult()
 {
 #ifndef MEOW_WITH_KDE
-	d->currentHttp.reset();
+	if (d->currentHttp)
+	{
+		d->currentHttp->deleteLater();
+		d->currentHttp=0;
+	}
 #endif
 
 	QDomDocument doc;
