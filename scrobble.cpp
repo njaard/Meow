@@ -875,7 +875,7 @@ void Meow::Scrobble::lastSongFinishedPlaying()
 {
 	const time_t now = QDateTime::currentDateTime().toTime_t();
 	const int duration = now - d->beginDurationOfPlayback;
-	if (true)//duration >= 240 || duration > d->lengthOfLastSong/2)
+	if (duration >= 240 || duration > d->lengthOfLastSong/2)
 	{
 		std::cerr << "Submitting that last song" << std::endl;
 		const File &f = d->currentlyPlaying;
