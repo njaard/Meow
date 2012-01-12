@@ -24,6 +24,7 @@
 #include <memory>
 #endif
 
+#include <qdom.h>
 #include <qprocess.h>
 #include <qbytearray.h>
 #include <qtimer.h>
@@ -76,6 +77,8 @@ struct Meow::ScrobbleConfigure::ScrobbleConfigurePrivate
 #ifndef MEOW_WITH_KDE
 #define i18n tr
 #endif
+
+
 
 Meow::ScrobbleConfigure::ScrobbleConfigure(QWidget *parent, Scrobble *scrobble)
 	: ConfigWidget(parent)
@@ -288,56 +291,311 @@ void Meow::ScrobbleConfigure::setEnablement(bool on)
 
 void Meow::ScrobbleConfigure::verify()
 {
-	Scrobble *scr = new Scrobble(this);
-	scr->setEnabled(true);
-	scr->setUsername(d->username->text());
-	scr->setPassword(d->password->text());
+	ScrobbleSession *scr = new ScrobbleSession(this);
 	connect(
-			scr, SIGNAL(handshakeState(Scrobble::HandshakeState)), 
-			SLOT(showResults(Scrobble::HandshakeState))
+			scr, SIGNAL(handshakeState(ScrobbleSession::HandshakeState)), 
+			SLOT(showResults(ScrobbleSession::HandshakeState))
 		);
 	connect(
-			scr, SIGNAL(handshakeState(Scrobble::HandshakeState)),
+			scr, SIGNAL(handshakeState(ScrobbleSession::HandshakeState)),
 			scr, SLOT(deleteLater())
 		);
-	scr->begin();
+	scr->startSession(d->username->text(), md5(d->password->text().toUtf8()));
 }
 
-void Meow::ScrobbleConfigure::showResults(Scrobble::HandshakeState state)
+void Meow::ScrobbleConfigure::showResults(ScrobbleSession::HandshakeState state)
 {
 	QString str;
-	if (state == Scrobble::HandshakeOk)
+	if (state == ScrobbleSession::HandshakeOk)
 		str = i18n("Ok");
-	if (state == Scrobble::HandshakeClientBanned)
+	if (state == ScrobbleSession::HandshakeClientBanned)
 		str = i18n("Meow is banned from AudioScrobbler (upgrade Meow)");
-	if (state == Scrobble::HandshakeAuth)
+	if (state == ScrobbleSession::HandshakeAuth)
 		str = i18n("Bad username or password");
-	if (state == Scrobble::HandshakeTime)
-		str = i18n("Your system clock is too inaccurate");
-	if (state == Scrobble::HandshakeFailure)
+	if (state == ScrobbleSession::HandshakeFailure)
 		str = i18n("Generic failure handshaking (try later)");
 	d->diagnostics->setText(str);
 }
 
 
 
-static const char handshakeUrl[] = "http://post.audioscrobbler.com/";
-static const char clientId[] = "tst";
-static const char clientVersion[] = "1.0";
-static const char clientProtocol[] = "1.2.1";
+static const char handshakeUrl[] = "http://ws.audioscrobbler.com/2.0/";
+static const char apiKey[] = "e31674916d417e952120fc56b53750b0";
+static const char sharedSecret[] = "2dd588e3897657af9422bf4a467f9d8d"; // this api is retarded
+
 #ifdef MEOW_WITH_KDE
 static QString userAgent()
 {
-	QString agent("Meow/1.0 (KDE %1.%2.%3)");
+	QString agent("Meow/0.0.1 (KDE %1.%2.%3)");
 	agent = agent.arg(KDE_VERSION_MAJOR).arg(KDE_VERSION_MINOR).arg(KDE_VERSION_RELEASE);
 	return agent;
 }
 #else
 static QByteArray userAgent()
 {
-	return "Meow/1.0 (Windows)";
+	return "Meow/0.0.1 (Windows)";
 }
 #endif
+
+
+struct Meow::ScrobbleSession::ScrobbleSessionPrivate
+{
+#ifndef MEOW_WITH_KDE
+	QNetworkAccessManager networkAccess;
+	QByteArray postedData;
+	QBuffer postedBuffer;
+	std::auto_ptr<QNetworkReply> currentHttp;
+#endif
+
+	void (ScrobbleSession::*response)(QDomElement);
+
+	QString sessionKey;
+	QByteArray recievedData;
+	
+	struct QueueEl
+	{
+		bool post;
+		Query query;
+		void (ScrobbleSession::*response)(QDomElement);
+	};
+	
+	QList<QueueEl> queue;
+};
+
+Meow::ScrobbleSession::ScrobbleSession(QObject *parent)
+	: QObject(parent)
+{
+	d = new ScrobbleSessionPrivate;
+	d->response=0;
+}
+
+Meow::ScrobbleSession::~ScrobbleSession()
+{
+	delete d;
+}
+
+void Meow::ScrobbleSession::startSession(const QString &username, const QString &passwordMd5)
+{
+	Query q;
+	q["method"]="auth.getMobileSession";
+	q["username"]=username;
+	q["authToken"] = md5(username.toUtf8() + passwordMd5.toUtf8());
+
+	makeRequest(false, q, &ScrobbleSession::startSessionRes);
+}
+
+void Meow::ScrobbleSession::startSessionRes(QDomElement root)
+{
+	const QString status = root.attribute("status");
+	if (status == "ok")
+	{ }
+	else
+	{
+		if (status == "4" || status == "9")
+			handshakeState(HandshakeAuth);
+		else if (status == "26")
+			handshakeState(HandshakeClientBanned);
+		else
+			handshakeState(HandshakeFailure);
+	}
+
+
+	QDomElement se = root.firstChildElement("session");
+	if (se.isNull())
+	{
+		error(root, "error starting session");
+		return;
+	}
+	QDomElement key = se.firstChildElement("key");
+	if (key.isNull())
+	{
+		error(root, "bad response");
+		return;
+	}
+	d->sessionKey = key.text();
+	emit handshakeState(HandshakeOk);
+}
+
+void Meow::ScrobbleSession::submitTracks(const QList<QStringList> trackKeys)
+{
+	Query q;
+	q["method"]="track.scrobble";
+	q["sk"] = d->sessionKey;
+	
+	unsigned index=0;
+	for (QList<QStringList>::const_iterator i = trackKeys.begin(); i != trackKeys.end(); ++i)
+	{
+		const QStringList &l = *i;
+		if (l.count() %2 != 0)
+			break;
+		const QString suffix = "[" + QString::number(index) + "]";
+		for (QStringList::const_iterator i = l.begin(); i != l.end(); )
+		{
+			QString key = *i;
+			QString val = *++i;
+			q[ key ] = val;
+			++i;
+		}
+	}
+	
+	makeRequest(true, q, &ScrobbleSession::submitTrackRes);
+}
+
+void Meow::ScrobbleSession::submitTrackRes(QDomElement root)
+{
+	if (root.tagName() != "lfm")
+	{
+		invalidResponse(root);
+		emit submitCompleted(false);
+		return;
+	}
+	if (root.attribute("status") != "ok")
+	{
+		error(root, "Error submitting");
+		emit submitCompleted(false);
+		return;
+	}
+	emit submitCompleted(true);
+}
+
+void Meow::ScrobbleSession::nowPlaying(const QStringList trackKeys)
+{
+	Query q;
+	q["method"]="track.updateNowPlaying";
+	q["sk"] = d->sessionKey;
+	for (QStringList::const_iterator i = trackKeys.begin(); i != trackKeys.end(); )
+	{
+		QString key = *i;
+		QString val = *++i;
+		q[ key ] = val;
+		++i;
+	}
+	makeRequest(true, q, &ScrobbleSession::nowPlayingRes);
+}
+
+void Meow::ScrobbleSession::nowPlayingRes(QDomElement)
+{
+}
+
+void Meow::ScrobbleSession::error(QDomElement root, const QString &e)
+{
+	QDomElement el = root.isNull() ? QDomElement() : root.firstChildElement("error");
+	QString x = el.isNull() ? "unspecified" : el.text();
+	std::cout << "lastfm error: " << e.toUtf8().constData() << ": " << x.toUtf8().constData() << std::endl;
+}
+
+void Meow::ScrobbleSession::invalidResponse(QDomElement root)
+{
+	error(root, i18n("Invalid response from last.fm"));
+}
+
+void Meow::ScrobbleSession::makeRequest(bool post, Query &query, void (ScrobbleSession::*response)(QDomElement))
+{
+	if (d->response)
+	{
+		ScrobbleSessionPrivate::QueueEl ql;
+		ql.post = post;
+		ql.query = query;
+		ql.response = response;
+		d->queue.append(ql);
+		return;
+	}
+	d->response = response;
+	
+#ifdef MEOW_WITH_KDE
+	KUrl url(handshakeUrl);
+#else
+	QUrl url(handshakeUrl);
+#endif
+
+	query["api_key"]=apiKey;
+
+
+	QString callsig;
+
+	for (Query::const_iterator i = query.begin(); i != query.end(); ++i)
+	{
+		url.addQueryItem(i.key(), i.value());
+		callsig += i.key() + i.value();
+	}
+	
+	callsig += sharedSecret;
+	callsig = md5(callsig.toUtf8());
+	
+	url.addQueryItem("api_sig", callsig);
+
+	d->recievedData.clear();
+	
+	QByteArray posted;
+	if (post)
+	{
+		posted = url.encodedQuery();
+		url = QUrl(handshakeUrl);
+	}
+	
+	std::cout << "Posting: " << posted.constData() << std::endl;
+	
+#ifdef MEOW_WITH_KDE
+	KIO::TransferJob *job = KIO::http_post(url, posted, KIO::HideProgressInfo);
+	job->addMetaData( "content-type", "Content-type: application/x-www-form-urlencoded" );
+	job->addMetaData( "accept", "" );
+	job->addMetaData( "UserAgent", "User-Agent: " + userAgent());
+	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(handshakeData(KIO::Job*, QByteArray)));
+	connect(job, SIGNAL(result(KJob*)), SLOT(slotHandshakeResult()));
+
+#else
+
+	QNetworkRequest req(url);
+	
+	d->postedData = posted;
+	d->postedBuffer.setBuffer(&d->postedData);
+
+	req.setRawHeader( "User-Agent", userAgent());
+	req.setRawHeader( "Content-type", "application/x-www-form-urlencoded");
+	req.setRawHeader( "accept", "");
+	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
+	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(handshakeData()));
+	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(slotHandshakeResult()));
+#endif
+}
+
+#ifdef MEOW_WITH_KDE
+void Meow::ScrobbleSession::handshakeData(KIO::Job*, const QByteArray &data)
+{
+	d->recievedData += data;
+}
+
+#else
+void Meow::ScrobbleSession::handshakeData()
+{
+	d->recievedData += d->currentHttp->readAll();
+}
+#endif
+
+void Meow::ScrobbleSession::slotHandshakeResult()
+{
+#ifndef MEOW_WITH_KDE
+	d->currentHttp.reset();
+#endif
+
+	QDomDocument doc;
+	doc.setContent(d->recievedData);
+	QDomElement root = doc.documentElement();
+	if (root.isNull())
+		;
+	else if (root.tagName() != "lfm")
+	{
+		invalidResponse(root);
+	}
+	(this->*d->response)(root);
+	d->response=0;
+	if (!d->queue.isEmpty())
+	{
+		ScrobbleSessionPrivate::QueueEl el = d->queue.takeFirst();
+		makeRequest(el.post, el.query, el.response);
+	}
+}
+
 
 struct Meow::Scrobble::ScrobblePrivate
 {
@@ -347,13 +605,8 @@ struct Meow::Scrobble::ScrobblePrivate
 	bool isEnabled;
 	QString username, passwordIfKnown, passwordMd5;
 	
-	QByteArray sessionId;
-	QByteArray recievedData, recievedDataSubmission;
-	
 	MeowUrlType nowPlaying;
 	MeowUrlType submission;
-	
-	QList<File> nowPlayingQueue;
 	
 	int numTracksSubmitting;
 	bool failureSubmitting;
@@ -362,25 +615,11 @@ struct Meow::Scrobble::ScrobblePrivate
 	File currentlyPlaying;
 	time_t startedPlayingLast, beginDurationOfPlayback, pausedPlayingLast;
 	int lengthOfLastSong;
-
-#ifndef MEOW_WITH_KDE
-	QNetworkAccessManager networkAccess;
-	QByteArray postedData;
-	QBuffer postedBuffer;
-	std::auto_ptr<QNetworkReply> currentHttp;
-#endif
+	
+	ScrobbleSession *session;
+	
+	File justAnnounced;
 };
-
-Meow::Scrobble::Scrobble(QObject *parent)
-	: QObject(parent)
-{
-	d = new ScrobblePrivate;
-	d->player = 0;
-	d->collection = 0;
-	d->isEnabled = false;
-	d->numTracksSubmitting = 0;
-	d->failureSubmitting = false;
-}
 
 Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection)
 	: QObject(parent)
@@ -391,6 +630,9 @@ Meow::Scrobble::Scrobble(QWidget *parent, Player *player, Collection *collection
 	d->isEnabled = false;
 	d->numTracksSubmitting = 0;
 	d->failureSubmitting = false;
+
+	d->session = new ScrobbleSession(this);
+	connect(d->session, SIGNAL(submitCompleted(bool)), SLOT(submitCompleted(bool)));
 
 #ifndef MEOW_WITH_KDE
 	d->postedBuffer.setBuffer(&d->postedData);
@@ -510,8 +752,8 @@ Meow::Scrobble::~Scrobble()
 		conf.remove("audioscrobbler/qi" + QString::number(index));
 		index++;
 	}
-
 #endif
+
 	delete d;
 }
 
@@ -546,105 +788,9 @@ void Meow::Scrobble::setPassword(const QString &p)
 	d->passwordMd5 = md5(p.toUtf8());
 }
 
-
 void Meow::Scrobble::begin()
 {
-	if (!isEnabled())
-		return;
-	
-	d->recievedData.clear();
-	
-	QString timestamp = QString::number(QDateTime::currentDateTime().toTime_t());
-	
-	QString authToken;
-	authToken = d->passwordMd5.toUtf8() + timestamp;
-	authToken = md5(authToken.toUtf8());
-
-#ifdef MEOW_WITH_KDE
-	KUrl handshake(handshakeUrl);
-	handshake.addQueryItem("hs", "true");
-	handshake.addQueryItem("p", clientProtocol);
-	handshake.addQueryItem("c", clientId);
-	handshake.addQueryItem("v", clientVersion);
-	handshake.addQueryItem("u", d->username);
-	handshake.addQueryItem("t", timestamp);
-	handshake.addQueryItem("a", authToken);
-	
-	KIO::TransferJob *job = KIO::http_post(handshake, QByteArray(), KIO::HideProgressInfo);
-	job->addMetaData( "UserAgent", "User-Agent: " + userAgent());
-	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(handshakeData(KIO::Job*, QByteArray)));
-	connect(job, SIGNAL(result(KJob*)), SLOT(slotHandshakeResult()));
-#else
-	QUrl handshake(handshakeUrl);
-	handshake.addQueryItem("hs", "true");
-	handshake.addQueryItem("p", clientProtocol);
-	handshake.addQueryItem("c", clientId);
-	handshake.addQueryItem("v", clientVersion);
-	handshake.addQueryItem("u", d->username);
-	handshake.addQueryItem("t", timestamp);
-	handshake.addQueryItem("a", authToken);
-
-	QNetworkRequest req(handshake);
-	
-	d->postedData.clear();
-	d->postedBuffer.setBuffer(&d->postedData);
-
-	req.setRawHeader( "User-Agent", userAgent());
-	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
-	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(handshakeData()));
-	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(slotHandshakeResult()));
-#endif
-	d->failureSubmitting = false;
-	d->numTracksSubmitting = 0;
-}
-
-#ifdef MEOW_WITH_KDE
-void Meow::Scrobble::handshakeData(KIO::Job*, const QByteArray &data)
-{
-	d->recievedData += data;
-}
-
-#else
-void Meow::Scrobble::handshakeData()
-{
-	d->recievedData += d->currentHttp->readAll();
-}
-#endif
-
-void Meow::Scrobble::slotHandshakeResult()
-{
-#ifndef MEOW_WITH_KDE
-	d->currentHttp.reset();
-#endif
-	QList<QByteArray> lines = d->recievedData.split('\n');
-	if (lines.size() < 1)
-	{
-		emit handshakeState(HandshakeFailure);
-		std::cerr << "Meow: scrobbler session: major error" << std::endl;
-		return;
-	}
-	
-	std::cerr << "Meow: scrobbler session: " << lines[0].data() << std::endl;
-	
-	if (lines[0] == "OK")
-		emit handshakeState(HandshakeOk);
-	else
-	{
-		if (lines[0] == "BANNED")
-			emit handshakeState(HandshakeClientBanned);
-		else if (lines[0] == "BADAUTH")
-			emit handshakeState(HandshakeAuth);
-		else if (lines[0] == "BADTIME")
-			emit handshakeState(HandshakeTime);
-		else
-			emit handshakeState(HandshakeFailure);
-		return;
-	}
-	
-	d->sessionId = lines[1];
-	
-	d->nowPlaying = MeowUrlType(lines[2]);
-	d->submission = MeowUrlType(lines[3]);
+	d->session->startSession(d->username, d->passwordMd5);
 }
 
 void Meow::Scrobble::currentItemChanged(const File &file)
@@ -653,9 +799,8 @@ void Meow::Scrobble::currentItemChanged(const File &file)
 		return;
 
 	std::cerr << "Something is playing now" << std::endl;
-	d->nowPlayingQueue += file;
-	if (d->nowPlayingQueue.count() > 1)
-		announceNowPlayingFromQueue();
+	// wait five seconds before announcing the now playing song
+	QTimer::singleShot(5000, this, SLOT(announceNowPlaying()));
 	
 	if (d->currentlyPlaying)
 		lastSongFinishedPlaying();
@@ -668,34 +813,73 @@ void Meow::Scrobble::currentItemChanged(const File &file)
 	stopCountingTime(); // I'm going to get d->playing() right away
 }
 
-void Meow::Scrobble::knowLengthOfCurrentSong(int msec)
+void Meow::Scrobble::announceNowPlaying()
 {
-	if (msec >= 0)
-		d->lengthOfLastSong = msec/1000;
+	if (d->currentlyPlaying == d->justAnnounced)
+		return;
+	d->justAnnounced = d->currentlyPlaying;
+	d->session->nowPlaying(trackInfo(d->currentlyPlaying));
 }
 
+void Meow::Scrobble::sendSubmissions()
+{
+	if (d->numTracksSubmitting > 0 || d->failureSubmitting)
+		return;
+	if (d->submissionQueue.count() == 0)
+		return;
+
+	QList<QStringList> toSubmit = d->submissionQueue.mid(0, 50);
+	d->numTracksSubmitting = toSubmit.length();
+	
+	d->session->submitTracks(toSubmit);
+}
+
+void Meow::Scrobble::sendSubmissionsRetry()
+{
+	d->failureSubmitting = false;
+	sendSubmissions();
+}
+
+void Meow::Scrobble::submitCompleted(bool success)
+{
+	if (success)
+	{
+		for (; d->numTracksSubmitting; d->numTracksSubmitting--)
+			d->submissionQueue.removeFirst();
+		QTimer::singleShot(10*1000, this, SLOT(sendSubmissions()));
+	}
+	else
+	{
+		d->numTracksSubmitting = 0;
+		d->failureSubmitting = true;
+		QTimer::singleShot(240*1000, this, SLOT(sendSubmissionsRetry()));
+	}
+}
+
+QStringList Meow::Scrobble::trackInfo(File f)
+{
+	QList<QString> variables;
+	variables
+		<< "album" << f.album()
+		<< "track" << f.title()
+		<< "artist" << f.artist()
+		<< "duration" << QString::number(d->lengthOfLastSong)
+		<< "trackNumber" << f.track();
+	return variables;
+}
 
 void Meow::Scrobble::lastSongFinishedPlaying()
 {
-	time_t now = QDateTime::currentDateTime().toTime_t();
-	int duration = now - d->beginDurationOfPlayback;
-	if (duration >= 240 || duration > d->lengthOfLastSong/2)
+	const time_t now = QDateTime::currentDateTime().toTime_t();
+	const int duration = now - d->beginDurationOfPlayback;
+	if (true)//duration >= 240 || duration > d->lengthOfLastSong/2)
 	{
 		std::cerr << "Submitting that last song" << std::endl;
 		const File &f = d->currentlyPlaying;
-		
-		QList<QString> variables;
-		variables
-			<< "a" << f.artist()
-			<< "t" << f.title()
-			<< "i" << QString::number((int)now)
-			<< "o" << "P"
-			<< "r" << ""
-			<< "l" << QString::number(d->lengthOfLastSong)
-			<< "b" << f.album()
-			<< "n" << f.track()
-			<< "m" << "";
-		
+
+		QList<QString> variables = trackInfo(f);
+		variables << "timestamp" << QString::number((int)now);
+
 		d->submissionQueue.append(variables);
 		sendSubmissions();
 	}
@@ -704,6 +888,7 @@ void Meow::Scrobble::lastSongFinishedPlaying()
 		std::cerr << "Didn't play that last song long enough to submit it" << std::endl;
 	}
 	d->currentlyPlaying = File();
+
 }
 
 void Meow::Scrobble::stopCountingTime()
@@ -717,189 +902,11 @@ void Meow::Scrobble::startCountingTimeAgain()
 	d->beginDurationOfPlayback += now - d->pausedPlayingLast;
 }
 
-void Meow::Scrobble::sendSubmissions()
+void Meow::Scrobble::knowLengthOfCurrentSong(int msec)
 {
-	if (d->numTracksSubmitting > 0 || d->failureSubmitting)
-		return;
-		
-	if (d->submissionQueue.count() == 0)
-		return;
-	
-	QByteArray submissionData;
-	submissionData = "s=" + d->sessionId;
-	int index=0;
-	for (
-			QList<QStringList>::iterator i = d->submissionQueue.begin();
-			i != d->submissionQueue.end() && index < 50; ++i
-		)
-	{
-		const QStringList &s = *i;
-		
-		const QByteArray aindex = QByteArray::number(index);
-		
-		for (QStringList::const_iterator vi = s.begin(); vi != s.end(); )
-		{
-			submissionData +=
-				"&" + vi->toUtf8().toPercentEncoding()
-				+ "[" + aindex + "]=";
-			++vi;
-			submissionData += vi->toUtf8().toPercentEncoding();
-			++vi;
-		}
-		
-		index++;
-	}
-	d->numTracksSubmitting = index;
-	
-	std::cerr << "Posting: " << submissionData.data() << std::endl;
+	if (msec >= 0)
+		d->lengthOfLastSong = msec/1000;
 
-#ifdef MEOW_WITH_KDE
-	KIO::TransferJob *job = KIO::http_post(
-			d->submission, submissionData, KIO::HideProgressInfo
-		);
-	job->addMetaData( "content-type", "Content-type: application/x-www-form-urlencoded" );
-	job->addMetaData( "accept", "" );
-	job->addMetaData( "UserAgent", "User-Agent: " + userAgent());
-	connect(
-			job, SIGNAL(data(KIO::Job*, QByteArray)),
-			SLOT(submissionData(KIO::Job*, QByteArray))
-		);
-	connect(
-			job, SIGNAL(result(KJob*)),
-			SLOT(submissionResult())
-		);
-#else
-	QNetworkRequest req(d->submission);
-	req.setRawHeader( "User-Agent", userAgent());
-	req.setRawHeader( "Content-type", "application/x-www-form-urlencoded");
-	req.setRawHeader( "accept", userAgent());
-	
-	d->postedData = submissionData;
-
-	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
-	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(submissionData()));
-	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(submissionResult()));
-#endif
-}
-
-#ifdef MEOW_WITH_KDE
-void Meow::Scrobble::submissionData(KIO::Job*, const QByteArray &data)
-{
-	d->recievedDataSubmission += data;
-}
-#else
-void Meow::Scrobble::submissionData()
-{
-	d->recievedDataSubmission += d->currentHttp->readAll();
-}
-#endif
-
-
-void Meow::Scrobble::submissionResult()
-{
-	QList<QByteArray> lines = d->recievedDataSubmission.split('\n');
-	if (lines.size() < 1)
-	{
-		std::cerr << "Meow: scrobbler submitting: major error" << std::endl;
-		return;
-	}
-	
-	d->recievedDataSubmission.clear();
-	
-	if (lines[0] == "OK")
-	{
-		for (; d->numTracksSubmitting; d->numTracksSubmitting--)
-			d->submissionQueue.removeFirst();
-		QTimer::singleShot(10*1000, this, SLOT(sendSubmissions()));
-	}
-	else if (lines[0] == "BADSESSION")
-	{
-		d->sessionId = "";
-		// try logging again in 30 seconds
-		QTimer::singleShot(30*1000, this, SLOT(begin()));
-	}
-	else
-	{
-		d->numTracksSubmitting = 0;
-		std::cerr << "Meow: scrobbler submitting error: " << lines[0].data() << std::endl;
-		d->failureSubmitting = true;
-		QTimer::singleShot(240*1000, this, SLOT(sendSubmissionsRetry()));
-		return;
-	}
-	
-}
-
-void Meow::Scrobble::sendSubmissionsRetry()
-{
-	d->failureSubmitting = false;
-	sendSubmissions();
-}
-
-
-void Meow::Scrobble::announceNowPlayingFromQueue()
-{
-	File file = d->nowPlayingQueue.takeLast();
-	d->nowPlayingQueue.clear();
-	
-	MeowUrlType np = d->nowPlaying;
-	np.addQueryItem("s", d->sessionId);
-	np.addQueryItem("a", file.artist());
-	np.addQueryItem("t", file.title());
-	np.addQueryItem("b", file.album());
-	np.addQueryItem("l", QString::number(d->player->currentLength()/1000));
-	np.addQueryItem("n", file.track());
-	np.addQueryItem("m", "");
-
-#ifdef MEOW_WITH_KDE
-	KIO::TransferJob *job = KIO::http_post(np, QByteArray(), KIO::HideProgressInfo);
-	job->addMetaData( "UserAgent", "User-Agent: " + userAgent());
-	connect(job, SIGNAL(data(KIO::Job*, QByteArray)), SLOT(nowPlayingData(KIO::Job*, QByteArray)));
-	connect(job, SIGNAL(result(KJob*)), SLOT(nowPlayingResult()));
-#else
-	QNetworkRequest req(np);
-	req.setRawHeader( "UserAgent", userAgent());
-	d->currentHttp.reset( d->networkAccess.post(req, &d->postedBuffer) );
-	connect(d->currentHttp.get(), SIGNAL(readyRead()), SLOT(nowPlayingData()));
-	connect(d->currentHttp.get(), SIGNAL(finished()), SLOT(nowPlayingResult()));
-#endif
-}
-
-#ifdef MEOW_WITH_KDE
-void Meow::Scrobble::nowPlayingData(KIO::Job*, const QByteArray &data)
-{
-	d->recievedData += data;
-}
-#else
-void Meow::Scrobble::nowPlayingData()
-{
-	d->recievedData += d->currentHttp->readAll();
-}
-#endif
-
-
-void Meow::Scrobble::nowPlayingResult()
-{
-	QList<QByteArray> lines = d->recievedData.split('\n');
-	if (lines.size() < 1)
-	{
-		std::cerr << "Meow: scrobbler now playing: major error" << std::endl;
-		return;
-	}
-	
-	d->recievedData.clear();
-	std::cerr << "Meow: scrobbler now playing: " << lines[0].data() << std::endl;
-	
-	if (lines[0] == "BADSESSION")
-	{
-		d->sessionId = "";
-		// try logging again in 30 seconds
-		QTimer::singleShot(30*1000, this, SLOT(begin()));
-	}
-	else
-	{
-		if (d->nowPlayingQueue.count() > 0)
-			announceNowPlayingFromQueue();
-	}
 }
 
 // kate: space-indent off; replace-tabs off;

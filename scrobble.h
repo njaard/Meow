@@ -4,6 +4,10 @@
 #include <qwidget.h>
 
 #include "configdialog.h"
+
+class QDomDocument;
+class QDomElement;
+
 namespace KIO
 {
 class Job;
@@ -16,6 +20,55 @@ class Player;
 class File;
 class Collection;
 
+class ScrobbleSession : public QObject
+{
+	Q_OBJECT
+
+	struct ScrobbleSessionPrivate;
+	ScrobbleSessionPrivate *d;
+	typedef QMap<QString,QString> Query;
+	
+public:
+	enum HandshakeState
+	{
+		HandshakeOk,
+		HandshakeClientBanned,
+		HandshakeAuth,
+		HandshakeFailure
+	};
+
+	ScrobbleSession(QObject *parent);
+	~ScrobbleSession();
+
+	void startSession(const QString &username, const QString &passwordMd5);
+	void submitTracks(const QList<QStringList> trackKeys);
+	void nowPlaying(const QStringList trackKeys);
+	
+signals:
+	void submitCompleted(bool success);
+	void handshakeState(ScrobbleSession::HandshakeState error);
+	
+private:
+	void startSessionRes(QDomElement root);
+	void submitTrackRes(QDomElement root);
+	void nowPlayingRes(QDomElement root);
+
+	void error(QDomElement root, const QString &e);
+	void invalidResponse(QDomElement root);
+	
+private:
+	void makeRequest(bool post, Query &query, void (ScrobbleSession::*response)(QDomElement));
+
+private slots:
+#ifdef MEOW_WITH_KDE
+	void handshakeData(KIO::Job*, const QByteArray &data);
+	void slotHandshakeResult();
+#else
+	void handshakeData();
+	void slotHandshakeResult();
+#endif
+};
+
 class Scrobble : public QObject
 {
 	Q_OBJECT
@@ -23,16 +76,7 @@ class Scrobble : public QObject
 	ScrobblePrivate *d;
 
 public:
-	enum HandshakeState
-	{
-		HandshakeOk,
-		HandshakeClientBanned,
-		HandshakeAuth,
-		HandshakeTime,
-		HandshakeFailure
-	};
 	
-	Scrobble(QObject *parent);
 	Scrobble(QWidget *parent, Player *player, Collection *collection);
 	~Scrobble();
 	
@@ -45,39 +89,25 @@ public:
 	void setUsername(const QString &);
 	void setPassword(const QString &);
 
+private:
+	QStringList trackInfo(File f);
+	
 public slots:
 	void begin();
 	
-signals:
-	void handshakeState(Scrobble::HandshakeState error);
-
 private slots:
 	void currentItemChanged(const File &file);
-	void announceNowPlayingFromQueue();
+	void announceNowPlaying();
 	void sendSubmissions();
 	void sendSubmissionsRetry();
+	void submitCompleted(bool success);
 
-#ifdef MEOW_WITH_KDE
-	void handshakeData(KIO::Job*, const QByteArray &data);
-	void slotHandshakeResult();
-	void nowPlayingData(KIO::Job*, const QByteArray &data);
-	void nowPlayingResult();
-	void submissionData(KIO::Job*, const QByteArray &data);
-	void submissionResult();
-#else
-	void handshakeData();
-	void slotHandshakeResult();
-	void nowPlayingData();
-	void nowPlayingResult();
-	void submissionData();
-	void submissionResult();
-
-#endif
 	void lastSongFinishedPlaying();
 	void stopCountingTime();
 	void startCountingTimeAgain();
 	
 	void knowLengthOfCurrentSong(int msec);
+	
 };
 
 
@@ -97,7 +127,7 @@ public:
 private slots:
 	void setEnablement(bool);
 	void verify();
-	void showResults(Scrobble::HandshakeState state);
+	void showResults(ScrobbleSession::HandshakeState state);
 };
 
 
