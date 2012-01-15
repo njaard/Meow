@@ -625,7 +625,18 @@ void Meow::MainWindow::itemProperties()
 {
 	QList<File> files = d->view->selectedFiles();
 	if (!files.isEmpty())
-		;
+	{
+#ifdef _WIN32
+		SHELLEXECUTEINFOW in = {0};
+		in.cbSize = sizeof(in);
+		in.fMask = SEE_MASK_INVOKEIDLIST;
+		in.hwnd = effectiveWinId();
+		in.lpVerb = L"properties";
+		std::cerr << "file: " << files[0].file().toUtf8().constData() << std::endl;
+		in.lpFile = (const WCHAR*)files[0].file().utf16();
+		ShellExecuteExW(&in);
+#endif
+	}
 }
 
 void Meow::MainWindow::selectorActivated(QAction* action)
