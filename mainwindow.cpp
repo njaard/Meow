@@ -102,7 +102,9 @@ Meow::MainWindow::MainWindow()
 	
 	d->scrobble = new Scrobble(this, d->player, d->collection);
 	setCentralWidget(owner);
-	
+
+	setWindowIcon(KIcon("speaker"));
+
 	d->tray = new KSystemTrayIcon("speaker", this);
 	d->tray->installEventFilter(this);
 	d->tray->show();

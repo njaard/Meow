@@ -1,6 +1,6 @@
 [Desktop Entry]
 Exec=meow-qt
-Icon=meow-qt
+Icon=speaker
 Type=Application
 Terminal=false
 X-KDE-StartupNotify=true
