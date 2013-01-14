@@ -9,7 +9,7 @@ cd $sandbox
 
 packages="$here/meow_${version}_x86_64.deb $here/meow-qt_${version}_x86_64.deb $here/meow_${version}_i686.deb $here/meow-qt_${version}_i686.deb"
 
-dpkg-sig -s origin $packages
+dpkg-sig -m 'Charles Samuels <charles@meowplayer.org>' -s origin $packages
 
 for i in $packages;
 do
