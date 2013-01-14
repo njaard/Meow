@@ -14,10 +14,10 @@ int main( int argc, char **argv )
 			ki18n("(c) 2008-2011, Charles Samuels. (c) 1994-2010 others")
 		);
 	
-	aboutData.addAuthor( ki18n("Charles Samuels"), ki18n("Developer"), "charles@kde.org" );
+	aboutData.addAuthor( ki18n("Charles Samuels"), ki18n("Developer"), "charles@meowplayer.org" );
 	aboutData.addAuthor( ki18n("Allan Sandfeld Jensen"), ki18n("Most of Akode backend"));
 	aboutData.addAuthor( ki18n("Stefan Gehn, Charles Samuels"), ki18n("Portions of playback controller"));
-	aboutData.setBugAddress( "meowbugs@charles.derkarl.org");
+	aboutData.setBugAddress( "bugs@meowplayer.org");
 
 	aboutData.addCredit( ki18n("Josh Coalson"), ki18n("FLAC decoder"));
 	aboutData.addCredit( ki18n("the Xiph.Org Foundation"), ki18n("Vorbis decoder"));
@@ -46,8 +46,8 @@ int main( int argc, char **argv )
 {
 	QApplication app(argc, argv);
 	app.setWindowIcon(QIcon(":/meow.png"));
-	QCoreApplication::setOrganizationName("derkarl.org");
-	QCoreApplication::setOrganizationDomain("derkarl.org");
+	QCoreApplication::setOrganizationName("meowplayer.org");
+	QCoreApplication::setOrganizationDomain("meowplayer.org");
 	QCoreApplication::setApplicationName("Meow");
 
 	Q_INIT_RESOURCE(icons);

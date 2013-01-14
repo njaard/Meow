@@ -560,7 +560,7 @@ void Meow::MainWindow::showAbout()
 			tr(
 					"<qt>This is Meow %1. A cute music player.<br/><br/>"
 					"By <a href=\"mailto:charles@kde.org\">Charles Samuels</a>. He likes cats.<br/><br/>"
-					"<a href=\"http://derkarl.org/meow\">http://derkarl.org/meow</a><br/><br/>"
+					"<a href=\"http://meowplayer.org/\">http://meowplayer.org/</a><br/><br/>"
 					"Copyright (c) 2008-2011 Charles Samuels<br/>"
 					"Copyright (c) 2004-2006 Allen Sandfeld Jensen (Most of Akode backend)<br/>"
 					"Copyright (c) 2000-2007 Stefan Gehn, Charles Samuels (Portions of playback controller)<br/>"
