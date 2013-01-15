@@ -556,12 +556,14 @@ void Meow::MainWindow::changeCaption(const File &f)
 
 void Meow::MainWindow::showAbout()
 {
+	
 	QMessageBox::about(
 			this, tr("About Meow"),
 			tr(
 					"<qt>This is Meow %1. A cute music player.<br/><br/>"
-					"By <a href=\"mailto:charles@kde.org\">Charles Samuels</a>. He likes cats.<br/><br/>"
-					"<a href=\"http://meowplayer.org/\">http://meowplayer.org/</a><br/><br/>"
+					"By Charles Samuels &lt;charles@meowplayer.org&gt;. He likes cats.<br/><br/>"
+					"http://meowplayer.org/<br/><br/>"
+					"Bug reports to bugs@meowplayer.org<br/><br/>"
 					"Copyright (c) 2008-2011 Charles Samuels<br/>"
 					"Copyright (c) 2004-2006 Allen Sandfeld Jensen (Most of Akode backend)<br/>"
 					"Copyright (c) 2000-2007 Stefan Gehn, Charles Samuels (Portions of playback controller)<br/>"
