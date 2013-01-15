@@ -506,6 +506,7 @@ void Meow::MainWindow::dropEvent(QDropEvent *event)
 	QList<QUrl> files = event->mimeData()->urls();
 	for(QList<QUrl>::Iterator it=files.begin(); it!=files.end(); ++it)
 		beginDirectoryAdd(it->toLocalFile());
+	d->collection->scheduleFinishJob();
 }
 
 void Meow::MainWindow::dragEnterEvent(QDragEnterEvent *event)
