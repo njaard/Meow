@@ -38,6 +38,11 @@
 #include <winuser.h>
 #endif
 
+#ifdef Q_WS_X11
+#include <qx11info_x11.h>
+#include <X11/Xlib.h>
+#endif
+
 #define i18n tr
 class SpecialSlider;
 
@@ -81,9 +86,9 @@ typedef QIcon KIcon;
 
 #include "mainwindow_common.cpp"
 
+static Meow::MainWindow *globalMainWindow=0;
 
 #ifdef _WIN32
-static Meow::MainWindow *mwEvents=0;
 
 bool Meow::MainWindow::globalEventFilter(void *_m)
 {
@@ -92,27 +97,75 @@ bool Meow::MainWindow::globalEventFilter(void *_m)
 	{
 		const quint32 keycode = HIWORD(m->lParam);
 		if (keycode == VK_MEDIA_PLAY_PAUSE || keycode == VK_MEDIA_STOP)
-			mwEvents->d->playPauseAction->trigger();
+			globalMainWindow->d->playPauseAction->trigger();
 		else if (keycode == VK_MEDIA_NEXT_TRACK)
-			mwEvents->d->nextAction->trigger();
+			globalMainWindow->d->nextAction->trigger();
 		else if (keycode == VK_MEDIA_PREV_TRACK)
-			mwEvents->d->prevAction->trigger();
+			globalMainWindow->d->prevAction->trigger();
 		else if (keycode == VK_VOLUME_UP)
-			mwEvents->d->volumeUpAction->trigger();
+			globalMainWindow->d->volumeUpAction->trigger();
 		else if (keycode == VK_VOLUME_DOWN)
-			mwEvents->d->volumeDownAction->trigger();
+			globalMainWindow->d->volumeDownAction->trigger();
 		else if (keycode == VK_VOLUME_MUTE)
-			mwEvents->d->muteAction->trigger();
+			globalMainWindow->d->muteAction->trigger();
+	}
+	return false;
+}
+#endif
+
+#ifdef Q_WS_X11
+
+static void registerHotKey(unsigned xkeysym)
+{
+	Display* const display = QX11Info::display();
+	const Window window = QX11Info::appRootWindow();
+	
+//	int (*const originalErrorHandler)(Display* display, XErrorEvent* event) = XSetErrorHandler(hotkeyErrorHandler);
+	
+	const unsigned xkeycode = XKeysymToKeycode(display, xkeysym);
+	const unsigned xmod = 0;
+	
+	XSync(display, False);
+	XGrabKey(display, xkeycode, xmod, window, true, GrabModeAsync, GrabModeAsync);
+	// with numlock
+	XGrabKey(display, xkeycode, xmod | Mod2Mask, window, true, GrabModeAsync, GrabModeAsync);
+	XSync(display, False);
+	
+//	XSetErrorHandler(originalErrorHandler);
+}
+
+bool Meow::MainWindow::globalEventFilter(void *_m)
+{
+	XEvent* event = static_cast<XEvent*>(_m);
+	if (event->type == KeyPress)
+	{
+		Display* const display = QX11Info::display();
+		XKeyEvent* const key = (XKeyEvent*)event;
+		const unsigned keycode = key->keycode;
+		const unsigned keysym = XKeycodeToKeysym(display, keycode, 0);
+		if (keysym == 0x1008FF14 || keysym == 0x1008FF15)
+			globalMainWindow->d->playPauseAction->trigger();
+		else if (keysym == 0x1008FF17)
+			globalMainWindow->d->nextAction->trigger();
+		else if (keysym == 0x1008FF16)
+			globalMainWindow->d->prevAction->trigger();
+		else if (keysym == 0x1008FF13)
+			globalMainWindow->d->volumeUpAction->trigger();
+		else if (keysym == 0x1008FF11)
+			globalMainWindow->d->volumeDownAction->trigger();
+		else if (keysym == 0x1008FF12)
+			globalMainWindow->d->muteAction->trigger();
 	}
 	return false;
 }
 
 #endif
 
+
 Meow::MainWindow::MainWindow()
 {
+	globalMainWindow = this;
 #ifdef _WIN32
-	mwEvents = this;
 	{
 		RegisterHotKey(winId(), VK_MEDIA_PLAY_PAUSE, 0, VK_MEDIA_PLAY_PAUSE);
 		RegisterHotKey(winId(), VK_MEDIA_STOP, 0, VK_MEDIA_STOP);
@@ -124,6 +177,20 @@ Meow::MainWindow::MainWindow()
 		QAbstractEventDispatcher::instance()->setEventFilter(globalEventFilter);
 	}
 #endif
+#ifdef Q_WS_X11
+	{
+		registerHotKey(0x1008FF14); // Qt::Key_MediaPlay
+		registerHotKey(0x1008FF15); // Qt::Key_MediaStop
+		registerHotKey(0x1008FF17); // Qt::Key_MediaNext
+		registerHotKey(0x1008FF16); // Qt::Key_MediaPrevious
+		registerHotKey(0x1008FF11); // Qt::Key_VolumeDown
+		registerHotKey(0x1008FF13); // Qt::Key_VolumeUp
+		registerHotKey(0x1008FF12), // Qt::Key_VolumeMute
+		QAbstractEventDispatcher::instance()->setEventFilter(globalEventFilter);
+	}
+
+#endif
+
 	setWindowTitle(tr("Meow"));
 	d = new MainWindowPrivate;
 	d->adder = 0;
