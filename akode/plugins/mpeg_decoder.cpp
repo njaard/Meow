@@ -21,7 +21,7 @@
 #include <akode/akodelib.h>
 
 // uncomment to debug the plugin
-#define MPEG_DEBUG
+// #define MPEG_DEBUG
 
 #include <string.h>
 #include <mad.h>
@@ -178,7 +178,8 @@ bool MPEGDecoder::moreData(bool flush)
     mad_stream *stream = &m_data->stream;
 
     long rem = 0;
-    if (stream->next_frame != 0 && !flush) {
+    if (stream->next_frame != 0 && !flush)
+    {
         rem = stream->bufend - stream->next_frame;
         memmove(m_data->filebuffer, stream->next_frame, rem);
     }
@@ -192,14 +193,17 @@ bool MPEGDecoder::moreData(bool flush)
     if (stream->error == MAD_ERROR_LOSTSYNC || flush) stream->sync = 0;
     stream->error = MAD_ERROR_NONE;
 
-    if (res == 0) {
+    if (res == 0)
+    {
         m_data->eof = true;
         return false;
-    } else
-    if (res < 0) {
+    }
+    else if (res < 0)
+    {
         m_data->error = true;
         return false;
-    } else
+    }
+    else
         return true;
 }
 
@@ -358,36 +362,27 @@ bool MPEGDecoder::readFrame(AudioFrame* frame)
 {
     if (m_data->error) return false;
 
-    int res = 0;
-    if (!m_data->initialized) {
+    if (!m_data->initialized)
+    {
         if (!prepare()) return false;
 
-        int retries = 0;
-    first_frame:
-        if (retries >= 8) {
-            // fatal error
-            m_data->error = true;
-            return false;
-        }
-        res = mad_frame_decode(&m_data->frame, &m_data->stream);
-        if (res != 0) {
-            if (m_data->stream.error == MAD_ERROR_BUFLEN) {
-                retries++;
-                if (!moreData(true)) return false;
+        while (true)
+        {
+            const int res = mad_frame_decode(&m_data->frame, &m_data->stream);
+            if (res == -1)
+            {
+                if (m_data->stream.error == MAD_ERROR_BUFLEN)
+                    moreData();
+                else if (!MAD_RECOVERABLE(m_data->stream.error))
+                {
+                    m_data->error = true;
+                    return false;
+                }
             }
             else
-            if (m_data->stream.error == MAD_ERROR_LOSTSYNC)
-            {}
-            else
-            if (MAD_RECOVERABLE(m_data->stream.error)) {
-                #ifdef MPEG_DEBUG
-                cerr << "Invalid frame: " << mad_stream_errorstr(&m_data->stream) << "\n";
-                #endif
-                m_data->metaframe_filter(true);
-            }
-            goto first_frame;
+                break;
         }
-
+        
         m_data->config.sample_rate = m_data->frame.header.samplerate;
         m_data->config.sample_width = 16;
         setChannelConfiguration(m_data->config, m_data->frame.header.mode);
@@ -405,13 +400,18 @@ bool MPEGDecoder::readFrame(AudioFrame* frame)
         int retries = 0;
         bool sync = true;
     retry:
+        if (m_data->eof)
+        {
+            m_data->error=false;
+            return false;
+        }
         // give up after 16 new pages
         if (retries >= 16) {
             // fatal error
             m_data->error = true;
             return false;
         }
-        res = mad_frame_decode(&m_data->frame, &m_data->stream);
+        int res = mad_frame_decode(&m_data->frame, &m_data->stream);
 
         if (res != 0) {
             if (m_data->stream.error == MAD_ERROR_BUFLEN) {
@@ -582,7 +582,6 @@ public:
         src->openRO();
         if(src->read(header, 4))
         {
-            std::cerr << __FILE__ << ":" << __LINE__  << std::endl;
             // skip id3v2 headers
             if (memcmp(header, "ID3", 3) == 0)
             {
