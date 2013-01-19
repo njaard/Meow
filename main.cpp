@@ -11,7 +11,7 @@ int main( int argc, char **argv )
 	KAboutData aboutData(
 			"meow", 0, ki18n( "Meow" ),
 			MEOW_VERSION, ki18n("A cute music player"), KAboutData::License_GPL_V3,
-			ki18n("(c) 2008-2011, Charles Samuels. (c) 1994-2010 others")
+			ki18n("(c) 2008-2013, Charles Samuels. (c) 1994-2010 others")
 		);
 	
 	aboutData.addAuthor( ki18n("Charles Samuels"), ki18n("Developer"), "charles@meowplayer.org" );

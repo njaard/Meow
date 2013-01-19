@@ -26,6 +26,8 @@
 #include <qabstracteventdispatcher.h>
 #include <qpainter.h>
 #include <qboxlayout.h>
+#include <qpushbutton.h>
+#include <qlabel.h>
 
 #include <map>
 #include <iostream>
@@ -556,29 +558,46 @@ void Meow::MainWindow::changeCaption(const File &f)
 
 void Meow::MainWindow::showAbout()
 {
+	QDialog msgBox(this);
+	msgBox.setWindowTitle(tr("About Meow"));
 	
-	QMessageBox::about(
-			this, tr("About Meow"),
+	QLabel *label = new QLabel(
 			tr(
-					"<qt>This is Meow %1. A cute music player.<br/><br/>"
-					"By Charles Samuels &lt;charles@meowplayer.org&gt;. He likes cats.<br/><br/>"
-					"http://meowplayer.org/<br/><br/>"
-					"Bug reports to bugs@meowplayer.org<br/><br/>"
-					"Copyright (c) 2008-2011 Charles Samuels<br/>"
-					"Copyright (c) 2004-2006 Allen Sandfeld Jensen (Most of Akode backend)<br/>"
-					"Copyright (c) 2000-2007 Stefan Gehn, Charles Samuels (Portions of playback controller)<br/>"
-					"Copyright (c) 2000-2007 Josh Coalson (FLAC decoder)<br/>"
-					"Copyright (c) 1994-2010 the Xiph.Org Foundation (Vorbis decoder)<br/>"
-					"Copyright (c) 2000-2004 Underbit Technologies, Inc (mp3 decoder)<br/>"
-					"Copyright (c) 2005 The Musepack Development Team (Musepack decoder)<br/>"
-					"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)<br/>"
-					"Copyright (c) 2007-2009 Oxygen project (Icons)<br/>"
-					"The Public Domain's SQLite<br/><br/>"
-					"Meow is Free software, you may modify and share it under the "
-					"<a href=\"http://www.gnu.org/licenses/gpl-3.0.html\">terms of the GPL version 3</a>."
-					"</qt>"
-				).arg(MEOW_VERSION)
+				"This is Meow %1. A cute music player.<br/><br/>"
+				"By <a href='mailto:charles@meowplayer.org'>Charles Samuels</a>. He likes cats.<br/><br/>"
+				"<a href='http://meowplayer.org'>http://meowplayer.org/</a><br/><br/>"
+				"Bug reports to <a href='mailto:bugs@meowplayer.org'>bugs@meowplayer.org</a><br/><br/>"
+				"Copyright (c) 2008-2013 Charles Samuels<br/>"
+				"Copyright (c) 2004-2006 Allen Sandfeld Jensen (Most of Akode backend)<br/>"
+				"Copyright (c) 2000-2007 Stefan Gehn, Charles Samuels (Portions of playback controller)<br/>"
+				"Copyright (c) 2000-2007 Josh Coalson (FLAC decoder)<br/>"
+				"Copyright (c) 1994-2010 the Xiph.Org Foundation (Vorbis decoder)<br/>"
+				"Copyright (c) 2000-2004 Underbit Technologies, Inc (mp3 decoder)<br/>"
+				"Copyright (c) 2005 The Musepack Development Team (Musepack decoder)<br/>"
+				"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)<br/>"
+				"Copyright (c) 2007-2009 Oxygen project (Icons)<br/>"
+				"The Public Domain's SQLite<br/><br/>"
+				"Meow is Free software, you may modify and share it under the "
+				"<a href=\"http://www.gnu.org/licenses/gpl-3.0.html\">terms of the GPL version 3</a>."
+			).arg(MEOW_VERSION),
+			&msgBox
 		);
+	label->setOpenExternalLinks(true);
+	
+	QPushButton *ok = new QPushButton("OK", &msgBox);
+	ok->setDefault(true);
+	connect(ok, SIGNAL(clicked()), &msgBox, SLOT(accept()));
+	
+	QVBoxLayout *layout = new QVBoxLayout(&msgBox);
+	layout->addWidget(label);
+	
+	QHBoxLayout *oklayout=new QHBoxLayout;
+	layout->addLayout(oklayout);
+	oklayout->addStretch();
+	oklayout->addWidget(ok);
+
+	msgBox.setLayout(layout);
+	msgBox.exec();
 }
 
 void Meow::MainWindow::toggleToolBar()
