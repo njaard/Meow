@@ -75,7 +75,7 @@ private slots:
 private:
 	void beginDirectoryAdd(const QString &url);
 	static bool globalEventFilter(void *_m);
-	QIcon renderIcon(const QString& baseIcon, const QString &overlayIcon) const;
+	QIcon renderIcon(const QIcon& baseIcon, const QIcon &overlayIcon) const;
 };
 
 }

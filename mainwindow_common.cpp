@@ -4,13 +4,13 @@
 static QString collectionPath()
 {
 #if defined(MEOW_WITH_KDE)
-	return KGlobal::dirs()->saveLocation("data", "meow/");
+	return KGlobal::dirs()->saveLocation("data", "meow/collections");
 #elif defined(_WIN32)
-	QDir(QDir::homePath()).mkdir("meow");
-	return QDir::homePath() + "\\meow\\";
+	QDir(QDir::homePath()).mkpath("meowplayer.org\\collections");
+	return QDir::homePath() + "\\meowplayer.org\\collections\\";
 #else
-	QDir(QDir::homePath() + "/.config").mkdir("meow");
-	return QDir::homePath() + "/.config/meow/";
+	QDir(QDir::homePath() + "/.config").mkpath("meowplayer.org/collections");
+	return QDir::homePath() + "/.config/meowplayer.org/collections/";
 #endif
 }
 

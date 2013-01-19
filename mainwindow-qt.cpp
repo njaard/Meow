@@ -84,6 +84,25 @@ struct Meow::MainWindow::MainWindowPrivate
 
 typedef QIcon KIcon;
 
+// open an icon, either get it from the "home directory" or
+// look inside meow if the file is not available
+static QIcon iconByName(const QString &name)
+{
+#if defined(_WIN32)
+	const QString iconpath = QDir::homePath() + "\\meowplayer.org\\";
+#else
+	const QString iconpath = QDir::homePath() + "/.config/meowplayer.org/";
+#endif
+
+	if (QFile::exists(iconpath + name))
+		return QIcon(iconpath + name);
+	else
+		return QIcon(":/" + name);
+}
+
+
+
+
 #include "mainwindow_common.cpp"
 
 static Meow::MainWindow *globalMainWindow=0;
@@ -221,7 +240,7 @@ Meow::MainWindow::MainWindow()
 	setCentralWidget(owner);
 	
 	QMenu *const trayMenu = new QMenu(this);
-	d->tray = new QSystemTrayIcon(QIcon(":/meow.png"), this);
+	d->tray = new QSystemTrayIcon(iconByName("meow.png"), this);
 	d->tray->setContextMenu(trayMenu);
 	d->tray->installEventFilter(this);
 	d->tray->show();
@@ -244,7 +263,7 @@ Meow::MainWindow::MainWindow()
 		ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), SLOT(addFiles()));
 		ac->setText(tr("Add &Files..."));
-		ac->setIcon(QIcon(":/list-add.png"));
+		ac->setIcon(iconByName("list-add.png"));
 		topToolbar->addAction(ac);
 		fileMenu->addAction(ac);
 		
@@ -262,27 +281,27 @@ Meow::MainWindow::MainWindow()
 		d->prevAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(previousSong()));
 		ac->setText(tr("Previous Song"));
-		ac->setIcon(QIcon(":/media-skip-backward.png"));
+		ac->setIcon(iconByName("media-skip-backward.png"));
 		topToolbar->addAction(ac);
 		trayMenu->addAction(ac);
 		
 		d->playPauseAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->player, SLOT(playpause()));
 		ac->setText(tr("Paws"));
-		ac->setIcon(QIcon(":/media-playback-pause.png"));
+		ac->setIcon(iconByName("media-playback-pause.png"));
 		topToolbar->addAction(ac);
 		trayMenu->addAction(ac);
 		
 		d->nextAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->view, SLOT(nextSong()));
 		ac->setText(tr("Next Song"));
-		ac->setIcon(QIcon(":/media-skip-forward.png"));
+		ac->setIcon(iconByName("media-skip-forward.png"));
 		topToolbar->addAction(ac);
 		
 		d->volumeAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), this, SLOT(showVolume()));
 		ac->setText(tr("Volume"));
-		ac->setIcon(QIcon(":/player-volume.png"));
+		ac->setIcon(iconByName("player-volume.png"));
 		topToolbar->addAction(ac);
 		
 		trayMenu->addAction(d->nextAction);
@@ -690,15 +709,15 @@ void Meow::MainWindow::isPlaying(bool pl)
 {
 	if (pl)
 	{
-		d->playPauseAction->setIcon(QIcon(":/media-playback-pause.png"));
+		d->playPauseAction->setIcon(iconByName("media-playback-pause.png"));
 		d->playPauseAction->setText(tr("Paws"));
-		d->tray->setIcon(renderIcon(":/meow.png", ":/media-playback-start.png"));
+		d->tray->setIcon(renderIcon(iconByName("meow.png"), iconByName("media-playback-start.png")));
 	}
 	else
 	{
-		d->playPauseAction->setIcon(QIcon(":/media-playback-start"));
+		d->playPauseAction->setIcon(iconByName("media-playback-start"));
 		d->playPauseAction->setText(tr("Play"));
-		d->tray->setIcon(renderIcon(":/meow.png", ":/media-playback-pause.png"));
+		d->tray->setIcon(renderIcon(iconByName("meow.png"), iconByName("media-playback-pause.png")));
 	}
 }
 
@@ -733,14 +752,13 @@ void Meow::MainWindow::selectorActivated(QAction* action)
 	d->view->setSelector( d->selectors[action] );
 }
 
-QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
+QIcon Meow::MainWindow::renderIcon(const QIcon& baseIcon, const QIcon &overlayIcon) const
 {
-	QPixmap iconPixmap = QIcon(baseIcon).pixmap(16);
-	if (!overlayIcon.isEmpty())
+	QPixmap iconPixmap = baseIcon.pixmap(16);
+	if (!overlayIcon.isNull())
 	{
 		QPixmap overlayPixmap
-			= QIcon(overlayIcon)
-				.pixmap(22/2);
+			= overlayIcon.pixmap(22/2);
 		QPainter p(&iconPixmap);
 		p.drawPixmap(
 				iconPixmap.width()-overlayPixmap.width(),
