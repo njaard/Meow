@@ -86,7 +86,11 @@ private slots:
 
 private:
 	void beginDirectoryAdd(const KUrl &url);
-	QIcon renderIcon(const KIcon& baseIcon, const KIcon &overlayIcon) const;
+#ifdef MEOW_WITH_KDE
+	QIcon renderIcon(const QString& baseIcon, const QString &overlayIcon) const;
+#else
+	QIcon renderIcon(const QIcon& baseIcon, const QIcon &overlayIcon) const;
+#endif
 };
 
 #ifdef MEOW_WITH_KDE

@@ -561,13 +561,13 @@ void Meow::MainWindow::itemProperties()
 		new FileProperties(files, d->collection, this);
 }
 
-QIcon Meow::MainWindow::renderIcon(const KIcon& baseIcon, const KIcon &overlayIcon) const
+QIcon Meow::MainWindow::renderIcon(const QString& baseIcon, const QString &overlayIcon) const
 {
-	QPixmap iconPixmap = baseIcon.pixmap(KIconLoader::SizeSmallMedium, KIconLoader::SizeSmallMedium);
+	QPixmap iconPixmap = KIcon(baseIcon).pixmap(KIconLoader::SizeSmallMedium, KIconLoader::SizeSmallMedium);
 	if (!overlayIcon.isNull())
 	{
 		QPixmap overlayPixmap
-			= overlayIcon
+			= KIcon(overlayIcon)
 				.pixmap(KIconLoader::SizeSmallMedium/2, KIconLoader::SizeSmallMedium/2);
 		QPainter p(&iconPixmap);
 		p.drawPixmap(
