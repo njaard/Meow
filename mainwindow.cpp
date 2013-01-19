@@ -265,8 +265,10 @@ Meow::MainWindow::MainWindow()
 	toggleMenubarAction->setChecked(menuBar()->isVisibleTo(this));
 	
 	KConfigGroup meow = KGlobal::config()->group("state");
-	d->player->setVolume(meow.readEntry<int>("volume", 50));
-	
+	{
+		const int v = meow.readEntry<int>("volume", 50);
+		d->player->setVolume(v);
+	}
 	{
 		QString order = meow.readEntry<QString>("selector", "linear");
 		int index;

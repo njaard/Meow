@@ -437,7 +437,11 @@ Meow::MainWindow::MainWindow()
 	d->toggleMenubarAction->setChecked(menuBar()->isVisibleTo(this));
 		
 	QSettings settings;
-	d->player->setVolume(settings.value("state/volume", 50).toInt());
+	{
+		const int v = settings.value("state/volume", 50).toInt();
+		d->player->setVolume(v);
+		d->volumeSlider->setValue(v);
+	}
 	
 	{
 		QString order = settings.value("state/selector", "linear").toString();
