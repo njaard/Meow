@@ -251,9 +251,9 @@ Meow::MainWindow::MainWindow()
 
 	QMenuBar *mbar = menuBar();
 	
-	QMenu *fileMenu = mbar->addMenu(tr("File"));
-	QMenu *settingsMenu = mbar->addMenu(tr("Settings"));
-	QMenu *helpMenu = mbar->addMenu(tr("Help"));
+	QMenu *fileMenu = mbar->addMenu(tr("&File"));
+	QMenu *settingsMenu = mbar->addMenu(tr("&Settings"));
+	QMenu *helpMenu = mbar->addMenu(tr("&Help"));
 	
 	QToolBar *topToolbar = d->topToolbar = addToolBar(tr("Main"));
 		
@@ -514,8 +514,7 @@ void Meow::MainWindow::addDirs()
 	d->openFileDialog = new QFileDialog(
 			this,
 			tr("Add Folder"),
-			QString(),
-			d->player->mimeTypes().join(";")
+			QString()
 		);
 	
 	d->openFileDialog->setFileMode(QFileDialog::DirectoryOnly);
