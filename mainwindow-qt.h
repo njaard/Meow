@@ -2,9 +2,12 @@
 #define MEOW_MAINWINDOW_H
 
 #include <qmainwindow.h>
+#include <qdialog.h>
 
 #include <qsystemtrayicon.h>
 #include <db/file.h>
+
+#include <map>
 
 class QSlider;
 class QSignalMapper;
@@ -57,6 +60,7 @@ private slots:
 	void fileDialogClosed();
 
 	void showSettings();
+	void showShortcutSettings();
 	void showAbout();
 	void toggleToolBar();
 	void toggleMenuBar();
@@ -76,7 +80,21 @@ private:
 	void beginDirectoryAdd(const QString &url);
 	static bool globalEventFilter(void *_m);
 	QIcon renderIcon(const QIcon& baseIcon, const QIcon &overlayIcon) const;
+	void registerShortcuts();
 };
+
+class ShortcutInput;
+class Shortcut;
+
+class ShortcutDialog : public QDialog
+{
+Q_OBJECT
+public:
+	ShortcutDialog(std::map<QString, Shortcut*>& s, QWidget *w);
+	
+	std::map<QString, ShortcutInput*> inputs;
+};
+
 
 }
 

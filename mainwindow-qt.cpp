@@ -4,6 +4,7 @@
 #include "scrobble.h"
 #include "directoryadder.h"
 #include "filter.h"
+#include "shortcut.h"
 
 #include <db/file.h>
 #include <db/base.h>
@@ -23,7 +24,6 @@
 #include <qsettings.h>
 #include <qurl.h>
 #include <qmessagebox.h>
-#include <qabstracteventdispatcher.h>
 #include <qpainter.h>
 #include <qboxlayout.h>
 #include <qpushbutton.h>
@@ -38,10 +38,6 @@
 #include <winuser.h>
 #endif
 
-#ifdef Q_WS_X11
-#include <qx11info_x11.h>
-#include <X11/Xlib.h>
-#endif
 
 #define i18n tr
 class SpecialSlider;
@@ -63,9 +59,9 @@ struct Meow::MainWindow::MainWindowPrivate
 	QAction *collectionsAction;
 	QActionGroup *collectionsActionGroup;
 	
-	QAction *playPauseAction, *prevAction, *nextAction, *volumeUpAction, *volumeDownAction, *muteAction, *volumeAction;
+	QAction *playPauseAction, *prevAction, *nextAction, *volumeUpAction, *volumeDownAction, *volumeAction;
 	
-	QAction *toggleToolbarAction, *toggleMenubarAction;
+	QAction *toggleToolbarAction, *toggleMenubarAction, *shortcutConfigAction;
 	
 	bool nowFiltering, quitting;
 	
@@ -80,6 +76,8 @@ struct Meow::MainWindow::MainWindowPrivate
 	
 	SpecialSlider *volumeSlider;
 	Filter *filter;
+
+	std::map<QString, Shortcut*> shortcuts;
 };
 
 typedef QIcon KIcon;
@@ -105,111 +103,9 @@ static QIcon iconByName(const QString &name)
 
 #include "mainwindow_common.cpp"
 
-static Meow::MainWindow *globalMainWindow=0;
-
-#ifdef _WIN32
-
-bool Meow::MainWindow::globalEventFilter(void *_m)
-{
-	MSG *const m = (MSG*)_m;
-	if (m->message == WM_HOTKEY)
-	{
-		const quint32 keycode = HIWORD(m->lParam);
-		if (keycode == VK_MEDIA_PLAY_PAUSE || keycode == VK_MEDIA_STOP)
-			globalMainWindow->d->playPauseAction->trigger();
-		else if (keycode == VK_MEDIA_NEXT_TRACK)
-			globalMainWindow->d->nextAction->trigger();
-		else if (keycode == VK_MEDIA_PREV_TRACK)
-			globalMainWindow->d->prevAction->trigger();
-		else if (keycode == VK_VOLUME_UP)
-			globalMainWindow->d->volumeUpAction->trigger();
-		else if (keycode == VK_VOLUME_DOWN)
-			globalMainWindow->d->volumeDownAction->trigger();
-		else if (keycode == VK_VOLUME_MUTE)
-			globalMainWindow->d->muteAction->trigger();
-	}
-	return false;
-}
-#endif
-
-#ifdef Q_WS_X11
-
-static void registerHotKey(unsigned xkeysym)
-{
-	Display* const display = QX11Info::display();
-	const Window window = QX11Info::appRootWindow();
-	
-//	int (*const originalErrorHandler)(Display* display, XErrorEvent* event) = XSetErrorHandler(hotkeyErrorHandler);
-	
-	const unsigned xkeycode = XKeysymToKeycode(display, xkeysym);
-	const unsigned xmod = 0;
-	
-	XSync(display, False);
-	XGrabKey(display, xkeycode, xmod, window, true, GrabModeAsync, GrabModeAsync);
-	// with numlock
-	XGrabKey(display, xkeycode, xmod | Mod2Mask, window, true, GrabModeAsync, GrabModeAsync);
-	XSync(display, False);
-	
-//	XSetErrorHandler(originalErrorHandler);
-}
-
-bool Meow::MainWindow::globalEventFilter(void *_m)
-{
-	XEvent* event = static_cast<XEvent*>(_m);
-	if (event->type == KeyPress)
-	{
-		Display* const display = QX11Info::display();
-		XKeyEvent* const key = (XKeyEvent*)event;
-		const unsigned keycode = key->keycode;
-		const unsigned keysym = XKeycodeToKeysym(display, keycode, 0);
-		if (keysym == 0x1008FF14 || keysym == 0x1008FF15)
-			globalMainWindow->d->playPauseAction->trigger();
-		else if (keysym == 0x1008FF17)
-			globalMainWindow->d->nextAction->trigger();
-		else if (keysym == 0x1008FF16)
-			globalMainWindow->d->prevAction->trigger();
-		else if (keysym == 0x1008FF13)
-			globalMainWindow->d->volumeUpAction->trigger();
-		else if (keysym == 0x1008FF11)
-			globalMainWindow->d->volumeDownAction->trigger();
-		else if (keysym == 0x1008FF12)
-			globalMainWindow->d->muteAction->trigger();
-	}
-	return false;
-}
-
-#endif
-
 
 Meow::MainWindow::MainWindow()
 {
-	globalMainWindow = this;
-#ifdef _WIN32
-	{
-		RegisterHotKey(winId(), VK_MEDIA_PLAY_PAUSE, 0, VK_MEDIA_PLAY_PAUSE);
-		RegisterHotKey(winId(), VK_MEDIA_STOP, 0, VK_MEDIA_STOP);
-		RegisterHotKey(winId(), VK_MEDIA_NEXT_TRACK, 0, VK_MEDIA_NEXT_TRACK);
-		RegisterHotKey(winId(), VK_MEDIA_PREV_TRACK, 0, VK_MEDIA_PREV_TRACK);
-		RegisterHotKey(winId(), VK_VOLUME_UP, 0, VK_VOLUME_UP);
-		RegisterHotKey(winId(), VK_VOLUME_DOWN, 0, VK_VOLUME_DOWN);
-		RegisterHotKey(winId(), VK_VOLUME_MUTE, 0, VK_VOLUME_MUTE);
-		QAbstractEventDispatcher::instance()->setEventFilter(globalEventFilter);
-	}
-#endif
-#ifdef Q_WS_X11
-	{
-		registerHotKey(0x1008FF14); // Qt::Key_MediaPlay
-		registerHotKey(0x1008FF15); // Qt::Key_MediaStop
-		registerHotKey(0x1008FF17); // Qt::Key_MediaNext
-		registerHotKey(0x1008FF16); // Qt::Key_MediaPrevious
-		registerHotKey(0x1008FF11); // Qt::Key_VolumeDown
-		registerHotKey(0x1008FF13); // Qt::Key_VolumeUp
-		registerHotKey(0x1008FF12), // Qt::Key_VolumeMute
-		QAbstractEventDispatcher::instance()->setEventFilter(globalEventFilter);
-	}
-
-#endif
-
 	setWindowTitle(tr("Meow"));
 	d = new MainWindowPrivate;
 	d->adder = 0;
@@ -376,6 +272,12 @@ Meow::MainWindow::MainWindow()
 		addAction(ac);
 #endif
 		
+		ac = d->shortcutConfigAction = new QAction(this);
+		connect(ac, SIGNAL(triggered()), SLOT(showShortcutSettings()));
+		ac->setText(tr("Configure &Shortcuts"));
+		settingsMenu->addAction(ac);
+
+		
 		ac = d->toggleToolbarAction = new QAction(this);
 		connect(ac, SIGNAL(triggered()), SLOT(toggleToolBar()));
 		ac->setText(tr("Show &Toolbar"));
@@ -396,10 +298,6 @@ Meow::MainWindow::MainWindow()
 		d->volumeDownAction = ac = new QAction(this);
 		connect(ac, SIGNAL(triggered()), d->player, SLOT(volumeDown()));
 		ac->setText(tr("&Volume Down"));
-		
-		d->muteAction = ac = new QAction(this);
-//		connect(ac, SIGNAL(triggered()), d->player, SLOT(volumeMute()));
-		ac->setText(tr("&Mute"));
 	}
 	
 	{
@@ -435,7 +333,7 @@ Meow::MainWindow::MainWindow()
 	
 	d->toggleToolbarAction->setChecked(topToolbar->isVisibleTo(this));
 	d->toggleMenubarAction->setChecked(menuBar()->isVisibleTo(this));
-		
+
 	QSettings settings;
 	{
 		const int v = settings.value("state/volume", 50).toInt();
@@ -467,11 +365,13 @@ Meow::MainWindow::MainWindow()
 			}
 		}
 	}
-	
+
+	registerShortcuts();
 	
 	FileId first = settings.value("state/lastPlayed", 0).toInt();
 	
 	loadCollection("collection", first);
+	
 }
 
 Meow::MainWindow::~MainWindow()
@@ -645,6 +545,102 @@ void Meow::MainWindow::changeCaption(const File &f)
 		setWindowTitle(tr("Meow"));
 }
 
+
+Meow::ShortcutDialog::ShortcutDialog(std::map<QString, Shortcut*>& shortcuts, QWidget *w)
+	: QDialog(w)
+{
+	setWindowTitle(tr("Meow Shortcuts"));
+	QGridLayout *l = new QGridLayout(this);
+	QLabel *b;
+	ShortcutInput *s;
+	int row=0;
+	
+	b = new QLabel(tr("Play/Pause"), this);
+	s = new ShortcutInput(shortcuts["playpause"],this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["playpause"] = s;
+	row++;
+	
+	b = new QLabel(tr("Next Track"), this);
+	s = new ShortcutInput(shortcuts["next"], this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["next"] = s;
+	row++;
+	
+	b = new QLabel(tr("Previous Track"), this);
+	s = new ShortcutInput(shortcuts["previous"],this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["previous"] = s;
+	row++;
+	
+	b = new QLabel(tr("Increase Volume"), this);
+	s = new ShortcutInput(shortcuts["volume_up"],this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["volume_up"] = s;
+	row++;
+	
+	b = new QLabel(tr("Decrease Volume"), this);
+	s = new ShortcutInput(shortcuts["volume_down"], this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["volume_down"] = s;
+	row++;
+	
+	b = new QLabel(tr("Seek Forward"), this);
+	s = new ShortcutInput(shortcuts["seekforward"], this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["seekforward"] = s;
+	row++;
+	
+	b = new QLabel(tr("Seek Backward"), this);
+	s = new ShortcutInput(shortcuts["seekbackward"], this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["seekbackward"] = s;
+	row++;
+	
+	b = new QLabel(tr("Show/Hide main window"), this);
+	s = new ShortcutInput(shortcuts["togglegui"], this);
+	l->addWidget(b, row, 0);
+	l->addWidget(s, row, 1);
+	inputs["togglegui"] = s;
+	row++;
+	
+	
+	QPushButton *ok = new QPushButton("OK", this);
+	ok->setDefault(true);
+	connect(ok, SIGNAL(clicked()), SLOT(accept()));
+	
+	QPushButton *cancel = new QPushButton("Cancel", this);
+	connect(cancel, SIGNAL(clicked()), SLOT(reject()));
+	
+	QHBoxLayout *oklayout=new QHBoxLayout;
+	l->addLayout(oklayout, row, 0, 1, -1);
+	oklayout->addStretch();
+	oklayout->addWidget(ok);
+	oklayout->addWidget(cancel);
+}
+
+
+void Meow::MainWindow::showShortcutSettings()
+{
+	ShortcutDialog dlg(d->shortcuts, this);
+	if (!dlg.exec())
+		return;
+	
+	QSettings settings;
+	for (std::map<QString, ShortcutInput*>::iterator i = dlg.inputs.begin(); i != dlg.inputs.end(); ++i)
+	{
+		settings.setValue("shortcuts/" + i->first, i->second->key().toString(QKeySequence::PortableText));
+		d->shortcuts[i->first]->setKey(i->second->key());
+	}
+}
+
 void Meow::MainWindow::showAbout()
 {
 	QDialog msgBox(this);
@@ -773,7 +769,57 @@ QIcon Meow::MainWindow::renderIcon(const QIcon& baseIcon, const QIcon &overlayIc
 	return iconPixmap;
 }
 
-
+void Meow::MainWindow::registerShortcuts()
+{
+	while (!d->shortcuts.empty())
+	{
+		delete d->shortcuts.begin()->second;
+		d->shortcuts.erase(d->shortcuts.begin());
+	}
+	QSettings settings;
+	QString x;
+	Shortcut *s;
+	
+	x=settings.value("shortcuts/playpause", "Media Play").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), d->player, SLOT(play()));
+	d->shortcuts["playpause"] = s;
+	
+	x=settings.value("shortcuts/next", "Media Next").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), d->view, SLOT(nextSong()));
+	d->shortcuts["next"] = s;
+	
+	x=settings.value("shortcuts/previous", "Media Previous").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), d->view, SLOT(previousSong()));
+	d->shortcuts["previous"] = s;
+	
+	x=settings.value("shortcuts/volume_up", "Ctrl+Alt+Shift+Up").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), d->player, SLOT(volumeUp()));
+	d->shortcuts["volume_up"] = s;
+	
+	x=settings.value("shortcuts/volume_down", "Ctrl+Alt+Shift+Down").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), d->player, SLOT(volumeDown()));
+	d->shortcuts["volume_down"] = s;
+	
+	x=settings.value("shortcuts/seekforward", "Ctrl+Alt+Shift+Left").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), d->player, SLOT(seekForward()));
+	d->shortcuts["seekforward"] = s;
+	
+	x=settings.value("shortcuts/seekbackward", "Ctrl+Alt+Shift+Right").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), d->player, SLOT(seekBackward()));
+	d->shortcuts["seekbackward"] = s;
+	
+	x=settings.value("shortcuts/togglegui", "Ctrl+Alt+M").toString();
+	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	connect(s, SIGNAL(activated()), this, SLOT(toggleVisible()));
+	d->shortcuts["togglegui"] = s;
+}
 
 
 

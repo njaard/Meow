@@ -80,20 +80,13 @@ private slots:
 	void loadCollection(const QString &collection, FileId first);
 	void loadCollection(const QString &collection) { loadCollection(collection, 0); }
 
-#ifdef MEOW_WITH_KDE
 	void openWith(const QString &desktopEntryName);
-#endif
 
 private:
 	void beginDirectoryAdd(const KUrl &url);
-#ifdef MEOW_WITH_KDE
 	QIcon renderIcon(const QString& baseIcon, const QString &overlayIcon) const;
-#else
-	QIcon renderIcon(const QIcon& baseIcon, const QIcon &overlayIcon) const;
-#endif
 };
 
-#ifdef MEOW_WITH_KDE
 class VolumeAction : public KToolBarPopupAction
 {
 	Q_OBJECT
@@ -114,7 +107,6 @@ signals:
 private slots:
 	void showPopup(QWidget *button);
 };
-#endif
 
 }
 

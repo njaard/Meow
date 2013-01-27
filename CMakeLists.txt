@@ -44,8 +44,8 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp akode/localfile.cpp)
 
-
 	if(${MEOW_QT})
+		set(platform_sources ${playform_sources} akode/plugins/alsa_sink.cpp akode/localfile.cpp)
 		find_package(Qt4 REQUIRED QtCore QtGui QtNetwork QtXml)
 		include(${QT_USE_FILE})
 		find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h
@@ -159,6 +159,7 @@ set(
 	configdialog.cpp
 	directoryadder.cpp
 	filter.cpp
+	shortcut.cpp
 	
 	db/base.cpp db/file.cpp treeview.cpp db/collection.cpp
 
