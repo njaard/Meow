@@ -1,6 +1,7 @@
 /*  aKode: FLAC-Decoder (using libFLAC 1.1.3 API)
 
     Copyright (C) 2004-2005 Allan Sandfeld Jensen <kde@carewolf.com>
+    Copyright (C) 2013 Charles Samuels <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -30,6 +31,10 @@
 #include <akode/audioframe.h>
 #include <akode/decoder.h>
 #include "flac113_decoder.h"
+
+#include <cmath>
+#include <limits>
+#include <cstdlib>
 
 
 using namespace aKode;
@@ -101,7 +106,9 @@ static bool checkOggFLAC(File *src) {
 
 
 struct FLACDecoder::private_data {
-    private_data() : decoder(0), valid(false), out(0), source(0), eof(false), error(false) {}
+    private_data() : decoder(0), valid(false), out(0), source(0), eof(false), error(false)
+    , trackGain(false), albumGain(false)
+    {}
 
     FLAC__StreamDecoder *decoder;
     const FLAC__StreamMetadata_StreamInfo* si;
@@ -116,6 +123,8 @@ struct FLACDecoder::private_data {
     uint64_t position, length;
 
     bool eof, error;
+    bool trackGain, albumGain;
+    uint64_t trackGainValue, albumGainValue;
 };
 
 static FLAC__StreamDecoderReadStatus flac_read_callback(
@@ -199,16 +208,16 @@ static FLAC__StreamDecoderWriteStatus write_callback(
         const FLAC__int32 * const buffer[],
         void* client_data)
 {
-    FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
+    FLACDecoder::private_data *m_data = (FLACDecoder::private_data*)client_data;
 
-    if (!data->out)  // Handle spurious callbacks (happens during seeks)
-        data->out = new AudioFrame;
+    if (!m_data->out)  // Handle spurious callbacks (happens during seeks)
+        m_data->out = new AudioFrame;
 
     const long frameSize = frame->header.blocksize;
     const char bits = frame->header.bits_per_sample;
     const char channels = frame->header.channels;
 
-    AudioFrame* const outFrame = data->out;
+    AudioFrame* const outFrame = m_data->out;
 
     outFrame->reserveSpace(channels, frameSize, bits);
     outFrame->sample_rate = frame->header.sample_rate;
@@ -220,25 +229,45 @@ static FLAC__StreamDecoderWriteStatus write_callback(
     else
         outFrame->channel_config = aKode::MultiChannel;
 
-    for(int i = 0; i<channels; i++) {
+    for(int i = 0; i<channels; i++)
+    {
         if (outFrame->data[i] == 0) break;
-        if (bits<=8) {
+        if (bits<=8)
+        {
             int8_t** data = (int8_t**)outFrame->data;
             for(long j=0; j<frameSize; j++)
                 data[i][j] = buffer[i][j];
-        } else
-        if (bits<=16) {
+            if (m_data->trackGain)
+            {
+                for(long j=0; j<frameSize; j++)
+                    data[i][j] = int32_t(data[i][j]) * m_data->trackGainValue / std::numeric_limits<int8_t>::max();
+            }
+        }
+        else if (bits<=16)
+        {
             int16_t** data = (int16_t**)outFrame->data;
             for(long j=0; j<frameSize; j++)
                 data[i][j] = buffer[i][j];
-        } else {
+            if (m_data->trackGain)
+            {
+                for(long j=0; j<frameSize; j++)
+                    data[i][j] = int32_t(data[i][j]) * m_data->trackGainValue / std::numeric_limits<int16_t>::max();
+            }
+        }
+        else
+        {
             int32_t** data = (int32_t**)outFrame->data;
             for(long j=0; j<frameSize; j++)
                 data[i][j] = buffer[i][j];
+            if (m_data->trackGain)
+            {
+                for(long j=0; j<frameSize; j++)
+                    data[i][j] = int64_t(data[i][j]) * m_data->trackGainValue / std::numeric_limits<int32_t>::max();
+            }
         }
     }
-    data->position+=frameSize;
-    data->valid = true;
+    m_data->position+=frameSize;
+    m_data->valid = true;
     return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -247,34 +276,56 @@ static void metadata_callback(
         const FLAC__StreamMetadata *metadata,
         void* client_data)
 {
-    FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
+    FLACDecoder::private_data *const m_data = (FLACDecoder::private_data*)client_data;
     if (metadata->type == FLAC__METADATA_TYPE_STREAMINFO) {
-        data->length         = metadata->data.stream_info.total_samples;
-        data->config.sample_rate    = metadata->data.stream_info.sample_rate;
-        data->config.sample_width   = metadata->data.stream_info.bits_per_sample;
-        data->config.channels       = metadata->data.stream_info.channels;
-        data->max_block_size = metadata->data.stream_info.max_blocksize;
+        m_data->length         = metadata->data.stream_info.total_samples;
+        m_data->config.sample_rate    = metadata->data.stream_info.sample_rate;
+        m_data->config.sample_width   = metadata->data.stream_info.bits_per_sample;
+        m_data->config.channels       = metadata->data.stream_info.channels;
+        m_data->max_block_size = metadata->data.stream_info.max_blocksize;
 
-        if (data->config.channels <= 2)
-	   data->config.channel_config = aKode::MonoStereo;
-        else if (data->config.channels <= 7)
-	   data->config.channel_config = aKode::Surround;
+        if (m_data->config.channels <= 2)
+            m_data->config.channel_config = aKode::MonoStereo;
+        else if (m_data->config.channels <= 7)
+            m_data->config.channel_config = aKode::Surround;
         else
-	   data->config.channel_config = aKode::MultiChannel;
+            m_data->config.channel_config = aKode::MultiChannel;
 
-        data->si = &metadata->data.stream_info;
+        m_data->si = &metadata->data.stream_info;
 
-        data->position = 0;
+        m_data->position = 0;
 
-    } else
-    if (metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT) {
-        data->vc = &metadata->data.vorbis_comment;
+    }
+    else if (metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT)
+    {
+        m_data->vc = &metadata->data.vorbis_comment;
+        for ( int i=0; i < m_data->vc->num_comments; i++ )
+        {
+            std::string comment = reinterpret_cast<const char*>(m_data->vc->comments[i].entry);
+            const int eq = comment.find('=');
+            if (eq == std::string::npos) continue;
+            std::string name = comment.substr(0, eq);
+            std::string value = comment.substr(eq+1);
+        
+            if (name == "REPLAYGAIN_TRACK_GAIN" || name=="RG_RADIO")
+            {
+                m_data->trackGainValue = std::pow(10, std::atof(value.c_str())/20.0) * std::numeric_limits<int16_t>::max();
+                m_data->trackGain = true;
+                // std::cerr << "track gain " << m_data->trackGainValue << std::endl;
+            }
+            else if (name == "REPLAYGAIN_ALBUM_GAIN" || name=="RG_AUDIOPHILE")
+            {
+                m_data->albumGainValue = std::pow(10, std::atof(value.c_str())/20.0) * std::numeric_limits<int16_t>::max();
+                m_data->albumGain = true;
+                // std::cerr << "album gain " << m_data->albumGainValue << std::endl;
+            }
+        }
     }
 }
 
 static void error_callback(
         const FLAC__StreamDecoder *,
-	FLAC__StreamDecoderErrorStatus status,
+        FLAC__StreamDecoderErrorStatus status,
         void *client_data)
 {
     FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
@@ -301,10 +352,13 @@ FLACDecoder::FLACDecoder(File* src) {
     m_data = new private_data;
     m_data->out = 0;
     m_data->decoder = FLAC__stream_decoder_new();
+    FLAC__stream_decoder_set_metadata_respond_all(m_data->decoder);
+    
     m_data->source = src;
     m_data->source->openRO();
     m_data->source->fadvise();
     // ### check return value
+    
     FLAC__stream_decoder_init_stream(
         m_data->decoder,
         flac_read_callback,

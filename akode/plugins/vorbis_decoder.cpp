@@ -1,6 +1,7 @@
 /*  aKode: Ogg Vorbis-Decoder
 
     Copyright (C) 2004 Allan Sandfeld Jensen <kde@carewolf.com>
+    Copyright (C) 2013 Charles Samuels <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -92,7 +93,7 @@ struct VorbisDecoder::private_data
     private_data()
         : bitstream(0), eof(false), error(false),
         initialized(false), retries(0), big_endian(0),
-        trackGain(false), trackPeak(false), albumGain(false), albumPeak(false) {}
+        trackGain(false), albumGain(false) {}
     OggVorbis_File *vf;
     vorbis_comment *vc;
     vorbis_info *vi;
@@ -108,8 +109,8 @@ struct VorbisDecoder::private_data
 
     int big_endian;
     
-    bool trackGain, trackPeak, albumGain, albumPeak;
-    uint64_t trackGainValue, trackPeakValue, albumGainValue, albumPeakValue;
+    bool trackGain, albumGain;
+    uint64_t trackGainValue, albumGainValue;
 };
 
 VorbisDecoder::VorbisDecoder(File *src) {
@@ -184,8 +185,10 @@ bool VorbisDecoder::openFile() {
     for ( int i=0; i < m_data->vc->comments; i++ )
     {
         std::string comment = m_data->vc->user_comments[i];
-        std::string name = comment.substr(0, comment.find('='));
-        std::string value = comment.substr(comment.find('=')+1);
+        const int eq = comment.find('=');
+        if (eq == std::string::npos) continue;
+        std::string name = comment.substr(0, eq);
+        std::string value = comment.substr(eq+1);
     
         if (name == "REPLAYGAIN_TRACK_GAIN" || name=="RG_RADIO")
         {
