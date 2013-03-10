@@ -26,6 +26,9 @@
 #include "vorbis_decoder.h"
 
 #include <iostream>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
 
 using namespace aKode;
 
@@ -86,7 +89,10 @@ static ov_callbacks _callbacks = {_read, _seek, _close, _tell};
 
 struct VorbisDecoder::private_data
 {
-  private_data() : bitstream(0), eof(false), error(false), initialized(false), retries(0), big_endian(0) {};
+    private_data()
+        : bitstream(0), eof(false), error(false),
+        initialized(false), retries(0), big_endian(0),
+        trackGain(false), trackPeak(false), albumGain(false), albumPeak(false) {}
     OggVorbis_File *vf;
     vorbis_comment *vc;
     vorbis_info *vi;
@@ -101,6 +107,9 @@ struct VorbisDecoder::private_data
     int retries;
 
     int big_endian;
+    
+    bool trackGain, trackPeak, albumGain, albumPeak;
+    uint64_t trackGainValue, trackPeakValue, albumGainValue, albumPeakValue;
 };
 
 VorbisDecoder::VorbisDecoder(File *src) {
@@ -124,41 +133,41 @@ VorbisDecoder::~VorbisDecoder() {
 
 static void setAudioConfiguration(AudioConfiguration *config, vorbis_info *vi)
 {
-        config->channels = vi->channels;
-        config->sample_rate = vi->rate;
-        config->sample_width = 16;
+    config->channels = vi->channels;
+    config->sample_rate = vi->rate;
+    config->sample_width = 16;
 
-        if (config->channels <= 2) {
-            config->channel_config = MonoStereo;
-            config->surround_config = 0;
-        } else
-        if (config->channels <= 6) {
-            config->channel_config = Surround;
-            SurroundConfiguration surround_config;
-            switch (config->channels) {
-                case 3:
-                    surround_config.front_channels = 3;
-                    break;
-                case 4:
-                    surround_config.front_channels = 2;
-                    surround_config.rear_channels = 2;
-                    break;
-                case 5:
-                    surround_config.front_channels = 3;
-                    surround_config.rear_channels = 2;
-                    break;
-                case 6:
-                    surround_config.front_channels = 3;
-                    surround_config.rear_channels = 2;
-                    surround_config.LFE_channel = 1;
-                    break;
-            }
-            config->surround_config = surround_config;
+    if (config->channels <= 2) {
+        config->channel_config = MonoStereo;
+        config->surround_config = 0;
+    } else
+    if (config->channels <= 6) {
+        config->channel_config = Surround;
+        SurroundConfiguration surround_config;
+        switch (config->channels) {
+            case 3:
+                surround_config.front_channels = 3;
+                break;
+            case 4:
+                surround_config.front_channels = 2;
+                surround_config.rear_channels = 2;
+                break;
+            case 5:
+                surround_config.front_channels = 3;
+                surround_config.rear_channels = 2;
+                break;
+            case 6:
+                surround_config.front_channels = 3;
+                surround_config.rear_channels = 2;
+                surround_config.LFE_channel = 1;
+                break;
         }
-        else {
-            config->channel_config = MultiChannel;
-            config->surround_config = 0;
-        }
+        config->surround_config = surround_config;
+    }
+    else {
+        config->channel_config = MultiChannel;
+        config->surround_config = 0;
+    }
 }
 
 bool VorbisDecoder::openFile() {
@@ -168,9 +177,29 @@ bool VorbisDecoder::openFile() {
     if (status != 0) goto fault;
 
     m_data->vi = ov_info(m_data->vf, -1);
-    //m_data->vc = ov_comment(m_data->vf, -1);
+    m_data->vc = ov_comment(m_data->vf, -1);
     setAudioConfiguration(&m_data->config, m_data->vi);
 
+
+    for ( int i=0; i < m_data->vc->comments; i++ )
+    {
+        std::string comment = m_data->vc->user_comments[i];
+        std::string name = comment.substr(0, comment.find('='));
+        std::string value = comment.substr(comment.find('=')+1);
+    
+        if (name == "REPLAYGAIN_TRACK_GAIN" || name=="RG_RADIO")
+        {
+            m_data->trackGainValue = std::pow(10, std::atof(value.c_str())/20.0) * std::numeric_limits<int16_t>::max();
+            m_data->trackGain = true;
+            // std::cerr << "track gain " << m_data->trackGainValue << std::endl;
+        }
+        else if (name == "REPLAYGAIN_ALBUM_GAIN" || name=="RG_AUDIOPHILE")
+        {
+            m_data->albumGainValue = std::pow(10, std::atof(value.c_str())/20.0) * std::numeric_limits<int16_t>::max();
+            m_data->albumGain = true;
+            // std::cerr << "album gain " << m_data->albumGainValue << std::endl;
+        }
+    }
     m_data->initialized = true;
     m_data->error = false;
     m_data->retries = 0;
@@ -245,6 +274,12 @@ bool VorbisDecoder::readFrame(AudioFrame* frame)
             for(int j=0; j<channels; j++)
                 data[j][i] = buffer[i*channels+j];
 
+    if (m_data->trackGain)
+    {
+        for(int i=0; i<length; i++)
+            for(int j=0; j<channels; j++)
+                data[j][i] = int32_t(data[j][i]) * m_data->trackGainValue / std::numeric_limits<int16_t>::max();
+    }
     frame->pos = position();
     return true;
 }

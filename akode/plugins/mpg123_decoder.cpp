@@ -135,8 +135,8 @@ MPG123Decoder::MPG123Decoder(File *src)
     
     err = mpg123_param(mpg123, MPG123_FLAGS, MPG123_FUZZY | MPG123_SEEKBUFFER | MPG123_GAPLESS, 0);
     maybeThrowError(err);
-    err = mpg123_param(mpg123, MPG123_VERBOSE, 100, 0);
-    maybeThrowError(err);
+    //err = mpg123_param(mpg123, MPG123_VERBOSE, 100, 0);
+    //maybeThrowError(err);
     
     mpg123_replace_reader_handle(mpg123, fileRead, fileSeek, cleanup);
     mpg123_open_handle(mpg123, src);
@@ -154,14 +154,6 @@ MPG123Decoder::MPG123Decoder(File *src)
 MPG123Decoder::~MPG123Decoder()
 {
     mpg123_delete(mpg123);
-}
-
-
-// originaly from minimad.c
-template<int bits>
-static inline int32_t scale(int16_t sample)
-{
-    return sample;
 }
 
 
@@ -207,7 +199,7 @@ bool MPG123Decoder::readFrame(AudioFrame* frame)
             int16_t* samples = (int16_t*)outblock;
             for(int i=0; i<numSamples; i++)
                 for(int j=0; j<config.channels; j++)
-                    data[j][i] = scale<16>(samples[i*config.channels+j]);
+                    data[j][i] = samples[i*config.channels+j];
             frame->pos = position();
         }
         else

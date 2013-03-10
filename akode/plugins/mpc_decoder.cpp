@@ -1,7 +1,7 @@
 /*  aKode: Musepack(MPC) Decoder
 
     Copyright (C) 2004 Allan Sandfeld Jensen <kde@carewolf.com>
-    Copyright (C) 2011 Charles Samuels <charles@kde.org>
+    Copyright (C) 2011,2013 Charles Samuels <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -25,7 +25,6 @@
 #include <mpc/mpcdec.h>
 
 #include <limits>
-
 #include "mpc_decoder.h"
 
 using namespace aKode;
@@ -66,6 +65,7 @@ mpc_bool_t canseek(mpc_reader *r)
 }
 
 }
+
 
 class MPCDecoder : public Decoder
 {
@@ -142,6 +142,7 @@ void MPCDecoder::initialize()
 		config.channel_config = MonoStereo;
 	else
 		config.channel_config = MultiChannel;
+	mpc_set_replay_level(demux, MPC_OLD_GAIN_REF, MPC_TRUE, MPC_TRUE, MPC_TRUE);
 }
 
 bool MPCDecoder::readFrame(AudioFrame* frame)
