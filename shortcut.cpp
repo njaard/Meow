@@ -4,6 +4,7 @@
 #include <qmessagebox.h>
 
 #include <algorithm>
+#include <iostream>
 
 #ifdef _WIN32
 #define _WIN32_WINNT 0x0500
@@ -19,8 +20,22 @@
 
 #if defined(_WIN32)
 int Meow::Shortcut::nextId=0;
+
+static HWND hiddenShortcutWindow()
+{
+	static HWND wid=0;
+	if (!wid)
+	{
+		wid = CreateWindow(0, "hidden shortcut window", 0, 5, 5, 5, 5, HWND_MESSAGE, 0, 0, 0);
+	}
+	return wid;
+}
+
+
+
 #elif defined(Q_WS_X11)
 static bool meowShortcutError=false;
+
 
 
 static int xErrorHandler(Display*, XErrorEvent *event)
@@ -75,13 +90,10 @@ bool Meow::Shortcut::globalEventFilter(void *_m)
 }
 
 Meow::Shortcut::Shortcut(QWidget *parent)
-	: QObject(parent)
+	: QObject(parent), mEnabled(true)
 {
 	if (!allShortcuts)
 	{
-#if defined(_WIN32)
-		parentWindowHandle = parent->winId();
-#endif
 		QAbstractEventDispatcher::instance()->setEventFilter(globalEventFilter);
 		allShortcuts = new std::list<Shortcut*>;
 	}
@@ -90,13 +102,10 @@ Meow::Shortcut::Shortcut(QWidget *parent)
 
 
 Meow::Shortcut::Shortcut(const QKeySequence &k, QWidget *parent)
-	: QObject(parent)
+	: QObject(parent), mEnabled(true)
 {
 	if (!allShortcuts)
 	{
-#if defined(_WIN32)
-		parentWindowHandle = parent->winId();
-#endif
 		QAbstractEventDispatcher::instance()->setEventFilter(globalEventFilter);
 		allShortcuts = new std::list<Shortcut*>;
 	}
@@ -130,7 +139,7 @@ bool Meow::Shortcut::setKey(const QKeySequence &k)
 	if (!mKey.isEmpty())
 	{
 #if defined(_WIN32)
-		UnregisterHotKey(parentWindowHandle, id);
+		UnregisterHotKey(hiddenShortcutWindow(), id);
 #elif defined(Q_WS_X11)
 		Display* const display = QX11Info::display();
 		const Window window = QX11Info::appRootWindow();
@@ -155,9 +164,10 @@ bool Meow::Shortcut::setKey(const QKeySequence &k)
 		unsigned nc = nativeKeycode(Qt::Key(mKey[0] & ~allMods));
 		unsigned nm = nativeModifier(Qt::KeyboardModifiers(mKey[0] & allMods));
 #if defined(_WIN32)
-		if (!RegisterHotKey(parentWindowHandle, id = nextId++, nm, nc))
+		if (!RegisterHotKey(hiddenShortcutWindow(), id = nextId++, nm, nc))
 		{
 			mKey = QKeySequence();
+			std::cerr << "RegisterHotKey Error" << GetLastError() << std::endl;
 			return false;
 		}
 #elif defined(Q_WS_X11)
@@ -178,6 +188,20 @@ bool Meow::Shortcut::setKey(const QKeySequence &k)
 	return true;
 }
 
+void Meow::Shortcut::setEnabled(bool e)
+{
+	if (e && !mEnabled)
+	{
+		mKey = QKeySequence();
+		setKey(mKey);
+	}
+	else if (!e && mEnabled)
+	{
+		QKeySequence k = mKey;
+		setKey(QKeySequence());
+		mKey = k;
+	}
+}
 
 
 Meow::ShortcutInput::ShortcutInput(Shortcut *s,QWidget *parent)
@@ -202,6 +226,13 @@ void Meow::ShortcutInput::beginGrab()
 	setText("Input Shortcut...");
 	grabKeyboard();
 	inputtingShortcut = true;
+	
+	// temporarily disable all shortcuts
+	for (std::list<Shortcut*>::iterator i = Shortcut::allShortcuts->begin(); i != Shortcut::allShortcuts->end(); ++i)
+	{
+		(*i)->setEnabled(false);
+	}
+	
 }
 
 bool Meow::ShortcutInput::event(QEvent *e)
@@ -226,6 +257,10 @@ bool Meow::ShortcutInput::event(QEvent *e)
 		{
 			inputtingShortcut=false;
 			releaseKeyboard();
+			for (std::list<Shortcut*>::iterator i = Shortcut::allShortcuts->begin(); i != Shortcut::allShortcuts->end(); ++i)
+			{
+				(*i)->setEnabled(true);
+			}
 			
 			QKeySequence old = mShortcut->key();
 			mShortcut->setKey(QKeySequence());

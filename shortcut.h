@@ -8,17 +8,19 @@
 namespace Meow
 {
 
+class ShortcutInput;
 
 class Shortcut : public QObject
 {
 	Q_OBJECT
+	friend class ShortcutInput;
 	QKeySequence mKey;
 #if defined(_WIN32)
-	HWND parentWindowHandle;
 	int id;
 	static int nextId;
 #endif
 	static std::list<Shortcut*> *allShortcuts;
+	bool mEnabled;
 	
 public:
 	Shortcut(QWidget *parent);
@@ -29,6 +31,9 @@ public:
 	bool setKey(const QKeySequence &k);
 	
 	QKeySequence key() const { return mKey; }
+	
+	void setEnabled(bool e);
+	bool enabled() const { return mEnabled; }
 	
 signals:
 	void activated();

@@ -602,6 +602,7 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 	}
 	currentlyProcessingAutomaticExpansion = false;
 
+	delete itemWidget(mCurrent, 0);
 	removeItemWidget(mCurrent, 0);
 	mCurrent = cur;
 	File curFile = collection->getSong(cur->fileId());

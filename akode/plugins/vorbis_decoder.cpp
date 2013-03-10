@@ -181,7 +181,6 @@ bool VorbisDecoder::openFile() {
     m_data->vc = ov_comment(m_data->vf, -1);
     setAudioConfiguration(&m_data->config, m_data->vi);
 
-
     for ( int i=0; i < m_data->vc->comments; i++ )
     {
         std::string comment = m_data->vc->user_comments[i];
