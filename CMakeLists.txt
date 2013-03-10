@@ -3,6 +3,7 @@ SET(MINOR_VERSION 9)
 SET(PATCH_VERSION 12)
 SET(PACKAGE_VERSION 1)
 
+# this version
 
 cmake_minimum_required(VERSION 2.6)
 project(meow)

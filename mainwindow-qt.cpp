@@ -781,42 +781,42 @@ void Meow::MainWindow::registerShortcuts()
 	Shortcut *s;
 	
 	x=settings.value("shortcuts/playpause", "Media Play").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), d->player, SLOT(playpause()));
 	d->shortcuts["playpause"] = s;
 	
 	x=settings.value("shortcuts/next", "Media Next").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), d->view, SLOT(nextSong()));
 	d->shortcuts["next"] = s;
 	
 	x=settings.value("shortcuts/previous", "Media Previous").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), d->view, SLOT(previousSong()));
 	d->shortcuts["previous"] = s;
 	
 	x=settings.value("shortcuts/volume_up", "Ctrl+Alt+Shift+Up").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), d->player, SLOT(volumeUp()));
 	d->shortcuts["volume_up"] = s;
 	
 	x=settings.value("shortcuts/volume_down", "Ctrl+Alt+Shift+Down").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), d->player, SLOT(volumeDown()));
 	d->shortcuts["volume_down"] = s;
 	
 	x=settings.value("shortcuts/seekforward", "Ctrl+Alt+Shift+Left").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), d->player, SLOT(seekForward()));
 	d->shortcuts["seekforward"] = s;
 	
 	x=settings.value("shortcuts/seekbackward", "Ctrl+Alt+Shift+Right").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), d->player, SLOT(seekBackward()));
 	d->shortcuts["seekbackward"] = s;
 	
 	x=settings.value("shortcuts/togglegui", "Ctrl+Alt+M").toString();
-	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
+	s = new Shortcut(QKeySequence::fromString(x, QKeySequence::PortableText), this);
 	connect(s, SIGNAL(activated()), this, SLOT(toggleVisible()));
 	d->shortcuts["togglegui"] = s;
 }
