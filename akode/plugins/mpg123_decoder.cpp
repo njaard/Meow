@@ -103,26 +103,25 @@ public:
 };
 
 
-static void maybeThrowError(int e)
-{
-    if (e != MPG123_OK)
-        throw std::runtime_error("mpg123 error: " + std::string(mpg123_plain_strerror(e)));
-}
-
-
 MPG123Decoder::MPG123Decoder(File *src)
     : src(src)
 {
+    mEof = false;
+    mError = false;
+    
     int err;
     if (!wasInitialized)
     {
         err = mpg123_init();
-        maybeThrowError(err);
+        if (err != MPG123_OK)
+        {
+            std::cerr << "mpg123 error: " << std::string(mpg123_plain_strerror(err)) << std::endl;
+            mError = true;
+            return;
+        }
         wasInitialized=true;
     }
     
-    mEof = false;
-    mError = false;
 
     if (!src->openRO())
     {
@@ -131,16 +130,31 @@ MPG123Decoder::MPG123Decoder(File *src)
     src->fadvise();
     
     mpg123 = mpg123_new(0, &err);
-    maybeThrowError(err);
+    if (err != MPG123_OK)
+    {
+        std::cerr << "mpg123 error: " << std::string(mpg123_plain_strerror(err)) << std::endl;
+        mError = true;
+        return;
+    }
     
     err = mpg123_param(mpg123, MPG123_FLAGS, MPG123_FUZZY | MPG123_SEEKBUFFER | MPG123_GAPLESS, 0);
-    maybeThrowError(err);
+    if (err != MPG123_OK)
+    {
+        std::cerr << "mpg123 error: " << std::string(mpg123_plain_strerror(err)) << std::endl;
+        mError = true;
+        return;
+    }
     //err = mpg123_param(mpg123, MPG123_VERBOSE, 100, 0);
     //maybeThrowError(err);
     
     mpg123_replace_reader_handle(mpg123, fileRead, fileSeek, cleanup);
     mpg123_open_handle(mpg123, src);
-    maybeThrowError(err);
+    if (err != MPG123_OK)
+    {
+        std::cerr << "mpg123 error: " << std::string(mpg123_plain_strerror(err)) << std::endl;
+        mError = true;
+        return;
+    }
     
     
     long flags;
@@ -204,7 +218,9 @@ bool MPG123Decoder::readFrame(AudioFrame* frame)
         }
         else
         {
-            maybeThrowError(err);
+            std::cerr << "mpg123 error: " << std::string(mpg123_plain_strerror(err)) << std::endl;
+            mError = true;
+            return false;
         }
         return true;
     }
