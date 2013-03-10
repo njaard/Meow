@@ -434,8 +434,8 @@ unsigned int Meow::Shortcut::nativeKeycode(Qt::Key key)
 		return XKeysymToKeycode(display, 0x1008ff13);
 	case Qt::Key_VolumeMute:
 		return XKeysymToKeycode(display, 0x1008ff12);
-	case Qt::Key_MediaPause:
-		return XKeysymToKeycode(display, 0x1008FF31);
+	//case Qt::Key_MediaPause:
+	//	return XKeysymToKeycode(display, 0x1008FF31);
 	case Qt::Key_LaunchMedia:
 		return XKeysymToKeycode(display, 0x1008FF32);
 	default:
