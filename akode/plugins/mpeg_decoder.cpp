@@ -21,7 +21,7 @@
 #include <akode/akodelib.h>
 
 // uncomment to debug the plugin
-// #define MPEG_DEBUG
+#define MPEG_DEBUG
 
 #include <string.h>
 #include <mad.h>
@@ -87,6 +87,8 @@ struct MPEGDecoder::private_data
                      initialized(false),
                      id3v2size(0),
                      xing_vbr(false),
+                     lameSkipBeginSamples(0),
+                     lameSkipEndSamples(0),
                      unknown_vbr(false)
     {};
     mad_stream stream;
@@ -95,6 +97,7 @@ struct MPEGDecoder::private_data
 
     File *src;
     AudioConfiguration config;
+    AudioFrame readahead;
 
     long position, length;
     int bitrate, layer;
@@ -105,6 +108,7 @@ struct MPEGDecoder::private_data
     bool xing_vbr;               // Xing-compatible VBR
     bool unknown_vbr;            // Oh, bugger...
     xing_frame xing;
+    unsigned lameSkipBeginSamples, lameSkipEndSamples;
 
     char filebuffer[FILEBUFFER_SIZE];
 
@@ -263,30 +267,35 @@ bool MPEGDecoder::private_data::metaframe_filter(bool fast)
 {
     if (stream.anc_bitlen < 16) return false;
 
-    const unsigned char* ptr;
+    const unsigned char* ptr = stream.anc_ptr.byte;
 
-    ptr = stream.anc_ptr.byte;
 test:
     if ((ptr[0] == 'X') && (ptr[1] == 'i') && (ptr[2] == 'n') && (ptr[3] =='g'))
     {
         #ifdef MPEG_DEBUG
         cerr << "Xing(VBR) header found\n";
         #endif
+        const unsigned char *encoderDelays = ptr+141;
+        lameSkipBeginSamples = (uint32_t(encoderDelays[0]) << 4) + (uint32_t(encoderDelays[1]) >> 4);
+        lameSkipEndSamples = (uint32_t(encoderDelays[1]) << 8) + (uint32_t(encoderDelays[2]));
+        #ifdef MPEG_DEBUG
+        cerr << "Skip " << lameSkipBeginSamples << " samples from start, " << lameSkipEndSamples << " from end\n";
+        #endif
+        
         xing_vbr = true;
         xing_decode(&xing, ptr);
         return true;
-    } /*
-    if ((ptr[0] == 'L') || (ptr[1] == 'A') || (ptr[2] == 'M') || (ptr[3] =='E'))
-    {
-        #ifdef MPEG_DEBUG
-        cerr << "LAME frame found\n";
-        #endif
-        return true;
-    }*/
-    if ((ptr[0] == 'I') && (ptr[1] == 'n') && (ptr[2] == 'f') && (ptr[3] =='o'))
+    }
+    else if ((ptr[0] == 'I') && (ptr[1] == 'n') && (ptr[2] == 'f') && (ptr[3] =='o'))
     {
         #ifdef MPEG_DEBUG
         cerr << "Info(CBR) header found\n";
+        #endif
+        const unsigned char *encoderDelays = ptr+141;
+        lameSkipBeginSamples = (uint32_t(encoderDelays[0]) << 4) + (uint32_t(encoderDelays[1]) >> 4);
+        lameSkipEndSamples = (uint32_t(encoderDelays[1]) << 8) + (uint32_t(encoderDelays[2]));
+        #ifdef MPEG_DEBUG
+        cerr << "Skip " << lameSkipBeginSamples << " samples from start, " << lameSkipEndSamples << " from end\n";
         #endif
         return true;
     }
@@ -362,6 +371,8 @@ bool MPEGDecoder::readFrame(AudioFrame* frame)
 {
     if (m_data->error) return false;
 
+    bool firstFrame=false;
+    
     if (!m_data->initialized)
     {
         if (!prepare()) return false;
@@ -391,8 +402,10 @@ bool MPEGDecoder::readFrame(AudioFrame* frame)
         m_data->layer = m_data->frame.header.layer;
 
         m_data->metaframe_filter(false);
+        firstFrame = true;
     }
-    else {
+    else
+    {
         if (m_data->stream.buffer == 0 ||
             m_data->stream.error==MAD_ERROR_BUFLEN ||
             m_data->stream.error==MAD_ERROR_LOSTSYNC) if (!moreData()) return false;
@@ -458,18 +471,37 @@ bool MPEGDecoder::readFrame(AudioFrame* frame)
     setChannelConfiguration(m_data->config, m_data->frame.header.mode);
 
     int channels = pcm->channels;
-    long length = pcm->length;
+    long length = pcm->length-m_data->lameSkipBeginSamples;
+    int offset = m_data->lameSkipBeginSamples;
+    if (length < 0)
+    {
+        offset += length;
+        length = 0;
+    }
+    m_data->lameSkipBeginSamples -= offset;
+    
+    m_data->readahead->reserveSpace(&m_data->config, length);
 
-    frame->reserveSpace(&m_data->config, length);
-
+    if (offset)
+    {
+        std::cerr << "offset " << offset << std::endl;
+    }
+        
     // Scale into frame (could be reduced to copy if we used MADs internal format)
-    int16_t** data = (int16_t**)frame->data;
+    int16_t** data = (int16_t**)m_data->readahead->data;
     for(int j=0; j<channels; j++)
-        for(int i=0; i<length; i++)
+        for(int i=offset; i<length; i++)
             data[j][i] = scale<16>(pcm->samples[j][i]);
 
     m_data->position += length;
-    frame->pos = postotime(m_data->position, m_data->config.sample_rate);
+    m_data->readahead->pos = postotime(m_data->position, m_data->config.sample_rate);
+    
+    if (m_data->length >= m_data->lameSkipEndSamples)
+    {
+        swapFrames(&m_data->readahead, frame);
+        if (eof)
+            m_data->length -= m_data->lameSkipEndSamples;
+    }
 
     return true;
 }

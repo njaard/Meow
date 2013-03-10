@@ -657,7 +657,7 @@ void Meow::MainWindow::showAbout()
 				"Copyright (c) 2000-2007 Stefan Gehn, Charles Samuels (Portions of playback controller)<br/>"
 				"Copyright (c) 2000-2007 Josh Coalson (FLAC decoder)<br/>"
 				"Copyright (c) 1994-2010 the Xiph.Org Foundation (Vorbis decoder)<br/>"
-				"Copyright (c) 2000-2004 Underbit Technologies, Inc (mp3 decoder)<br/>"
+				"Copyright (c) ?-2013 Michael Hipp and the mpg123 project (mp3 decoder)<br/>"
 				"Copyright (c) 2005 The Musepack Development Team (Musepack decoder)<br/>"
 				"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)<br/>"
 				"Copyright (c) 2007-2009 Oxygen project (Icons)<br/>"
@@ -782,7 +782,7 @@ void Meow::MainWindow::registerShortcuts()
 	
 	x=settings.value("shortcuts/playpause", "Media Play").toString();
 	s = new Shortcut(QKeySequence(x, QKeySequence::PortableText), this);
-	connect(s, SIGNAL(activated()), d->player, SLOT(play()));
+	connect(s, SIGNAL(activated()), d->player, SLOT(playpause()));
 	d->shortcuts["playpause"] = s;
 	
 	x=settings.value("shortcuts/next", "Media Next").toString();

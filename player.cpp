@@ -46,7 +46,7 @@
 #include <kglobal.h>
 #endif
 
-#include "akode/plugins/mpeg_decoder.h"
+#include "akode/plugins/mpg123_decoder.h"
 #include "akode/plugins/vorbis_decoder.h"
 #include "akode/plugins/mpc_decoder.h"
 #include "akode/plugins/flac113_decoder.h"
@@ -92,7 +92,7 @@ void PlayerPrivate::initAvKode()
 #else
 #error No sink
 #endif
-	akPlayer->registerDecoderPlugin(&aKode::mpeg_decoder());
+	akPlayer->registerDecoderPlugin(&aKode::mpg123_decoder());
 	akPlayer->registerDecoderPlugin(&aKode::vorbis_decoder());
 	akPlayer->registerDecoderPlugin(&aKode::flac_decoder());
 	akPlayer->registerDecoderPlugin(&aKode::mpc_decoder());

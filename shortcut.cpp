@@ -156,7 +156,10 @@ bool Meow::Shortcut::setKey(const QKeySequence &k)
 		unsigned nm = nativeModifier(Qt::KeyboardModifiers(mKey[0] & allMods));
 #if defined(_WIN32)
 		if (!RegisterHotKey(parentWindowHandle, id = nextId++, nm, nc))
+		{
+			mKey = QKeySequence();
 			return false;
+		}
 #elif defined(Q_WS_X11)
 		Display* const display = QX11Info::display();
 		const Window window = QX11Info::appRootWindow();

@@ -29,7 +29,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${QT_LIBRARY_DIR}/libQtGui.a ${QT_LIBRARY_DIR}/libQtNetwork.a
 		${QT_LIBRARY_DIR}/libQtCore.a ${QT_LIBRARY_DIR}/libQtXml.a
 		${QT_LIBRARY_DIR}/libqtmain.a
-		${EXTRALIBS}/lib/libmad.a
+		${EXTRALIBS}/lib/libmpg123.a
 		${EXTRALIBS}/lib/libvorbisfile.a ${EXTRALIBS}/lib/libvorbis.a
 		${EXTRALIBS}/lib/libogg.a
 		${EXTRALIBS}/lib/libFLAC.a
@@ -79,14 +79,14 @@ else()
 	find_package(ALSA REQUIRED)
 	# macro_log_feature(ALSA_FOUND "alsa" "ALSA" "OS" TRUE "" "Only supported output on Linux")
 
-	find_path(MAD_INCLUDE_DIR NAMES mad.h
-		PATH_SUFFIXES mad
-		DOC "MAD mp3 decoder include directory"
+	find_path(MPG123_INCLUDE_DIR NAMES mpg123.h
+		PATH_SUFFIXES mpg123
+		DOC "mpg123 decoder include directory"
 	)
-	find_library(MAD_LIBRARY NAMES mad
-		DOC "MAD mp3 decoder library"
+	find_library(MPG123_LIBRARY NAMES mpg123
+		DOC "mpg123 decoder library"
 	)
-	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MAD DEFAULT_MSG MAD_LIBRARY MAD_INCLUDE_DIR)
+	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPG123 DEFAULT_MSG MPG123_LIBRARY MPG123_INCLUDE_DIR)
 
 	find_path(VORBIS_INCLUDE_DIR NAMES vorbis/vorbisfile.h
 		PATH_SUFFIXES vorbis
@@ -133,7 +133,7 @@ else()
 	include_directories(
 			${QT_INCLUDES}
 			${ALSA_INCLUDE_DIR}
-			${MAD_INCLUDE_DIR}
+			${MPG123_INCLUDE_DIR}
 			${VORBIS_INCLUDE_DIR}
 			${FLAC113_INCLUDE_DIR}
 			${MPC_INCLUDE_DIR}
@@ -169,7 +169,7 @@ set(
 	akode/mmapfile.cpp akode/player.cpp akode/plugin.cpp
 	akode/void_sink.cpp
 	akode/volumefilter.cpp akode/wav_decoder.cpp
-	akode/plugins/mpeg_decoder.cpp
+	akode/plugins/mpg123_decoder.cpp
 	akode/plugins/vorbis_decoder.cpp
 	akode/plugins/flac113_decoder.cpp
 	akode/plugins/mpc_decoder.cpp
@@ -203,7 +203,7 @@ elseif(${MEOW_QT})
 	AUTOMOC4_ADD_EXECUTABLE(meow-qt ${meow_SRCS} icons.cpp)
 	target_link_libraries(meow-qt
 		${ALSA_LIBRARY} ${SQLITE3_LIBRARY}
-		${TAGLIB_LIBRARY} ${MAD_LIBRARY} ${VORBIS_LIBRARY}
+		${TAGLIB_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY}
 		${FLAC113_LIBRARY}
 		${QT_LIBRARIES}
 		${MPC_LIBRARY}
@@ -216,7 +216,7 @@ else()
 	install(TARGETS meow ${INSTALL_TARGETS_DEFAULT_ARGS})
 	target_link_libraries(meow ${CMAKE_THREAD_LIBS_INIT}
 		${ALSA_LIBRARY} ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS}
-		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MAD_LIBRARY} ${VORBIS_LIBRARY}
+		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MPG123_LIBRARY} ${VORBIS_LIBRARY}
 		${FLAC113_LIBRARY}
 		${MPC_LIBRARY}
 	)
@@ -237,7 +237,7 @@ SET(CPACK_GENERATOR "DEB")
 if(${MEOW_QT})
 	SET(CPACK_PACKAGE_DESCRIPTION "A cute music player")
 	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player, this is the Qt version")
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
 	SET(PROJECT_NAME_SUFFIX "-qt")
 	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 	SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
@@ -246,7 +246,7 @@ if(${MEOW_QT})
 else()
 	SET(CPACK_PACKAGE_DESCRIPTION "A cute cutest music player")
 	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE")
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmad0 (>= 0.15.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
 	SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
 	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 	SET(CPACK_DEBIAN_PACKAGE_SECTION "kde")
