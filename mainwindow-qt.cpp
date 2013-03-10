@@ -668,6 +668,7 @@ void Meow::MainWindow::showAbout()
 			&msgBox
 		);
 	label->setOpenExternalLinks(true);
+	label->setTextFormat(Qt::RichText);
 	
 	QPushButton *ok = new QPushButton("OK", &msgBox);
 	ok->setDefault(true);
