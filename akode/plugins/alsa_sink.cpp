@@ -209,7 +209,7 @@ found_format:
     m_data->fragmentSize = period_size * (wid*config->channels);
 //     std::cerr << "akode: ALSA fragment-size: " << m_data->fragmentSize << "\n";
 
-    delete m_data->buffer;
+    delete [] m_data->buffer;
     m_data->buffer = new char [m_data->fragmentSize];
     m_data->filled = 0;
 

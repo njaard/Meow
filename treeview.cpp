@@ -602,7 +602,12 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 	}
 	currentlyProcessingAutomaticExpansion = false;
 
+#ifdef _WIN32
+#if QT_VERSION!=0x040703
+#error This line might need to be removed with a Qt update
+#endif
 	delete itemWidget(mCurrent, 0);
+#endif
 	removeItemWidget(mCurrent, 0);
 	mCurrent = cur;
 	File curFile = collection->getSong(cur->fileId());
@@ -711,7 +716,8 @@ static QString canonical(const QString &t)
 
 static void insertSorted(
 		QTreeWidgetItem *into, QTreeWidgetItem *child,
-		const QString &childCanonicalLabel)
+		const QString &childCanonicalLabel
+	)
 {
 	const int children = into->childCount();
 	int upper=children;
