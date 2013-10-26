@@ -75,7 +75,7 @@ void Meow::DirectoryAdder::slotRedirection(KIO::Job *, const KUrl & url)
 #else
 
 Meow::DirectoryAdder::DirectoryAdder(QObject *parent)
-	: QObject(parent)
+	: QObject(parent), busy(false)
 {
 }
 
@@ -97,8 +97,9 @@ void Meow::DirectoryAdder::addNextPending()
 {
 	if (!pendingAddDirectories.isEmpty() && !busy)
 	{
+		const QString path = pendingAddDirectories.takeFirst().toLocalFile();
 		currentIterator.reset(new QDirIterator(
-				QDir(pendingAddDirectories.takeFirst().toLocalFile()),
+				QDir(path),
 				QDirIterator::Subdirectories
 			));
 		busy=true;
@@ -112,7 +113,7 @@ void Meow::DirectoryAdder::processMore()
 	while (currentIterator->hasNext() && c--)
 	{
 		currentIterator->next();
-		emit addFile(currentIterator->filePath());
+		emit addFile(QUrl::fromLocalFile(currentIterator->filePath()));
 	}
 	
 	if (currentIterator->hasNext())

@@ -529,7 +529,7 @@ void Meow::MainWindow::beginDirectoryAdd(const QString &file)
 		connect(d->adder, SIGNAL(done()), SLOT(adderDone()));
 		connect(d->adder, SIGNAL(addFile(QUrl)), SLOT(addFile(QUrl)));
 	}
-	d->adder->add(file);
+	d->adder->add(QUrl::fromLocalFile(file));
 }
 
 void Meow::MainWindow::showItemContext(const QPoint &at)
