@@ -48,6 +48,9 @@
 
 #include "akode/plugins/mpg123_decoder.h"
 #include "akode/plugins/vorbis_decoder.h"
+#ifdef AKODE_WITH_OPUS
+#include "akode/plugins/opus_decoder.h"
+#endif
 #include "akode/plugins/mpc_decoder.h"
 #include "akode/plugins/flac113_decoder.h"
 
@@ -94,6 +97,9 @@ void PlayerPrivate::initAvKode()
 #endif
 	akPlayer->registerDecoderPlugin(&aKode::mpg123_decoder());
 	akPlayer->registerDecoderPlugin(&aKode::vorbis_decoder());
+#ifdef AKODE_WITH_OPUS
+	akPlayer->registerDecoderPlugin(&aKode::opus_decoder());
+#endif
 	akPlayer->registerDecoderPlugin(&aKode::flac_decoder());
 	akPlayer->registerDecoderPlugin(&aKode::mpc_decoder());
 	akPlayer->setManager(this);
@@ -460,6 +466,10 @@ QStringList Player::mimeTypes() const
 	m << "audio/mpeg";
 	m << "audio/x-vorbis+ogg";
 	m << "audio/ogg";
+#ifdef AKODE_WITH_OPUS
+	m << "audio/opus";
+	m << "audio/x-opus+ogg";
+#endif
 	m << "audio/flac";
 	m << "audio/x-flac";
 	m << "audio/x-musepack";

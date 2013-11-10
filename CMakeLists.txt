@@ -49,23 +49,7 @@ else()
 		set(platform_sources ${playform_sources} akode/plugins/alsa_sink.cpp akode/localfile.cpp)
 		find_package(Qt4 REQUIRED QtCore QtGui QtNetwork QtXml)
 		include(${QT_USE_FILE})
-		find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h
-			PATH_SUFFIXES sqlite3
-			DOC "sqlite3 include directory"
-		)
-		find_library(SQLITE3_LIBRARY NAMES sqlite3
-			DOC "sqlite3 library"
-		)
-		FIND_PACKAGE_HANDLE_STANDARD_ARGS(SQLITE3 DEFAULT_MSG SQLITE3_LIBRARY SQLITE3_INCLUDE_DIR)
 
-		find_path(TAGLIB_INCLUDE_DIR NAMES taglib.h
-			PATH_SUFFIXES taglib
-			DOC "taglib include directory"
-		)
-		find_library(TAGLIB_LIBRARY NAMES tag
-			DOC "taglib library"
-		)
-		FIND_PACKAGE_HANDLE_STANDARD_ARGS(TAGLIB DEFAULT_MSG TAGLIB_LIBRARY TAGLIB_INCLUDE_DIR)
 	else()
 		find_package(KDE4 REQUIRED)
 		include (KDE4Defaults)
@@ -80,8 +64,22 @@ else()
 	find_package(ALSA REQUIRED)
 	# macro_log_feature(ALSA_FOUND "alsa" "ALSA" "OS" TRUE "" "Only supported output on Linux")
 
+	find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h
+		PATH_SUFFIXES sqlite3
+		DOC "sqlite3 include directory"
+	)
+	find_library(SQLITE3_LIBRARY NAMES sqlite3
+		DOC "sqlite3 library"
+	)
+	FIND_PACKAGE_HANDLE_STANDARD_ARGS(SQLITE3 DEFAULT_MSG SQLITE3_LIBRARY SQLITE3_INCLUDE_DIR)
+	find_path(TAGLIB_INCLUDE_DIR NAMES taglib/taglib.h
+		DOC "taglib include directory"
+	)
+	find_library(TAGLIB_LIBRARY NAMES tag
+		DOC "taglib library"
+	)
+	FIND_PACKAGE_HANDLE_STANDARD_ARGS(TAGLIB DEFAULT_MSG TAGLIB_LIBRARY TAGLIB_INCLUDE_DIR)
 	find_path(MPG123_INCLUDE_DIR NAMES mpg123.h
-		PATH_SUFFIXES mpg123
 		DOC "mpg123 decoder include directory"
 	)
 	find_library(MPG123_LIBRARY NAMES mpg123
@@ -89,7 +87,7 @@ else()
 	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPG123 DEFAULT_MSG MPG123_LIBRARY MPG123_INCLUDE_DIR)
 
-	find_path(VORBIS_INCLUDE_DIR NAMES vorbis/vorbisfile.h
+	find_path(VORBIS_INCLUDE_DIR NAMES vorbisfile.h
 		PATH_SUFFIXES vorbis
 		DOC "vorbis include directory"
 	)
@@ -107,7 +105,7 @@ else()
 	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(FLAC113 DEFAULT_MSG FLAC113_LIBRARY FLAC113_INCLUDE_DIR)
 
-	find_path(MPC_INCLUDE_DIR NAMES mpc/mpcdec.h
+	find_path(MPC_INCLUDE_DIR NAMES mpcdec.h
 		PATH_SUFFIXES mpc
 		DOC "MPC decoder include directory"
 	)
@@ -115,6 +113,29 @@ else()
 		DOC "MPC decoder library"
 	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPC DEFAULT_MSG MPC_LIBRARY MPC_INCLUDE_DIR)
+
+	if(MEOW_WITH_OPUS)
+		find_path(OPUS_INCLUDE_DIR NAMES opusfile.h
+			DOC "opus decoder and opusfile include directory"
+			PATH_SUFFIXES opus
+		)
+		find_library(OPUS_LIBRARY NAMES opusfile
+			DOC "OPUS decoder library"
+		)
+
+		add_definitions(
+				"-DAKODE_WITH_OPUS"
+			)
+	
+		FIND_PACKAGE_HANDLE_STANDARD_ARGS(OPUS DEFAULT_MSG OPUS_INCLUDE_DIR OPUS_LIBRARY)
+		find_path(TAGLIB_HAS_OPUS NAMES taglib/opusfile.h
+			DOC "taglib supports opus"
+		)
+		FIND_PACKAGE_HANDLE_STANDARD_ARGS(TAGLIB_OPUS DEFAULT_MSG TAGLIB_HAS_OPUS)
+		if(NOT TAGLIB_OPUS_FOUND)
+			message(FATAL_ERROR "Opus libraries detected but taglib does not support opus - need 1.9 or later")
+		endif()
+	endif()
 
 	if(${MEOW_QT})
 		set(platform_sources ${platform_sources} mainwindow-qt.cpp md5.c)
@@ -133,9 +154,11 @@ else()
 	endif()
 	include_directories(
 			${QT_INCLUDES}
+			${TAGLIB_INCLUDE_DIR}
 			${ALSA_INCLUDE_DIR}
 			${MPG123_INCLUDE_DIR}
 			${VORBIS_INCLUDE_DIR}
+			${OPUS_INCLUDE_DIR}
 			${FLAC113_INCLUDE_DIR}
 			${MPC_INCLUDE_DIR}
 		)
@@ -172,6 +195,7 @@ set(
 	akode/volumefilter.cpp akode/wav_decoder.cpp
 	akode/plugins/mpg123_decoder.cpp
 	akode/plugins/vorbis_decoder.cpp
+	akode/plugins/opus_decoder.cpp
 	akode/plugins/flac113_decoder.cpp
 	akode/plugins/mpc_decoder.cpp
 	${platform_sources}
@@ -204,7 +228,7 @@ elseif(${MEOW_QT})
 	AUTOMOC4_ADD_EXECUTABLE(meow-qt ${meow_SRCS} icons.cpp)
 	target_link_libraries(meow-qt
 		${ALSA_LIBRARY} ${SQLITE3_LIBRARY}
-		${TAGLIB_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY}
+		${TAGLIB_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
 		${FLAC113_LIBRARY}
 		${QT_LIBRARIES}
 		${MPC_LIBRARY}
@@ -217,15 +241,13 @@ else()
 	install(TARGETS meow ${INSTALL_TARGETS_DEFAULT_ARGS})
 	target_link_libraries(meow ${CMAKE_THREAD_LIBS_INIT}
 		${ALSA_LIBRARY} ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS}
-		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MPG123_LIBRARY} ${VORBIS_LIBRARY}
+		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
 		${FLAC113_LIBRARY}
 		${MPC_LIBRARY}
 	)
 	kde4_install_icons(${ICON_INSTALL_DIR})
 
 endif()
-
-
 
 IF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
 INCLUDE(InstallRequiredSystemLibraries)
@@ -234,11 +256,18 @@ SET(CPACK_SET_DESTDIR "on")
 SET(CPACK_PACKAGING_INSTALL_PREFIX "/tmp")
 SET(CPACK_GENERATOR "DEB")
 
+if (MEOW_WITH_OPUS)
+	SET(TAGLIB_PKG_VERSION "1.9.0")
+	SET(OPUS_PKG_EXTRA ", libopusfile (>= 0.4)")
+else()
+	SET(TAGLIB_PKG_VERSION "1.6.0")
+	SET(OPUS_PKG_EXTRA "")
+endif()
 
 if(${MEOW_QT})
 	SET(CPACK_PACKAGE_DESCRIPTION "A cute music player")
 	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player, this is the Qt version")
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}, libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_PKG_EXTRA}")
 	SET(PROJECT_NAME_SUFFIX "-qt")
 	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 	SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
@@ -247,7 +276,7 @@ if(${MEOW_QT})
 else()
 	SET(CPACK_PACKAGE_DESCRIPTION "A cute cutest music player")
 	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE")
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= 1.6.0), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)")
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_PKG_EXTRA}")
 	SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
 	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 	SET(CPACK_DEBIAN_PACKAGE_SECTION "kde")

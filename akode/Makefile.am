@@ -5,7 +5,7 @@ lib_LIBRARIES	= libakode.a
 libakode_a_SOURCES = bytebuffer.cpp audiobuffer.cpp pluginhandler.cpp \
                       decoderpluginhandler.cpp resamplerpluginhandler.cpp \
                       sinkpluginhandler.cpp encoderpluginhandler.cpp \
-		      fast_resampler.cpp crossfader.cpp volumefilter.cpp \
+                      fast_resampler.cpp crossfader.cpp volumefilter.cpp \
                       localfile.cpp mmapfile.cpp \
                       wav_decoder.cpp auto_sink.cpp void_sink.cpp \
                       converter.cpp buffered_decoder.cpp \
