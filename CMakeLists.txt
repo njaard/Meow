@@ -32,6 +32,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${QT_LIBRARY_DIR}/libqtmain.a
 		${EXTRALIBS}/lib/libmpg123.a
 		${EXTRALIBS}/lib/libvorbisfile.a ${EXTRALIBS}/lib/libvorbis.a
+		#${EXTRALIBS}/lib/libopusfile.a ${EXTRALIBS}/lib/libopus.a
 		${EXTRALIBS}/lib/libogg.a
 		${EXTRALIBS}/lib/libFLAC.a
 		${EXTRALIBS}/lib/libmpcdec_static.a
@@ -40,7 +41,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	)
 	set(FLAC113_INCLUDE_DIR "${EXTRALIBS}/include")
 
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB-DHAVE_STRUCT_TIMESPEC ")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB-DHAVE_STRUCT_TIMESPEC")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB -std=c++0x -DHAVE_STRUCT_TIMESPEC")
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp akode/localfile.cpp)
@@ -209,7 +210,7 @@ set(
 if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	ADD_CUSTOM_COMMAND(
 		OUTPUT meowres.o
-		COMMAND i586-mingw32msvc-windres -o ${CMAKE_CURRENT_BINARY_DIR}/meowres.o ${CMAKE_CURRENT_SOURCE_DIR}/meowres.rc
+		COMMAND i686-w64-mingw32-windres -o ${CMAKE_CURRENT_BINARY_DIR}/meowres.o ${CMAKE_CURRENT_SOURCE_DIR}/meowres.rc
 		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/meowres.rc
 	)
 	ADD_CUSTOM_COMMAND(
