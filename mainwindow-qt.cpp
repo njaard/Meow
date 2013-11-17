@@ -33,7 +33,6 @@
 #include <iostream>
 
 #ifdef _WIN32
-#define _WIN32_WINNT 0x0500
 #include <windows.h>
 #include <winuser.h>
 #endif
@@ -340,6 +339,10 @@ Meow::MainWindow::MainWindow()
 		d->player->setVolume(v);
 		d->volumeSlider->setValue(v);
 	}
+	{
+		const std::string device = settings.value("state/device", "").toString().toUtf8().constData();
+		d->player->setCurrentDevice(device);
+	}
 	
 	{
 		QString order = settings.value("state/selector", "linear").toString();
@@ -473,6 +476,8 @@ void Meow::MainWindow::closeEvent(QCloseEvent *event)
 		settings.setValue("state/selector", "randomsong");
 	else
 		settings.setValue("state/selector", "linear");
+		
+	delete d->tray;
 	QMainWindow::closeEvent(event);
 }
 

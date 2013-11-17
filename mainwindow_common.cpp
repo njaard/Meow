@@ -1,6 +1,8 @@
 #include <qinputdialog.h>
 #include <qtimer.h>
 
+#include "configdevices.h"
+
 static QString collectionPath()
 {
 #if defined(MEOW_WITH_KDE)
@@ -86,6 +88,10 @@ void Meow::MainWindow::showSettings()
 	if (!d->settingsDialog)
 	{
 		d->settingsDialog = new ConfigDialog(this);
+		
+		ConfigDevices *dev=new ConfigDevices(d->settingsDialog, d->player);
+		d->settingsDialog->addPage(dev, i18n("Audio Devices"));
+		
 		ScrobbleConfigure *sc=new ScrobbleConfigure(d->settingsDialog, d->scrobble);
 		d->settingsDialog->addPage(sc, i18n("AudioScrobbler"));
 	}
@@ -383,3 +389,4 @@ void Meow::MainWindow::deleteCollection()
 }
 
 
+// kate: space-indent off; replace-tabs off;

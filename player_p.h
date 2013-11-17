@@ -55,6 +55,7 @@ public:
 	bool nowLoading;
 	int volumePercent;
 	int speedPercent;
+	std::string device;
 
 	void initAvKode();
 

@@ -498,6 +498,8 @@ void Meow::ScrobbleSession::invalidResponse(QDomElement root)
 
 void Meow::ScrobbleSession::makeRequest(bool post, Query &query, void (ScrobbleSession::*response)(QDomElement))
 {
+	if (d->sessionKey.isEmpty())
+		return;
 	if (d->response)
 	{
 		ScrobbleSessionPrivate::QueueEl ql;
@@ -797,7 +799,8 @@ void Meow::Scrobble::setPassword(const QString &p)
 
 void Meow::Scrobble::begin()
 {
-	d->session->startSession(d->username, d->passwordMd5);
+	if (!d->username.isEmpty())
+		d->session->startSession(d->username, d->passwordMd5);
 }
 
 void Meow::Scrobble::currentItemChanged(const File &file)

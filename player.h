@@ -30,6 +30,9 @@
 
 #include <qobject.h>
 
+#include <vector>
+#include <string>
+
 namespace Meow
 {
 
@@ -90,6 +93,21 @@ public:
 
 	explicit Player();
 	~Player();
+	
+	/**
+	 * @returns a list of available output device names
+	 **/
+	std::vector<std::pair<std::string,std::string>> devices() const;
+	
+	/**
+	 * @returns the current device name
+	 **/
+	std::string currentDevice() const;
+	
+	/**
+	 * set the current device by name
+	 **/
+	void setCurrentDevice(const std::string &name);
 
 	/**
 	 * @return the output volume in percent

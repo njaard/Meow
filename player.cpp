@@ -89,9 +89,9 @@ void PlayerPrivate::initAvKode()
 		return;
 	akPlayer = new aKode::Player;
 #ifdef _WIN32
-	akPlayer->open( aKode::dsound_sink().openSink() );
+	akPlayer->open( aKode::dsound_sink().openSink(device) );
 #elif __linux__
-	akPlayer->open( aKode::alsa_sink().openSink() );
+	akPlayer->open( aKode::alsa_sink().openSink(device) );
 #else
 #error No sink
 #endif
@@ -214,6 +214,35 @@ Player::~Player()
 {
 	delete d->akPlayer;
 	delete d;
+}
+
+std::vector<std::pair<std::string,std::string>> Player::devices() const
+{
+#ifdef _WIN32
+	return aKode::dsound_sink().deviceNames();
+#elif __linux__
+	return aKode::alsa_sink().deviceNames();
+#endif
+}
+
+std::string Player::currentDevice() const
+{
+	return d->device;
+}
+
+void Player::setCurrentDevice(const std::string &name)
+{
+	if (d->device == name) return;
+	
+	d->device = name;
+	std::cerr << "Opening device " << name << std::endl;
+#ifdef _WIN32
+	if (d->akPlayer)
+		d->akPlayer->open( aKode::dsound_sink().openSink(name) );
+#elif __linux__
+	if (d->akPlayer)
+		d->akPlayer->open( aKode::alsa_sink().openSink(name) );
+#endif
 }
 
 Player::State Player::state() const

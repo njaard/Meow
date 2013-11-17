@@ -21,21 +21,59 @@
 #include <iostream>
 
 #include <akode/audioframe.h>
-#include "dsound.h"
+#include <dsound.h>
 #include <windows.h>
 
 #include <fstream>
 
 #include "dsound_sink.h"
 
+#include <qbytearray.h>
+#include <qstring.h>
+
 using namespace aKode;
+
+static HMODULE dll_=nullptr;
+typedef HRESULT (WINAPI *DLLDirectSoundEnumerateW)(LPDSENUMCALLBACKW, LPVOID);
+typedef HRESULT (WINAPI *DLLDirectSoundCreate8)(LPCGUID lpGUID,LPDIRECTSOUND8 *ppDS8,LPUNKNOWN pUnkOuter);
+
+
+static DLLDirectSoundEnumerateW dllDirectSoundEnumerateW=nullptr;
+static DLLDirectSoundCreate8 dllDirectSoundCreate8=nullptr;
+
+
+static HMODULE dll()
+{
+    if (!dll_)
+    {
+        dll_ = LoadLibrary("DSOUND.DLL");
+        dllDirectSoundEnumerateW
+            = (DLLDirectSoundEnumerateW)GetProcAddress( dll_,
+                "DirectSoundEnumerateW" );
+        dllDirectSoundCreate8
+            = (DLLDirectSoundCreate8)GetProcAddress( dll_,
+                "DirectSoundCreate8" );
+        // do this once so dsound doesn't ever get unloaded by COM
+        LPDIRECTSOUND8 lpds;
+        HRESULT r = dllDirectSoundCreate8(
+            0,
+            &lpds,
+            0
+        );
+        
+    }
+    return dll_;
+}
+
+
 
 namespace
 {
 
-class DSoundSink : public Sink {
+class DSoundSink : public Sink
+{
 public:
-    DSoundSink();
+    DSoundSink(const std::string &device);
     ~DSoundSink();
     bool open();
     void close();
@@ -65,6 +103,7 @@ struct DSoundSink::private_data
     LPDIRECTSOUNDBUFFER dsBuffer;
 
     AudioConfiguration config;
+    std::string device;
     
     int writingInBlocksOf; // samples
     
@@ -75,9 +114,10 @@ struct DSoundSink::private_data
     UINT writingAt, bufferSize;
 };
 
-DSoundSink::DSoundSink()
+DSoundSink::DSoundSink(const std::string &device)
 {
     d = new private_data;
+    d->device = device;
     d->threadH = 0;
     d->writingAt =0;
     d->dsBuffer=0;
@@ -86,19 +126,49 @@ DSoundSink::DSoundSink()
 DSoundSink::~DSoundSink()
 {
     close();
+    if (d->lpds)
+        d->lpds->Release();
     delete d;
+}
+
+static std::string hresultToString(HRESULT r)
+{
+    if (r == DSERR_ALLOCATED)
+        return "allocated";
+    else if (r == DSERR_INVALIDPARAM)
+        return "invalidparam";
+    else if (r == DSERR_NOAGGREGATION)
+        return "noaggregation";
+    else if (r == DSERR_NODRIVER)
+        return "nodriver";
+    else if (r == DSERR_OUTOFMEMORY)
+        return "outofmemory";
+    else
+        return "ok";
 }
 
 bool DSoundSink::open()
 {
-    HRESULT r = DirectSoundCreate8(
-          0,
+    dll();
+    
+    LPGUID g=nullptr;
+    QByteArray a = QByteArray::fromHex(QByteArray(d->device.c_str(), d->device.size()));
+    if (!d->device.empty())
+        g = (LPGUID)a.data();
+        
+    HRESULT r = dllDirectSoundCreate8(
+          g,
           &d->lpds,
           0
       );
-    // this works, I don't know why.
-    IDirectSound_SetCooperativeLevel(d->lpds, GetDesktopWindow() , DSSCL_EXCLUSIVE);
     d->error = r!=DS_OK;
+    if (d->error)
+    {
+        std::cerr << "DirectSoundCreate8: error code " << hresultToString(r) << " guid=" << g << std::endl;
+        return false;
+    }
+    // this works, I don't know why.
+    d->lpds->SetCooperativeLevel(GetDesktopWindow(), DSSCL_PRIORITY);
     
     return !d->error;
 }
@@ -106,7 +176,7 @@ bool DSoundSink::open()
 void DSoundSink::close()
 {
     if (d->dsBuffer)
-        IDirectSoundBuffer_Release(d->dsBuffer);
+        d->dsBuffer->Release();
     d->dsBuffer=0;
 }
 
@@ -143,6 +213,7 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     
     d->writingInBlocksOf = bd.dwBufferBytes/wfx.wBitsPerSample/wfx.nChannels/4;
     
+    std::cerr << "lpds=" << d->lpds << std::endl;
     if (!SUCCEEDED(d->lpds->CreateSoundBuffer(&bd, &d->dsBuffer, NULL)))
     {
          MessageBox(0, "failed to create sound buffer", "failure", MB_OK);
@@ -185,7 +256,7 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
         
         HRESULT dsresult;
         DWORD reading;
-        if (DS_OK != IDirectSoundBuffer_GetCurrentPosition(d->dsBuffer, &reading, 0))
+        if (DS_OK != d->dsBuffer->GetCurrentPosition(&reading, 0))
             continue;
         DWORD avail = (reading-d->writingAt+d->bufferSize) % d->bufferSize;
         wantBytes = std::min<DWORD>(wantBytes, avail);
@@ -198,8 +269,7 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
 
         void *p_write_position, *p_wrap_around;
         unsigned long l_bytes1, l_bytes2;
-        dsresult = IDirectSoundBuffer_Lock(
-                d->dsBuffer,
+        dsresult = d->dsBuffer->Lock(
                 d->writingAt,
                 wantBytes,
                 &p_write_position,
@@ -235,8 +305,8 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
         
         d->writingAt = (d->writingAt + l_bytes1 + l_bytes2) % d->bufferSize;
         
-        IDirectSoundBuffer_Unlock(
-                d->dsBuffer, p_write_position, l_bytes1,
+        d->dsBuffer->Unlock(
+                p_write_position, l_bytes1,
                 p_wrap_around, l_bytes2
             );
     }
@@ -261,16 +331,16 @@ bool DSoundSink::writeFrame(AudioFrame* frame)
 
 void DSoundSink::pause()
 {
-    IDirectSoundBuffer_Stop(d->dsBuffer);
+    d->dsBuffer->Stop();
 }
 
 // Do not confuse this with snd_pcm_resume which is used to resume from a suspend
 void DSoundSink::resume()
 {
-    HRESULT x = IDirectSoundBuffer_Play(d->dsBuffer, 0, 0, DSBPLAY_LOOPING);
+    HRESULT x = d->dsBuffer->Play(0, 0, DSBPLAY_LOOPING);
     if (x == DSERR_BUFFERLOST)
-        IDirectSoundBuffer_Restore( d->dsBuffer );
-    x = IDirectSoundBuffer_Play(d->dsBuffer, 0, 0, DSBPLAY_LOOPING);
+        d->dsBuffer->Restore();
+    x = d->dsBuffer->Play(0, 0, DSBPLAY_LOOPING);
     if (x == DSERR_BUFFERLOST)
          MessageBox(0, "failed to play sound buffer, bufferlost", "failure", MB_OK);
     else if (x == DSERR_INVALIDCALL)
@@ -285,9 +355,36 @@ class DSoundSinkPlugin : public SinkPlugin
 {
 public:
     DSoundSinkPlugin() : SinkPlugin("dsound") { }
-    virtual DSoundSink* openSink()
+    virtual DSoundSink* openSink(const std::string &device)
     {
-        return new DSoundSink();
+        return new DSoundSink(device);
+    }
+    virtual std::vector<std::pair<std::string, std::string> > deviceNames()
+    {
+        dll();
+                       
+        dllDirectSoundEnumerateW(callback_, this);
+        std::vector<std::pair<std::string, std::string> > s;
+        std::swap(s, result);
+        return s;
+    }
+private:
+    static CALLBACK BOOL callback_(LPGUID guid, LPCWSTR desc, LPCWSTR module, LPVOID context)
+    {
+        return ((DSoundSinkPlugin*)context)->callback(guid, desc, module);
+    }
+    std::vector<std::pair<std::string,std::string> > result;
+    CALLBACK BOOL callback(LPGUID guid, LPCWSTR desc_, LPCWSTR module)
+    {
+    
+        std::string desc = QString::fromUtf16((const ushort*)desc_).toUtf8().constData();
+        if (guid)
+        {
+            std::string g = QByteArray((const char*)guid, sizeof(GUID)).toHex().constData();
+            
+            result.push_back( { g, desc} );
+        }
+        return true;
     }
 } plugin;
 

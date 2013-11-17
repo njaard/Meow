@@ -270,6 +270,10 @@ Meow::MainWindow::MainWindow()
 		d->player->setVolume(v);
 	}
 	{
+		const std::string device = meow.readEntry<QString>("device", "").toUtf8().constData();
+		d->player->setCurrentDevice(device);
+	}
+	{
 		QString order = meow.readEntry<QString>("selector", "linear");
 		int index;
 		if (order == "randomartist")

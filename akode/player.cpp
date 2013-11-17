@@ -254,7 +254,8 @@ bool Player::open(Sink *sink)
     assert(state() == Closed);
 
     d->sink = sink;
-    if (!d->sink->open()) {
+    if (!d->sink->open())
+    {
         AKODE_DEBUG("Could not open sink");
         d->sink = 0;
         return false;
@@ -264,7 +265,8 @@ bool Player::open(Sink *sink)
     return true;
 }
 
-void Player::close() {
+void Player::close()
+{
     if (state() == Closed) return;
     if (state() != Open)
         unload();
@@ -274,7 +276,7 @@ void Player::close() {
     delete d->volume_filter;
     d->volume_filter = 0;
 
-    if (d->my_sink) delete d->sink;
+    delete d->sink;
     d->sink = 0;
     setState(Closed);
 }

@@ -21,7 +21,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	if (NOT IS_DIRECTORY ${EXTRALIBS})
 		MESSAGE( FATAL_ERROR "Specify -DEXTRALIBS with the path to the win32 library toolchain.")
 	endif()
-	set(CMAKE_EXE_LINKER_FLAGS -mwindows )
+	set(CMAKE_EXE_LINKER_FLAGS "-mwindows -static" )
 	set(platform_sources akode/plugins/dsound_sink.cpp mainwindow-qt.cpp md5.c)
 	
 	include_directories(${EXTRALIBS}/include/taglib ${EXTRALIBS}/include)
@@ -36,14 +36,15 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${EXTRALIBS}/lib/libFLAC.a
 		${EXTRALIBS}/lib/libmpcdec_static.a
 
-		${EXTRALIBS}/lib/libpthreadGC1.a -lws2_32 -ldsound -limm32 -lwinmm
+		${EXTRALIBS}/lib/libpthreadGC1.a -lws2_32 -limm32 -lwinmm
 	)
 	set(FLAC113_INCLUDE_DIR "${EXTRALIBS}/include")
 
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB-DHAVE_STRUCT_TIMESPEC ")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB -std=c++0x -DHAVE_STRUCT_TIMESPEC")
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp akode/localfile.cpp)
+
 
 	if(${MEOW_QT})
 		set(platform_sources ${playform_sources} akode/plugins/alsa_sink.cpp akode/localfile.cpp)
@@ -135,6 +136,7 @@ else()
 		if(NOT TAGLIB_OPUS_FOUND)
 			message(FATAL_ERROR "Opus libraries detected but taglib does not support opus - need 1.9 or later")
 		endif()
+
 	endif()
 
 	if(${MEOW_QT})
@@ -168,6 +170,9 @@ else()
 			${TAGLIB_CFLAGS}
 		)
 	# macro_display_feature_log()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+	string(REPLACE "-ansi" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+	string(REPLACE "-fno-exceptions" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 endif()
 
 if(FLAC113_INCLUDE_DIR)
@@ -180,6 +185,7 @@ set(
 	main.cpp
 	player.cpp
 	scrobble.cpp
+	configdevices.cpp
 	configdialog.cpp
 	directoryadder.cpp
 	filter.cpp
@@ -191,7 +197,6 @@ set(
 	akode/bytebuffer.cpp akode/converter.cpp akode/crossfader.cpp
 	akode/fast_resampler.cpp
 	akode/mmapfile.cpp akode/player.cpp akode/plugin.cpp
-	akode/void_sink.cpp
 	akode/volumefilter.cpp akode/wav_decoder.cpp
 	akode/plugins/mpg123_decoder.cpp
 	akode/plugins/vorbis_decoder.cpp

@@ -1,6 +1,7 @@
 /*  aKode: ALSA Sink
 
     Copyright (C) 2004-2005 Allan Sandfeld Jensen <kde@carewolf.com>
+    Copyright (C) 2012-2013 Charles Samuels <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -19,12 +20,15 @@
 */
 
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 
 #include <alsa/asoundlib.h>
 #include <alsa/pcm.h>
 
 #include <akode/audioframe.h>
 #include "alsa_sink.h"
+
 
 /*
  * resume from suspend
@@ -47,7 +51,7 @@ namespace
 class ALSASink : public Sink
 {
 public:
-    ALSASink();
+    ALSASink(const std::string &deviceName);
     ~ALSASink();
     bool open();
     void close();
@@ -78,11 +82,15 @@ struct ALSASink::private_data
     char* buffer;
     bool error;
     bool can_pause;
+    std::string deviceName;
 };
 
-ALSASink::ALSASink()
+ALSASink::ALSASink(const std::string &deviceName)
 {
     m_data = new private_data;
+    m_data->deviceName = deviceName;
+    if (deviceName.empty())
+        m_data->deviceName="default";
 }
 
 ALSASink::~ALSASink()
@@ -95,7 +103,7 @@ bool ALSASink::open()
 {
     int err = 0;
     // open is non-blocking to make it possible to fail when occupied
-    err = snd_pcm_open(&m_data->pcm_playback, "default", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
+    err = snd_pcm_open(&m_data->pcm_playback, m_data->deviceName.c_str(), SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
     if (err < 0) {
         m_data->error = true;
         return false;
@@ -330,14 +338,47 @@ void ALSASink::resume()
         snd_pcm_pause(m_data->pcm_playback, 0);
 }
 
+template<class T, typename... Params, typename AllocType, typename DeleterType>
+static std::unique_ptr<T, DeleterType> makePtr(AllocType allocator, DeleterType deleter, Params ... params)
+{
+    T *v;
+    int r = allocator(&v, params...);
+    if (r < 0)
+        throw std::runtime_error("failed to make ptr");
+    return std::unique_ptr<T, DeleterType>(v, deleter);
+}
+
 class ALSASinkPlugin : public SinkPlugin
 {
 public:
     ALSASinkPlugin() : SinkPlugin("alsa") { }
-    virtual ALSASink* openSink()
+    virtual ALSASink* openSink(const std::string &deviceName)
     {
-        return new ALSASink();
+        return new ALSASink(deviceName);
     }
+    virtual std::vector<std::pair<std::string, std::string>> deviceNames()
+    {
+        std::vector<std::pair<std::string,std::string>> result;
+        
+        void **hints;
+        snd_device_name_hint(-1, "pcm", &hints);
+        
+        for (unsigned h=0; hints[h]; h++)
+        {
+            void *const hint = hints[h];
+            
+            result.push_back(
+                {
+                    snd_device_name_get_hint(hint, "NAME"),
+                    snd_device_name_get_hint(hint, "DESC")
+                }
+            );
+        }
+        
+        snd_device_name_free_hint(hints);
+        return result;
+    }
+
 } plugin;
 
 

@@ -43,8 +43,11 @@ int main( int argc, char **argv )
 
 #include <qapplication.h>
 
+#include <objbase.h>
+
 int main( int argc, char **argv )
 {
+	CoInitialize(0);
 	QApplication app(argc, argv);
 	app.setWindowIcon(QIcon(":/meow.png"));
 	QCoreApplication::setOrganizationName("meowplayer.org");
