@@ -87,6 +87,7 @@ else()
 	find_library(MPG123_LIBRARY NAMES mpg123
 		DOC "mpg123 decoder library"
 	)
+
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPG123 DEFAULT_MSG MPG123_LIBRARY MPG123_INCLUDE_DIR)
 
 	find_path(VORBIS_INCLUDE_DIR NAMES vorbisfile.h
@@ -107,14 +108,19 @@ else()
 	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(FLAC113 DEFAULT_MSG FLAC113_LIBRARY FLAC113_INCLUDE_DIR)
 
-	find_path(MPC_INCLUDE_DIR NAMES mpcdec.h
-		PATH_SUFFIXES mpc
-		DOC "MPC decoder include directory"
-	)
 	find_library(MPC_LIBRARY NAMES mpcdec
 		DOC "MPC decoder library"
 	)
+	find_path(MPC_INCLUDE_DIR NAMES mpc/mpcdec.h
+		DOC "MPC decoder include directory"
+	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPC DEFAULT_MSG MPC_LIBRARY MPC_INCLUDE_DIR)
+	if(MPC_FOUND)
+		add_definitions("-DAKODE_WITH_MUSEPACK")
+	else()
+		set(MPC_INCLUDE_DIR "")
+		set(MPC_LIBRARY "")
+	endif()
 
 	if(MEOW_WITH_OPUS)
 		find_path(OPUS_INCLUDE_DIR NAMES opusfile.h
@@ -139,6 +145,12 @@ else()
 		endif()
 
 	endif()
+
+	find_library(X11_LIBRARY NAMES X11
+		DOC "X11 libraries"
+	)
+
+	FIND_PACKAGE_HANDLE_STANDARD_ARGS(X11 DEFAULT_MSG X11_LIBRARY)
 
 	if(${MEOW_QT})
 		set(platform_sources ${platform_sources} mainwindow-qt.cpp md5.c)
@@ -171,7 +183,7 @@ else()
 			${TAGLIB_CFLAGS}
 		)
 	# macro_display_feature_log()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 	string(REPLACE "-ansi" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 	string(REPLACE "-fno-exceptions" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 endif()
@@ -235,7 +247,7 @@ elseif(${MEOW_QT})
 	target_link_libraries(meow-qt
 		${ALSA_LIBRARY} ${SQLITE3_LIBRARY}
 		${TAGLIB_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
-		${FLAC113_LIBRARY}
+		${FLAC113_LIBRARY}  ${X11_LIBRARY}
 		${QT_LIBRARIES}
 		${MPC_LIBRARY}
 	)
@@ -248,115 +260,102 @@ else()
 	target_link_libraries(meow ${CMAKE_THREAD_LIBS_INIT}
 		${ALSA_LIBRARY} ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS}
 		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
-		${FLAC113_LIBRARY}
+		${FLAC113_LIBRARY} ${X11_LIBRARY}
 		${MPC_LIBRARY}
 	)
 	kde4_install_icons(${ICON_INSTALL_DIR})
 
 endif()
 
-IF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
-INCLUDE(InstallRequiredSystemLibraries)
+#IF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
+	INCLUDE(InstallRequiredSystemLibraries)
+	if(${MEOW_QT})
+		SET(CPACK_PACKAGE_DESCRIPTION "A cute music player")
+		SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player, this is the Qt version")
+		SET(PROJECT_NAME_SUFFIX "-qt")
+		SET(CPACK_STRIP_FILES "bin/meow-qt")
+		SET(CPACK_PACKAGE_NAME "meow-qt")
+		SET(CPACK_PACKAGE_EXECUTABLES "meow-qt" "Meow")
+	else()
+		SET(CPACK_PACKAGE_DESCRIPTION "A cute music player for KDE")
+		SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE")
+		SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
+		SET(CPACK_STRIP_FILES "bin/meow")
+		SET(CPACK_PACKAGE_EXECUTABLES "meow" "Meow")
+	endif()
+	SET(CPACK_PACKAGE_VERSION_MAJOR "${MAJOR_VERSION}")
+	SET(CPACK_PACKAGE_VERSION_MINOR "${MINOR_VERSION}")
+	SET(CPACK_PACKAGE_VERSION_PATCH "${PATCH_VERSION}")
 
+	SET(CPACK_PACKAGE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
+	if (${MEOW_PACKAGE} STREQUAL "DEB")
+		SET(CPACK_SET_DESTDIR "on")
+		SET(CPACK_PACKAGING_INSTALL_PREFIX "/tmp")
+		SET(CPACK_GENERATOR "DEB")
 
-if(${MEOW_QT})
-	SET(CPACK_PACKAGE_DESCRIPTION "A cute music player")
-	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player, this is the Qt version")
-	SET(PROJECT_NAME_SUFFIX "-qt")
-	SET(CPACK_STRIP_FILES "bin/meow-qt")
-	SET(CPACK_PACKAGE_NAME "meow-qt")
-else()
-	SET(CPACK_PACKAGE_DESCRIPTION "A cute cutest music player")
-	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE")
-	SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
-	SET(CPACK_STRIP_FILES "bin/meow")
-endif()
-SET(CPACK_PACKAGE_VERSION_MAJOR "${MAJOR_VERSION}")
-SET(CPACK_PACKAGE_VERSION_MINOR "${MINOR_VERSION}")
-SET(CPACK_PACKAGE_VERSION_PATCH "${PATCH_VERSION}")
+		if (MEOW_WITH_OPUS)
+			SET(TAGLIB_PKG_VERSION "1.9.0")
+			SET(OPUS_DEBIAN_PKG_EXTRA ", libopusfile (>= 0.4)")
+		else()
+			SET(TAGLIB_PKG_VERSION "1.6.0")
+			SET(OPUS_DEBIAN_PKG_EXTRA "")
+		endif()
 
+		SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+		if(${MEOW_QT})
+			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}, libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
+			SET(PROJECT_NAME_SUFFIX "-qt")
+			SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
+			SET(CPACK_STRIP_FILES "bin/meow-qt")
+			SET(CPACK_PACKAGE_NAME "meow-qt")
+		else()
+			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
+			SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
+			SET(CPACK_DEBIAN_PACKAGE_SECTION "kde")
+			SET(CPACK_STRIP_FILES "bin/meow")
+		endif()
+		SET(CPACK_PACKAGE_CONTACT "Charles Samuels <charles@meowplayer.org>")
+		SET(CPACK_DEBIAN_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}-${PACKAGE_VERSION}")
+		SET(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${CPACK_DEBIAN_PACKAGE_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
+		SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}")
 
-SET(CPACK_SET_DESTDIR "on")
-SET(CPACK_PACKAGING_INSTALL_PREFIX "/tmp")
-SET(CPACK_GENERATOR "DEB")
+		SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
 
-if (MEOW_WITH_OPUS)
-	SET(TAGLIB_PKG_VERSION "1.9.0")
-	SET(OPUS_DEBIAN_PKG_EXTRA ", libopusfile (>= 0.4)")
-else()
-	SET(TAGLIB_PKG_VERSION "1.6.0")
-	SET(OPUS_DEBIAN_PKG_EXTRA "")
-endif()
+		SET(CPACK_COMPONENTS_ALL Libraries ApplicationData)
 
-if(${MEOW_QT})
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}, libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
-	SET(PROJECT_NAME_SUFFIX "-qt")
-	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-	SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
-	SET(CPACK_STRIP_FILES "bin/meow-qt")
-	SET(CPACK_PACKAGE_NAME "meow-qt")
-else()
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
-	SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
-	SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-	SET(CPACK_DEBIAN_PACKAGE_SECTION "kde")
-	SET(CPACK_STRIP_FILES "bin/meow")
-endif()
-SET(CPACK_PACKAGE_CONTACT "Charles Samuels <charles@meowplayer.org>")
-SET(CPACK_DEBIAN_PACKAGE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}-${PACKAGE_VERSION}")
-SET(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${CPACK_DEBIAN_PACKAGE_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}")
+	elseif(${MEOW_PACKAGE} STREQUAL "RPM")
 
-SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
+		SET(CPACK_GENERATOR "RPM")
 
-SET(CPACK_COMPONENTS_ALL Libraries ApplicationData)
-INCLUDE(CPack)
+		if (MEOW_WITH_OPUS)
+			SET(TAGLIB_PKG_VERSION "1.9.0")
+			SET(OPUS_PKG_EXTRA ", libopusfile (>= 0.4)")
+		else()
+			SET(TAGLIB_PKG_VERSION "1.6.0")
+			SET(OPUS_PKG_EXTRA "")
+		endif()
 
+		if(${MEOW_QT})
+			SET(PROJECT_NAME_SUFFIX "-qt")
+			SET(CPACK_STRIP_FILES "bin/meow-qt")
+			SET(CPACK_PACKAGE_NAME "meow-qt")
+		else()
+			SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
+			SET(CPACK_STRIP_FILES "bin/meow")
+			SET(CPACK_RPM_PACKAGE_REQUIRES "kdelibs >= 4.10, qt >= 4.8, alsa-lib >= 1.0.27, libvorbis >= 1.3.3, libmpg123 >= 1.15.0, flac-libs >= 1.3.0, taglib >= 1.9.1, sqlite >= 3.7.0")
+		endif()
 
-ENDIF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
+		SET(CPACK_PACKAGE_VENDOR "Charles Samuels <charles@meowplayer.org>")
+		SET(CPACK_RPM_PACKAGE_RELEASE "${PACKAGE_VERSION}")
+		SET(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${CPACK_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}_${CMAKE_SYSTEM_PROCESSOR}")
+		SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}")
 
-SET(CPACK_SET_DESTDIR "on")
-SET(CPACK_PACKAGING_INSTALL_PREFIX "/tmp")
-SET(CPACK_GENERATOR "RPM")
+		SET(CPACK_RPM_PACKAGE_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
 
-if (MEOW_WITH_OPUS)
-	SET(TAGLIB_PKG_VERSION "1.9.0")
-	SET(OPUS_PKG_EXTRA ", libopusfile (>= 0.4)")
-else()
-	SET(TAGLIB_PKG_VERSION "1.6.0")
-	SET(OPUS_PKG_EXTRA "")
-endif()
-
-if(${MEOW_QT})
-	SET(CPACK_PACKAGE_DESCRIPTION "A cute music player")
-	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player, this is the Qt version")
-	SET(PROJECT_NAME_SUFFIX "-qt")
-	SET(CPACK_STRIP_FILES "bin/meow-qt")
-	SET(CPACK_PACKAGE_NAME "meow-qt")
-else()
-	SET(CPACK_PACKAGE_DESCRIPTION "A cute cutest music player")
-	SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Meow is a minimalistic music player for KDE")
-	SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
-	SET(CPACK_STRIP_FILES "bin/meow")
-	SET(CPACK_RPM_PACKAGE_REQUIRES "kdelibs >= 4.10, qt >= 4.8, alsa-lib >= 1.0.27, libvorbis >= 1.3.3, libmpg123-0 (>= 1.14.0), flac >= 1.3.0, taglib >= 1.9.1, sqlite3 >= 3.7.0, libmpcdec >= 1.2.6")
-endif()
-SET(CPACK_PACKAGE_CONTACT "Charles Samuels <charles@meowplayer.org>")
-SET(CPACK_PACKAGE_VERSION_MAJOR "${MAJOR_VERSION}")
-SET(CPACK_PACKAGE_VERSION_MINOR "${MINOR_VERSION}")
-SET(CPACK_PACKAGE_VERSION_PATCH "${PATCH_VERSION}")
-SET(CPACK_RPM_PACKAGE_RELEASE "${PACKAGE_VERSION}")
-SET(CPACK_RPM_PACKAGE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
-SET(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${CPACK_DEBIAN_PACKAGE_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}${PROJECT_NAME_SUFFIX}_${MAJOR_VERSION}.${MINOR_VERSION}.${CPACK_PACKAGE_VERSION_PATCH}")
-
-SET(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
-
-SET(CPACK_COMPONENTS_ALL Libraries ApplicationData)
-INCLUDE(CPack)
-
-
-ENDIF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
-
+		SET(CPACK_COMPONENTS_ALL Libraries ApplicationData)
+	endif()
+	INCLUDE(CPack)
+#ENDIF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
 
 
 # kate: space-indent off; replace-tabs off;

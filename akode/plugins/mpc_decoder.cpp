@@ -19,6 +19,8 @@
     Boston, MA 02110-1301, USA.
 */
 
+#ifdef AKODE_WITH_MUSEPACK
+
 #include <akode/file.h>
 #include <akode/audioframe.h>
 
@@ -264,4 +266,4 @@ DecoderPlugin& mpc_decoder()
 
 // kate: space-indent off; replace-tabs off;
 
-//#endif
+#endif

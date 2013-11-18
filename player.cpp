@@ -101,7 +101,9 @@ void PlayerPrivate::initAvKode()
 	akPlayer->registerDecoderPlugin(&aKode::opus_decoder());
 #endif
 	akPlayer->registerDecoderPlugin(&aKode::flac_decoder());
+#ifdef AKODE_WITH_MUSEPACK
 	akPlayer->registerDecoderPlugin(&aKode::mpc_decoder());
+#endif
 	akPlayer->setManager(this);
 
 	q->setVolume(volumePercent);
@@ -456,7 +458,7 @@ int Player::volume() const
 void Player::setVolume(int percent)
 {
 	percent = qBound(0, percent, 100);
-	double vol = (pow(10,percent*.01)-1)/(pow(10, 1)-1);
+	double vol = (std::pow(10,percent*.01)-1)/(std::pow(10, 1)-1);
 	if (d->akPlayer)
 		d->akPlayer->setVolume(vol);
 	
