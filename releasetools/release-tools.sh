@@ -10,7 +10,7 @@ do
 	arch=`echo $i | sed 's/^.*-//'`
 	package_fmt=deb
 	if [[ $i =~ fedora ]]; then package_fmt=rpm; fi
-	$arch chroot /var/meow-builds/$i -c \
+	$arch chroot /var/meow-builds/$i su - charles -c \
 		"cd ~/meow; bash releasetools/build-platform.sh $i $package_fmt"
 done
 
