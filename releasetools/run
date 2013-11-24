@@ -28,9 +28,9 @@ version=$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION-$PACKAGE_VERSION
 
 cd ../
 rm -rf meow-$version
-cp -a meow meow-$version
-tar --exclude-vcs -c meow-$version | bzip2 -9 > packages/meow-$version.tar.bz2
-rm -rf meow-$version
+cp -a meow meow_$version
+tar --exclude-vcs -c meow_$version | bzip2 -9 > packages/meow_$version.tar.bz2
+rm -rf meow_$version
 cd meow
 
 # make windows build
@@ -40,12 +40,12 @@ cd meow
 	cmake .. -DEXTRALIBS=/home/charles/dev/dlls -DCMAKE_TOOLCHAIN_FILE=/home/charles/dev/Toolchain-mingw32.cmake
 	make -j4
 
-	mv meow.exe meow-$version.exe
-	i686-w64-mingw32-strip meow-$version.exe
-	zip -9 meow-$version.zip meow-$version.exe
+	mv meow.exe meow_$version.exe
+	i686-w64-mingw32-strip meow_$version.exe
+	zip -9 meow_$version.zip meow_$version.exe
 	upx --ultra-brute meow-$version.exe
 
-	mv meow-$version.exe meow-$version.zip ../../packages
+	mv meow_$version.exe meow_$version.zip ../../packages
 ) &
 
 sudo bash releasetools/release-tools.sh 
