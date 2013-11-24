@@ -1,12 +1,14 @@
 #!/bin/bash
 
+THERE=/var/meow-builds/home/charles
+
 if [[ $(( `cvs diff 2> /dev/null | wc -l` <= 1 )) ]]
 then
 	echo "Uncommitted changes"
 #	exit 1
 fi
 
-cd /var/meow-builds/home/charles
+cd $THERE
 
 rm -rf meow
 
@@ -42,19 +44,19 @@ sudo bash releasetools/release-tools.sh
 wait
 
 #make apt repository
-dpkg-sig -m 'release@meowplayer.org' -s origin ~/meow/packages/*.deb
+dpkg-sig -m 'release@meowplayer.org' -s origin $THERE/meow/packages/*.deb
 
-cd ~/meow-apt
-for i in ~/meow/packages/*.deb
+cd $THERE/meow-apt
+for i in $THERE/meow/packages/*.deb
 do
 	reprepro --ask-passphrase includedeb squeeze $i
 done
 
 #make yum repository
-mkdir -p ~/meow-yum/Fedora/19/x86_64 ~/meow-yum/Fedora/19/i386 
-cp ~/meow/packages/*_x86_64.rpm ~/meow-yum/Fedora/19/x86_64
-cp ~/meow/packages/*_i386.rpm ~/meow-yum/Fedora/19/i386
-createrepo ~/meow-yum/Fedora/19/i386
-createrepo ~/meow-yum/Fedora/19/x86_64
+mkdir -p $THERE/meow-yum/Fedora/19/x86_64 $THERE/meow-yum/Fedora/19/i386 
+cp $THERE/meow/packages/*_x86_64.rpm $THERE/meow-yum/Fedora/19/x86_64
+cp $THERE/meow/packages/*_i386.rpm $THERE/meow-yum/Fedora/19/i386
+createrepo $THERE/meow-yum/Fedora/19/i386
+createrepo $THERE/meow-yum/Fedora/19/x86_64
 
 
