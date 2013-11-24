@@ -2,7 +2,7 @@
 SET(MAJOR_VERSION 0)
 SET(MINOR_VERSION 9)
 SET(PATCH_VERSION 16)
-SET(PACKAGE_VERSION 2)
+SET(PACKAGE_VERSION 3)
 
 # this version
 
@@ -306,7 +306,7 @@ IF(DEFINED MEOW_PACKAGE)
 
 		SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 		if(${MEOW_QT})
-			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}, libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
+			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
 			SET(PROJECT_NAME_SUFFIX "-qt")
 			SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
 			SET(CPACK_STRIP_FILES "bin/meow-qt")
