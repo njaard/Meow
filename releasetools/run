@@ -14,10 +14,10 @@ cvs -d :pserver:anoncvs@cvs.meowplayer.org:/home/cvs co meow
 
 cd meow
 
-MAJOR_VERSION=`grep MAJOR_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
-MAJOR_VERSION=`grep MINOR_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
-PATCH_VERSION=`grep PATCH_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
-PACKAGE_VERSION=`grep PACKAGE_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
+MAJOR_VERSION=`grep MAJOR_VERSION CMakeLists.txt | head -n1 | sed 's/.*\([0-9]\+\).*/\1/'`
+MAJOR_VERSION=`grep MINOR_VERSION CMakeLists.txt | head -n1 | sed 's/.*\([0-9]\+\).*/\1/'`
+PATCH_VERSION=`grep PATCH_VERSION CMakeLists.txt | head -n1 | sed 's/.*\([0-9]\+\).*/\1/'`
+PACKAGE_VERSION=`grep PACKAGE_VERSION CMakeLists.txt | head -n1 | sed 's/.*\([0-9]\+\).*/\1/'`
 
 version=$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION-$PACKAGE_VERSION
 
