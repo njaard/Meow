@@ -12,8 +12,9 @@ rm -rf meow
 
 cvs -d :pserver:anoncvs@cvs.meowplayer.org:/home/cvs co meow
 
-mkdir meow/packages
-exec sudo releasetools/release-tools.sh 
+cd meow
+mkdir packages
+exec sudo bash releasetools/release-tools.sh 
 
 
 
