@@ -356,7 +356,7 @@ IF(DEFINED MEOW_PACKAGE)
 		SET(CPACK_COMPONENTS_ALL Libraries ApplicationData)
 	endif()
 	INCLUDE(CPack)
-#ENDIF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
+ENDIF()
 
 
 # kate: space-indent off; replace-tabs off;
