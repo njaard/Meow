@@ -1,0 +1,15 @@
+Compiling:
+
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local 
+make -j4 install
+
+
+Other useful flags to cmake:
+	-DMEOW_QT=1              - enable a qt-only build
+	-DMEOW_WITH_OPUS=1       - enable opus support (needs libopusfile)
+	-DCMAKE_BUILD_TYPE=Debug - compile for use with gdb
+	-DMEOW_PACKAGE=DEB       - `make package` will build a deb
+	-DMEOW_PACKAGE=RPM       - `make package` will build an rpm
+
