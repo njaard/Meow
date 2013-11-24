@@ -662,9 +662,14 @@ void Meow::MainWindow::showAbout()
 				"Copyright (c) 2000-2007 Stefan Gehn, Charles Samuels (Portions of playback controller)<br/>"
 				"Copyright (c) 2000-2007 Josh Coalson (FLAC decoder)<br/>"
 				"Copyright (c) 1994-2010 the Xiph.Org Foundation (Vorbis decoder)<br/>"
+#ifdef AKODE_WITH_OPUS
+				"Copyright (c) 1994-2013 the Xiph.Org Foundation and contributors (Opus decoder)<br/>"
+#endif
 				"Copyright (c) ?-2013 Michael Hipp and the mpg123 project (mp3 decoder)<br/>"
 				"Copyright (c) 2005 The Musepack Development Team (Musepack decoder)<br/>"
+#ifdef _WIN32
 				"Copyright (c) 2001 Ross P. Johnson (Posix threads library for Windows)<br/>"
+#endif
 				"Copyright (c) 2007-2009 Oxygen project (Icons)<br/>"
 				"The Public Domain's SQLite<br/><br/>"
 				"Meow is Free software, you may modify and share it under the "
