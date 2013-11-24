@@ -65,6 +65,8 @@ int main( int argc, char **argv )
 #include <qurl.h>
 #include <qfile.h>
 
+#include <vector>
+
 int main( int argc, char **argv )
 {
 	QApplication app(argc, argv);
