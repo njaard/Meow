@@ -1,7 +1,7 @@
 #the following lines are used by releasetools
 SET(MAJOR_VERSION 0)
 SET(MINOR_VERSION 9)
-SET(PATCH_VERSION 15)
+SET(PATCH_VERSION 16)
 SET(PACKAGE_VERSION 1)
 
 # this version
