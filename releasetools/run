@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [[ $(( `cvs diff 2> /dev/null | wc -l` <= 1 )) ]]
+then
+	echo "Uncommitted changes"
+	exit 1
+fi
+
+cd /var/meow-builds/home/charles
+
+rm -rf meow
+
+cvs co -d :pserver:anoncvs@cvs.meowplayer.org:/home/cvs meow
+
+mkdir meow/packages
+exec sudo ./run-build-script.sh 
+
+
+
