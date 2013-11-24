@@ -268,7 +268,7 @@ else()
 
 endif()
 
-#IF(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
+IF(DEFINED MEOW_PACKAGE)
 	INCLUDE(InstallRequiredSystemLibraries)
 	if(${MEOW_QT})
 		SET(CPACK_PACKAGE_DESCRIPTION "A cute music player")
