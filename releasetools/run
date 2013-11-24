@@ -64,8 +64,8 @@ done
 #make yum repository
 mkdir -p $THERE/meow-yum/Fedora/19/x86_64 $THERE/meow-yum/Fedora/19/i686 
 cp $THERE/packages/*_x86_64.rpm $THERE/meow-yum/Fedora/19/x86_64
-cp $THERE/packages/*_i686.rpm $THERE/meow-yum/Fedora/19/i386
-createrepo $THERE/meow-yum/Fedora/19/i386
+cp $THERE/packages/*_i686.rpm $THERE/meow-yum/Fedora/19/i686
+createrepo $THERE/meow-yum/Fedora/19/i686
 createrepo $THERE/meow-yum/Fedora/19/x86_64
 
 
