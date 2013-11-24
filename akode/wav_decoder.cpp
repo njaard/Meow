@@ -96,7 +96,7 @@ bool WavDecoder::openFile(File* src) {
     if (buffer[2] != 0 || buffer[3] != 0) goto invalid;
 
     src->read((char*)buffer, 2); // check for compression
-    if (*(short*)buffer != 1) goto invalid;
+    if (*(short*&)buffer != 1) goto invalid;
 
     src->read((char*)buffer, 2);
     d->config.channels = buffer[0] + buffer[1]*256;
@@ -120,6 +120,7 @@ find_data:
     src->seek(d->pos);
     src->read((char*)buffer, 4);
     if (memcmp(buffer, "data", 4) != 0)
+    {
       if (memcmp(buffer, "clm ", 4) != 0)
         goto invalid;
       else {
@@ -127,6 +128,7 @@ find_data:
         d->pos = d->pos+ 8 + buffer[0] + buffer[1]*256;
         goto find_data;
       }
+    }
 
     src->seek(d->pos+8); // start of data
     d->position = 0;

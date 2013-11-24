@@ -30,7 +30,7 @@ void Meow::Filter::keyPressEvent(QKeyEvent *event)
 }
 
 
-void Meow::Filter::showEvent(QShowEvent *event)
+void Meow::Filter::showEvent(QShowEvent *)
 {
 	editor->setFocus(Qt::OtherFocusReason);
 	editor->selectAll();

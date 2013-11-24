@@ -184,7 +184,7 @@ bool VorbisDecoder::openFile() {
     for ( int i=0; i < m_data->vc->comments; i++ )
     {
         std::string comment = m_data->vc->user_comments[i];
-        const int eq = comment.find('=');
+        const size_t eq = comment.find('=');
         if (eq == std::string::npos) continue;
         std::string name = comment.substr(0, eq);
         std::string value = comment.substr(eq+1);

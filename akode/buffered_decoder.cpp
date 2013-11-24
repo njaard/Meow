@@ -242,7 +242,7 @@ void BufferedDecoder::pause() {
 }
 
 void BufferedDecoder::resume() {
-    if (d->state != Paused);
+    if (d->state != Paused) { }
     /*
     if (d->state == Playing || d->state == Paused || d->state == FadingOut) {
         d->xfader = new CrossFader(d->fading_time);

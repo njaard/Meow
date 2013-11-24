@@ -86,25 +86,6 @@ end:
     return res;
 }
 
-static bool checkOggFLAC(File *src) {
-    char header[34];
-    bool res = false;
-    src->seek(0);
-    if (src->read(header, 34) == 34)
-    {
-        if (memcmp(header, "OggS",4) == 0 )
-        {
-            // old FLAC 1.1.0 format
-            if (memcmp(header+28, "fLaC",4) == 0) res = true;
-            else
-            // new FLAC 1.1.1 format
-            if (memcmp(header+29, "FLAC",4) == 0) res = true;
-        }
-    }
-    return res;
-}
-
-
 struct FLACDecoder::private_data {
     private_data() : decoder(0), valid(false), out(0), source(0), eof(false), error(false)
     , trackGain(false), albumGain(false)
@@ -299,10 +280,10 @@ static void metadata_callback(
     else if (metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT)
     {
         m_data->vc = &metadata->data.vorbis_comment;
-        for ( int i=0; i < m_data->vc->num_comments; i++ )
+        for ( unsigned i=0; i < m_data->vc->num_comments; i++ )
         {
             std::string comment = reinterpret_cast<const char*>(m_data->vc->comments[i].entry);
-            const int eq = comment.find('=');
+            const size_t eq = comment.find('=');
             if (eq == std::string::npos) continue;
             std::string name = comment.substr(0, eq);
             std::string value = comment.substr(eq+1);
@@ -328,7 +309,7 @@ static void error_callback(
         FLAC__StreamDecoderErrorStatus status,
         void *client_data)
 {
-    FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
+    //FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
     
     std::cerr << "FLAC error: " << FLAC__StreamDecoderErrorStatusString[status] << "\n";
     switch (status) {

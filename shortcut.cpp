@@ -74,7 +74,6 @@ bool Meow::Shortcut::globalEventFilter(void *_m)
 	XEvent* event = static_cast<XEvent*>(_m);
 	if (event->type == KeyPress)
 	{
-		Display* const display = QX11Info::display();
 		XKeyEvent* const key = (XKeyEvent*)event;
 		const unsigned keycode = key->keycode;
 		const unsigned keymod = key->state & (ShiftMask | ControlMask | Mod1Mask | Mod4Mask);

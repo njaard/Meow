@@ -49,7 +49,7 @@ void Meow::DirectoryAdder::addNextPending()
 	}
 }
 
-void Meow::DirectoryAdder::slotResult(KJob *job)
+void Meow::DirectoryAdder::slotResult(KJob *)
 {
 	listJob= 0;
 	addNextPending();
