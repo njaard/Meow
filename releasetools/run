@@ -32,9 +32,9 @@ mkdir packages
 
 	mv meow.exe meow-$version.exe
 	zip -9 meow-$version.zip meow-$version.exe
-	upx --ultra-brute meow-$version.exe &
+	upx --ultra-brute meow-$version.exe
 
-	mv meow-$version.exe meow-$version.zip packages
+	mv meow-$version.exe meow-$version.zip ../packages
 ) &
 
 sudo bash releasetools/release-tools.sh 
