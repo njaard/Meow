@@ -25,6 +25,11 @@ version=$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION-$PACKAGE_VERSION
 
 mkdir packages
 
+cd ../
+cp -a meow meow-$version
+tar --exclude-vcs -c meow-$version | bzip2 -9 > packages/meow-$version.tar.bz2
+cd meow
+
 # make windows build
 (
 	mkdir build-win32
