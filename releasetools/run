@@ -34,10 +34,27 @@ mkdir packages
 	zip -9 meow-$version.zip meow-$version.exe
 	upx --ultra-brute meow-$version.exe &
 
-	mv meow-$version.exe meow-$version.exe packages
+	mv meow-$version.exe meow-$version.zip packages
 ) &
 
 sudo bash releasetools/release-tools.sh 
 
 wait
+
+#make apt repository
+dpkg-sig -m 'release@meowplayer.org' -s origin ~/meow/packages/*.deb
+
+cd ~/meow-apt
+for i in ~/meow/packages/*.deb
+do
+	reprepro --ask-passphrase includedeb squeeze $i
+done
+
+#make yum repository
+mkdir -p ~/meow-yum/Fedora/19/x86_64 ~/meow-yum/Fedora/19/i386 
+cp ~/meow/packages/*_x86_64.rpm ~/meow-yum/Fedora/19/x86_64
+cp ~/meow/packages/*_i386.rpm ~/meow-yum/Fedora/19/i386
+createrepo ~/meow-yum/Fedora/19/i386
+createrepo ~/meow-yum/Fedora/19/x86_64
+
 

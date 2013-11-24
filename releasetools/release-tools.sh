@@ -5,11 +5,11 @@ platforms="fedora-i386 fedora-x86_64 stable-i386 stable-x86_64"
 for i in $platforms;
 do
 	umount /var/meow-builds/$i/home
-	umount /var/meow-builds/proc
-	umount /var/meow-builds/dev
+	umount /var/meow-builds/$i/proc
+	umount /var/meow-builds/$i/dev
 	mount --bind /var/meow-builds/home /var/meow-builds/$i/home/
-	mount proc -t proc /var/meow-builds/proc/
-	mount udev -t devtmpfs /var/meow-builds/dev
+	mount proc -t proc /var/meow-builds/$i/proc/
+	mount udev -t devtmpfs /var/meow-builds/$i/dev
 
 
 	arch=`echo $i | sed 's/^.*-//'`
