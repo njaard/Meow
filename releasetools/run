@@ -13,8 +13,31 @@ rm -rf meow
 cvs -d :pserver:anoncvs@cvs.meowplayer.org:/home/cvs co meow
 
 cd meow
+
+MAJOR_VERSION=`grep MAJOR_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
+MAJOR_VERSION=`grep MINOR_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
+PATCH_VERSION=`grep PATCH_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
+PACKAGE_VERSION=`grep PACKAGE_VERSION CMakeLists.txt | head -n1 | 's/.*([0-9]+).*/\1/'`
+
+version=$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION-$PACKAGE_VERSION
+
 mkdir packages
-exec sudo bash releasetools/release-tools.sh 
 
+# make windows build
+(
+	mkdir build-win32
+	cd build-win32
+	cmake .. -DEXTRALIBS=/home/charles/dev/dlls -DCMAKE_TOOLCHAIN_FILE=/home/charles/dev/Toolchain-mingw32.cmake
+	make -j4
 
+	mv meow.exe meow-$version.exe
+	zip -9 meow-$version.zip meow-$version.exe
+	upx --ultra-brute meow-$version.exe &
+
+	mv meow-$version.exe meow-$version.exe packages
+) &
+
+sudo bash releasetools/release-tools.sh 
+
+wait
 
