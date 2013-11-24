@@ -85,7 +85,7 @@ bool WavDecoder::openFile(File* src) {
     src->fadvise();
 
     // Get format information
-    unsigned char buffer[4];
+    char buffer[4];
     src->seek(4);
     src->read((char*)buffer, 4); // size of stream
     d->length = buffer[0] + buffer[1]*256 + buffer[2] * (1<<16) + buffer[3] * (1<<24) + 8;
@@ -96,7 +96,7 @@ bool WavDecoder::openFile(File* src) {
     if (buffer[2] != 0 || buffer[3] != 0) goto invalid;
 
     src->read((char*)buffer, 2); // check for compression
-    if (*(short*&)buffer != 1) goto invalid;
+    if (*(short*)buffer != 1) goto invalid;
 
     src->read((char*)buffer, 2);
     d->config.channels = buffer[0] + buffer[1]*256;

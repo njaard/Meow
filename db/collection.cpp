@@ -21,11 +21,12 @@ class AddFileEvent : public QEvent
 {
 public:
 	static const Type type = QEvent::Type(QEvent::User+1);
-	AddFileEvent(const QString &file)
-		: QEvent(type), file(file)
+	AddFileEvent(const QString &file, bool playNow)
+		: QEvent(type), file(file), playNow(playNow)
 	{}
 	
 	const QString file;
+	const bool playNow;
 };
 
 class ReloadFileEvent : public QEvent
@@ -60,8 +61,8 @@ class FileAddedEvent : public QEvent
 {
 public:
 	static const Type type = QEvent::Type(QEvent::User+4);
-	FileAddedEvent(const QString &file, TagLib::FileRef *const f)
-		: QEvent(type), file(file), f(f)
+	FileAddedEvent(const QString &file, bool playNow, TagLib::FileRef *const f)
+		: QEvent(type), file(file), playNow(playNow), f(f)
 	{}
 	
 	~FileAddedEvent()
@@ -70,6 +71,7 @@ public:
 	}
 	
 	const QString file;
+	const bool playNow;
 	TagLib::FileRef *const f;
 };
 
@@ -116,7 +118,8 @@ public:
 	{
 		if (e->type() == AddFileEvent::type)
 		{
-			const QString file = static_cast<AddFileEvent*>(e)->file;
+			AddFileEvent *const afe = static_cast<AddFileEvent*>(e);
+			const QString file = afe->file;
 		
 			TagLib::FileRef *const f = new TagLib::FileRef(QFile::encodeName(file).data());
 			if (f->isNull() || !f->file() || !f->file()->isValid())
@@ -125,7 +128,7 @@ public:
 				return true;
 			}
 			
-			QApplication::postEvent(c, new FileAddedEvent(file, f));
+			QApplication::postEvent(c, new FileAddedEvent(file, afe->playNow, f));
 		}
 		else if (e->type() == ReloadFileEvent::type)
 		{
@@ -215,9 +218,9 @@ Meow::Collection::~Collection()
 	delete d;
 }
 
-void Meow::Collection::add(const QString &file)
+void Meow::Collection::add(const QString &file, bool playNow)
 {
-	QApplication::postEvent(addThread, new AddFileEvent(file));
+	QApplication::postEvent(addThread, new AddFileEvent(file, playNow));
 }
 
 void Meow::Collection::reload(const Meow::File &file)
@@ -421,9 +424,14 @@ Meow::File Meow::Collection::getSong(FileId id)
 bool Meow::Collection::event(QEvent *e)
 {
 	File fff;
+	bool toPlay=false;
 	
 	if (e->type() == FileAddedEvent::type)
-		fff.mFile = static_cast<FileAddedEvent*>(e)->file;
+	{
+		FileAddedEvent *const afe = static_cast<FileAddedEvent*>(e);
+		fff.mFile = afe->file;
+		toPlay = afe->playNow;
+	}
 	else if (e->type() == FileReloadedEvent::type)
 		fff = static_cast<FileReloadedEvent*>(e)->file;
 	else if (e->type() == DoneWithJobEvent::type)
@@ -490,6 +498,8 @@ bool Meow::Collection::event(QEvent *e)
 
 	if (e->type() == FileReloadedEvent::type)
 		emit reloaded(fff);
+	else if (toPlay)
+		emit addedToPlay(fff);
 	else
 		emit added(fff);
 	return true;

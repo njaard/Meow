@@ -159,7 +159,7 @@ bool MPCDecoder::readFrame(AudioFrame* frame)
 	
 	mpc_frame_info mpcframe;
 	mpcframe.buffer = buffer;
-	const mpc_status status = mpc_demux_decode(demux, &mpcframe);
+	//const mpc_status status = mpc_demux_decode(demux, &mpcframe);
 	if (mpcframe.bits < 0)
 	{
 		mEof = true;

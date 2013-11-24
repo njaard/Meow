@@ -74,7 +74,7 @@ struct Meow::MainWindow::MainWindowPrivate
 
 #include "mainwindow_common.cpp"
 
-Meow::MainWindow::MainWindow()
+Meow::MainWindow::MainWindow(bool dontPlayLastPlayed)
 {
 	d = new MainWindowPrivate;
 	d->adder = 0;
@@ -289,7 +289,7 @@ Meow::MainWindow::MainWindow()
 		changePlaybackOrder(index);
 	}
 	
-	FileId first = meow.readEntry<FileId>("lastPlayed", 0);
+	FileId first = dontPlayLastPlayed ? 0 : meow.readEntry<FileId>("lastPlayed", 0);
 	
 	loadCollection("collection", first);
 	
@@ -327,7 +327,12 @@ void Meow::MainWindow::quitting()
 void Meow::MainWindow::addFile(const KUrl &url)
 {
 	if (url.isLocalFile())
-		d->collection->add( url.path() );
+		d->collection->add( url.path(), false );
+}
+
+void Meow::MainWindow::addAndPlayFile(const KUrl &url)
+{
+	d->collection->add( url.path(), true );
 }
 
 void Meow::MainWindow::addFiles()

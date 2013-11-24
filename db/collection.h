@@ -35,7 +35,7 @@ public:
 	Collection(Base *base);
 	~Collection();
 
-	void add(const QString &file);
+	void add(const QString &file, bool playNow);
 	void reload(const File &file);
 	
 	void remove(const std::vector<FileId> &files);
@@ -62,6 +62,7 @@ public:
 
 signals:
 	void added(const File &file);
+	void addedToPlay(const File &file);
 	void reloaded(const File &file);
 
 	/**

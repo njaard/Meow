@@ -103,7 +103,7 @@ static QIcon iconByName(const QString &name)
 #include "mainwindow_common.cpp"
 
 
-Meow::MainWindow::MainWindow()
+Meow::MainWindow::MainWindow(bool dontPlayLastPlayed)
 {
 	setWindowTitle(tr("Meow"));
 	d = new MainWindowPrivate;
@@ -371,7 +371,7 @@ Meow::MainWindow::MainWindow()
 
 	registerShortcuts();
 	
-	FileId first = settings.value("state/lastPlayed", 0).toInt();
+	FileId first = dontPlayLastPlayed ? 0 : settings.value("state/lastPlayed", 0).toInt();
 	
 	loadCollection("collection", first);
 	
@@ -386,7 +386,12 @@ Meow::MainWindow::~MainWindow()
 
 void Meow::MainWindow::addFile(const QUrl &url)
 {
-	d->collection->add( url.toLocalFile() );
+	d->collection->add( url.toLocalFile(), false );
+}
+
+void Meow::MainWindow::addAndPlayFile(const QUrl &url)
+{
+	d->collection->add( url.toLocalFile(), true );
 }
 
 void Meow::MainWindow::addFiles()

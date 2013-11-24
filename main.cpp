@@ -6,6 +6,8 @@
 #include <kcmdlineargs.h>
 #include <klocale.h>
 
+#include <vector>
+
 int main( int argc, char **argv )
 {
 	KAboutData aboutData(
@@ -33,9 +35,27 @@ int main( int argc, char **argv )
 	aboutData.addCredit( ki18n("Kittens Everywhere"));
 	
 	KCmdLineArgs::init( argc, argv, &aboutData );
-	
+	KCmdLineOptions options;
+	options.add("+[file]", ki18n("Media files to load and play"));
+	KCmdLineArgs::addCmdLineOptions(options);
+
 	KUniqueApplication app;
-	Meow::MainWindow *dlg = new Meow::MainWindow;
+	
+	KCmdLineArgs *const args = KCmdLineArgs::parsedArgs();
+	std::vector<KUrl> files;
+	files.reserve(args->count());
+	for (int i=0; i < args->count(); i++)
+		files.push_back(args->url(i));
+
+	Meow::MainWindow *dlg = new Meow::MainWindow(files.size());
+	for (unsigned i=0; i < files.size(); ++i)
+	{
+		if (i == 0)
+			dlg->addAndPlayFile(files[i]);
+		else
+			dlg->addFile(files[i]);
+	}
+
 	dlg->show();
 	
 	return app.exec();
@@ -45,6 +65,8 @@ int main( int argc, char **argv )
 #include "mainwindow-qt.h"
 
 #include <qapplication.h>
+#include <qurl.h>
+#include <qfile.h>
 
 int main( int argc, char **argv )
 {
@@ -55,7 +77,29 @@ int main( int argc, char **argv )
 	QCoreApplication::setApplicationName("Meow");
 
 	Q_INIT_RESOURCE(icons);
-	Meow::MainWindow *dlg = new Meow::MainWindow;
+	bool dashHandling=true;
+	std::vector<QUrl> files;
+	files.reserve(argc-1);
+	for (int i=1; i < argc; i++)
+	{
+		if (dashHandling && argv[i][0] == '-')
+		{
+			if (argv[i][1])
+				dashHandling = false;
+			continue;
+		}
+		files.push_back(QUrl::fromLocalFile(QFile::decodeName(argv[i])));
+	}
+	
+	Meow::MainWindow *dlg = new Meow::MainWindow(!files.empty());
+	for (unsigned i=0; i < files.size(); ++i)
+	{
+		if (i == 0)
+			dlg->addAndPlayFile(files[i]);
+		else
+			dlg->addFile(files[i]);
+	}
+	
 	dlg->show();
 	
 	app.setQuitOnLastWindowClosed(true);

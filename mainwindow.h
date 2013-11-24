@@ -33,8 +33,9 @@ class MainWindow : public MeowMainWindowType
 	MainWindowPrivate *d;
 
 public:
-	MainWindow();
+	MainWindow(bool dontPlayLastPlayed);
 	~MainWindow();
+	
 
 private slots:
 	void reloadCollections();
@@ -42,6 +43,7 @@ private slots:
 public slots:
 	void addFiles();
 	void addFile(const KUrl &url);
+	void addAndPlayFile(const KUrl &url);
 	void toggleVisible();
 
 protected:

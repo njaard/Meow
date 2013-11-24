@@ -29,7 +29,7 @@ class MainWindow : public QMainWindow
 	MainWindowPrivate *d;
 
 public:
-	MainWindow();
+	MainWindow(bool dontPlayLastPlayed);
 	~MainWindow();
 
 private slots:
@@ -39,6 +39,7 @@ public slots:
 	void addFiles();
 	void addDirs();
 	void addFile(const QUrl &url);
+	void addAndPlayFile(const QUrl &url);
 	void toggleVisible();
 
 protected:

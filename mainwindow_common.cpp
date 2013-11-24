@@ -82,7 +82,6 @@ void Meow::MainWindow::reloadCollections()
 }
 
 
-
 void Meow::MainWindow::showSettings()
 {
 	if (!d->settingsDialog)

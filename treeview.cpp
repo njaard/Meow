@@ -506,6 +506,7 @@ Meow::TreeView::TreeView(QWidget *parent, Player *player, Collection *collection
 	setMouseTracking(true);
 	
 	connect(collection, SIGNAL(added(File)), SLOT(addFile(File)));
+	connect(collection, SIGNAL(addedToPlay(File)), SLOT(addFileAndPlay(File)));
 	connect(collection, SIGNAL(reloaded(File)), SLOT(reloadFile(File)));
 }
 
@@ -757,7 +758,15 @@ static Child* fold(Parent *into, const QString &label)
 	return c;
 }
 
-void Meow::TreeView::addFile(const File &file)
+void Meow::TreeView::addFileAndPlay(const File &file)
+{
+	Song *const song = addFile(file);
+	if (song)
+		playAt(song);
+}
+
+
+Meow::TreeView::Song* Meow::TreeView::addFile(const File &file)
 {
 	QPoint under = QCursor::pos();
 	under = mapFromGlobal(under);
@@ -795,6 +804,8 @@ void Meow::TreeView::addFile(const File &file)
 		QScrollBar *const vs = verticalScrollBar();
 		vs->setValue(vs->value() + diff);
 	}
+	
+	return song;
 	
 }
 

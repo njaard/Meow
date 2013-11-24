@@ -307,10 +307,8 @@ static void metadata_callback(
 static void error_callback(
         const FLAC__StreamDecoder *,
         FLAC__StreamDecoderErrorStatus status,
-        void *client_data)
+        void *)
 {
-    //FLACDecoder::private_data *data = (FLACDecoder::private_data*)client_data;
-    
     std::cerr << "FLAC error: " << FLAC__StreamDecoderErrorStatusString[status] << "\n";
     switch (status) {
         case FLAC__STREAM_DECODER_ERROR_STATUS_LOST_SYNC:

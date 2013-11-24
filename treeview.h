@@ -73,7 +73,8 @@ private:
 	bool filter(QTreeWidgetItem *branch, const QString &text);
 
 protected slots:
-	void addFile(const File &file);
+	Song* addFile(const File &file);
+	void addFileAndPlay(const File &file);
 	void reloadFile(const File &file);
 	
 	void playAt(QTreeWidgetItem *);
