@@ -29,9 +29,6 @@ int main( int argc, char **argv )
 	aboutData.addCredit( ki18n("Peter Pawlowski"), ki18n("Musepack decoder"));
 	aboutData.addCredit( ki18n("Ross P. Johnson"), ki18n("Posix threads library for Windows"));
 	aboutData.addCredit( ki18n("The Public Domain"), ki18n("SQLite"));
-#ifdef AKODE_WITH_OPUS
-	aboutData.addCredit( ki18n("The Public Domain"), ki18n("SQLite"));
-#endif
 	aboutData.addCredit( ki18n("Kittens Everywhere"));
 	
 	KCmdLineArgs::init( argc, argv, &aboutData );
