@@ -16,7 +16,7 @@ do
 	package_fmt=deb
 	if [[ $i =~ fedora ]]; then package_fmt=rpm; fi
 	$arch chroot /var/meow-builds/$i su - charles -c \
-		"cd ~/meow; bash releasetools/build-platform.sh $i $package_fmt > $i-build.log"
+		"cd ~/meow; bash releasetools/build-platform.sh $i $package_fmt 2> $i-build.log"
 done
 
 

@@ -246,11 +246,13 @@ elseif(${MEOW_QT})
 	)
 	AUTOMOC4_ADD_EXECUTABLE(meow-qt ${meow_SRCS} icons.cpp)
 	target_link_libraries(meow-qt
+		pthread
 		${ALSA_LIBRARY} ${SQLITE3_LIBRARY}
 		${TAGLIB_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
 		${FLAC113_LIBRARY}  ${X11_LIBRARY}
 		${QT_LIBRARIES}
 		${MPC_LIBRARY}
+		
 	)
 	install(TARGETS meow-qt DESTINATION bin)
 else()
