@@ -228,7 +228,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	)
 	ADD_CUSTOM_COMMAND(
 		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp
-		COMMAND rcc -name icons -o ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
+		COMMAND ${QT_RCC_EXECUTABLE} -name icons -o ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
 		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
 	)
 
@@ -241,7 +241,7 @@ elseif(${MEOW_QT})
 	install(FILES meow-qt.desktop DESTINATION share/applications)
 	ADD_CUSTOM_COMMAND(
 		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp
-		COMMAND rcc -name icons -o ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
+		COMMAND ${QT_RCC_EXECUTABLE} -name icons -o ${CMAKE_CURRENT_BINARY_DIR}/icons.cpp ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
 		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/icons.qrc
 	)
 	AUTOMOC4_ADD_EXECUTABLE(meow-qt ${meow_SRCS} icons.cpp)
