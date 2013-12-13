@@ -38,12 +38,13 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${EXTRALIBS}/lib/libFLAC.a
 		${EXTRALIBS}/lib/libmpcdec_static.a
 
-		${EXTRALIBS}/lib/libpthreadGC1.a -lws2_32 -limm32 -lwinmm
+		-lws2_32 -limm32 -lwinmm
 	)
 	set(FLAC113_INCLUDE_DIR "${EXTRALIBS}/include")
 
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB-DHAVE_STRUCT_TIMESPEC")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -DPTW32_STATIC_LIB -std=c++0x -DHAVE_STRUCT_TIMESPEC")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -flto -DNOMINMAX -DPTW32_STATIC_LIB-DHAVE_STRUCT_TIMESPEC")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Os -flto -DNOMINMAX -DPTW32_STATIC_LIB -std=c++11 -DHAVE_STRUCT_TIMESPEC")
+	set(CMAKE_EXE_LINKER_FLAGS "-Os -flto")
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp akode/localfile.cpp)
 

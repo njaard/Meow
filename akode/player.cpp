@@ -1,6 +1,7 @@
 /*  aKode: Player
 
     Copyright (C) 2004-2005 Allan Sandfeld Jensen <kde@carewolf.com>
+    Copyright (C) 2013 Charles Samuels <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -44,209 +45,142 @@
 #define AKODE_DEBUG(x) { }
 #endif
 
+#include <thread>
 #include <vector>
 
-namespace aKode {
-
-class DSoundSink : public Sink
+namespace aKode
 {
-public:
-    DSoundSink();
-    ~DSoundSink();
-    bool open();
-    void close();
-    int setAudioConfiguration(const AudioConfiguration *config);
-    const AudioConfiguration* audioConfiguration() const;
-    // Writes blocking
-    bool writeFrame(AudioFrame *frame);
-    void pause();
-    void resume();
-
-    struct private_data;
-private:
-    template<class T> bool _writeFrame(AudioFrame *frame);
-#ifdef DWORD
-    static DWORD _writerThread(void *);
-#endif
-    void writerThread();
-    
-    
-    private_data *d;
-};
-
     
 struct Player::private_data
 {
-    private_data() : src(0)
-                   , frame_decoder(0)
-                   , resampler(0)
-                   , converter(0)
-                   , volume_filter(0)
-                   , sink(0)
-                   , manager(0)
-                   , monitor(0)
-                   , resampler_plugin(&fast_resampler())
-                   , sample_rate(0)
-                   , state(Closed)
-                   , my_file(false)
-                   , my_sink(false)
-                   , start_pos(0)
-                   , halt(false)
-                   , pause(false)
-                   , detached(false)
-                   , running(false)
-                   {};
+    private_data()
+        : resampler_plugin(&fast_resampler())
+        , buffered_decoder(std::make_shared<BufferedDecoder>())
+    {}
 
-    File *src;
+    std::shared_ptr<File> src;
 
-    Decoder *frame_decoder;
-    BufferedDecoder buffered_decoder;
-    Resampler *resampler;
-    Converter *converter;
-    // Volatile because it can be created and destroyed during playback
-    VolumeFilter* volatile volume_filter;
-    Sink *sink;
-    Player::Manager *manager;
-    Player::Monitor *monitor;
+    std::shared_ptr<Decoder> frame_decoder;
+    std::shared_ptr<BufferedDecoder> buffered_decoder;
+    std::shared_ptr<Resampler> resampler;
+    std::shared_ptr<Converter> converter;
+    std::shared_ptr<VolumeFilter> volume_filter;
+    std::shared_ptr<Sink> sink;
+    std::shared_ptr<Player::Manager> manager;
+    std::shared_ptr<Player::Monitor> monitor;
 
-    ResamplerPlugin* resampler_plugin;
+    std::shared_ptr<ResamplerPlugin> resampler_plugin;
 
     std::vector<DecoderPlugin*> registeredDecoders;
 
-    unsigned int sample_rate;
-    State state;
-    bool my_file;
-    bool my_sink;
-    int start_pos;
+    unsigned int sample_rate=0;
+    State state=Closed;
+    int start_pos=0;
 
-    volatile bool halt;
-    volatile bool pause;
-    volatile bool detached;
-    bool running;
-    pthread_t player_thread;
+    volatile bool halt=false;
+    volatile bool pause=false;
+    bool running=false;
+    
+    std::unique_ptr<std::thread> player_thread;
     sem_t pause_sem;
 
-    void setState(Player::State s) {
-        state = s;
-        if (manager) manager->stateChangeEvent(s);
-    }
-    // Called for detached players
-    void cleanup() {
-        buffered_decoder.stop();
-        buffered_decoder.closeDecoder();
-
-        delete frame_decoder;
-        if (my_file)
-            delete src;
-
-        frame_decoder = 0;
-        src = 0;
-
-        delete resampler;
-        delete converter;
-        resampler = 0;
-        converter = 0;
-
-        delete this;
-    }
+    void runThread();
 };
 
-// The player-thread. It is controlled through the two variables
-// halt and seek_pos in d
-static void* run_player(void* arg) {
-    Player::private_data *d = (Player::private_data*)arg;
-
+// The player-thread. It is controlled through the variable halt and pause
+void Player::private_data::runThread()
+{
     AudioFrame frame;
     AudioFrame re_frame;
     AudioFrame c_frame;
     bool no_error = true;
 
-    while(true) {
-        if (d->pause) {
-            d->sink->pause();
-            sem_wait(&d->pause_sem);
-            d->sink->resume();
+    while(true)
+    {
+        if (pause)
+        {
+            sink->pause();
+            sem_wait(&pause_sem);
+            sink->resume();
         }
-        if (d->halt) break;
+        if (halt) break;
 
-        no_error = d->buffered_decoder.readFrame(&frame);
+        no_error = buffered_decoder->readFrame(&frame);
 
-        if (!no_error) {
-            if (d->buffered_decoder.eof())
+        if (!no_error)
+        {
+            if (buffered_decoder->eof())
                 goto eof;
-            else
-            if (d->buffered_decoder.error())
+            else if (buffered_decoder->error())
                 goto error;
             else
                 AKODE_DEBUG("Blip?");
         }
-        else {
+        else
+        {
             AudioFrame* out_frame = &frame;
-            if (d->resampler) {
-                d->resampler->doFrame(out_frame, &re_frame);
+            if (std::shared_ptr<Resampler> r = resampler)
+            {
+                r->doFrame(out_frame, &re_frame);
                 out_frame = &re_frame;
             }
 
-            if (d->converter) {
-                d->converter->doFrame(out_frame, &c_frame);
+            if (converter)
+            {
+                converter->doFrame(out_frame, &c_frame);
                 out_frame = &c_frame;
             }
 
-            if (d->volume_filter)
-                d->volume_filter->doFrame(out_frame);
+            {
+                std::shared_ptr<VolumeFilter> volumeFilter = volume_filter;
+                if (volumeFilter)
+                    volumeFilter->doFrame(out_frame);
+            }
 
-            no_error = d->sink->writeFrame(out_frame);
+            no_error = sink->writeFrame(out_frame);
 
-            if (d->monitor)
-                d->monitor->writeFrame(out_frame);
+            if (monitor)
+                monitor->writeFrame(out_frame);
 
-            if (!no_error) {
+            if (!no_error)
+            {
                 // ### Check type of error
                 goto error;
             }
         }
     }
 
-// Stoped by Player::stop()
-//     d->buffered_decoder->stop();
-    assert(!d->detached);
-    return (void*)0;
+    return;
 
 error:
-    if (d->detached) d->cleanup();
-    else {
-        d->buffered_decoder.stop();
-        if (d->manager)
-            d->manager->errorEvent();
+    {
+        buffered_decoder->stop();
+        if (manager)
+            manager->errorEvent();
     }
-    return (void*)0;
-
+    return;
 eof:
-    if (d->detached) d->cleanup();
-    else {
-        d->buffered_decoder.stop();
-        if (d->manager)
-            d->manager->eofEvent();
+    {
+        buffered_decoder->stop();
+        if (manager)
+            manager->eofEvent();
     }
-    return (void*)0;
 }
 
 Player::Player()
 {
-#ifdef _WIN32
-    pthread_win32_process_attach_np();
-#endif
     d = new private_data;
     sem_init(&d->pause_sem,0,0);
 }
 
-Player::~Player() {
+Player::~Player()
+{
     close();
     sem_destroy(&d->pause_sem);
     delete d;
 }
 
-bool Player::open(Sink *sink)
+void Player::open(std::shared_ptr<Sink> sink)
 {
     if (state() != Closed)
         close();
@@ -256,13 +190,10 @@ bool Player::open(Sink *sink)
     d->sink = sink;
     if (!d->sink->open())
     {
-        AKODE_DEBUG("Could not open sink");
-        d->sink = 0;
-        return false;
+        d->sink.reset();
+        throw Exception<std::runtime_error>("Could not open sink");
     }
-    d->my_sink = false;
     setState(Open);
-    return true;
 }
 
 void Player::close()
@@ -273,253 +204,181 @@ void Player::close()
 
     assert(state() == Open);
 
-    delete d->volume_filter;
-    d->volume_filter = 0;
-
-    delete d->sink;
-    d->sink = 0;
+    d->sink.reset();
     setState(Closed);
 }
 
-bool Player::load(const FileName& filename) {
-    if (state() == Closed) return false;
+void Player::load(const FileName& filename)
+{
+    unload();
 
-    if (state() == Paused || state() == Playing)
-        stop();
+    if (state() != Open)
+        throw Exception<std::logic_error>("Player::load: called when not open");
 
-    if (state() == Loaded)
-        unload();
-
-    assert(state() == Open);
-
-    d->src = new MMapFile(filename);
+    std::shared_ptr<File> src = std::make_shared<MMapFile>(filename);
     // Test if the file _can_ be mmaped
-    if (!d->src->openRO()) {
-        delete d->src;
-        d->src = 0;
+    if (!src->openRO())
+    {
 #ifndef _WIN32
-        d->src = new LocalFile(filename);
-        if (!d->src->openRO()) {
-            AKODE_DEBUG("Could not open " << filename);
-            delete d->src;
-            d->src = 0;
-            return false;
+        std::shared_ptr<File> src = std::make_shared<LocalFile>(filename);
+        if (!src->openRO())
+        {
+            throw Exception<std::runtime_error>("Player::load: failed to open file");
         }
 #else
-        return false;
+        throw Exception<std::runtime_error>("Player::load: failed to open file");
 #endif
     }
+    d->src = src;
     // Some of the later code expects it to be closed
+    
     d->src->close();
-    d->my_file = true;
 
     return load();
 }
 
-bool Player::load(File *file) {
-    if (state() == Closed) return false;
-
-    if (state() == Paused || state() == Playing)
-        stop();
-
-    if (state() == Loaded)
-        unload();
-
-    assert(state() == Open);
+void Player::load(std::shared_ptr<File> file)
+{
+    if (state() != Open)
+        throw Exception<std::logic_error>("Player::load: called when not open");
 
     if (!file->openRO())
-        return false;
+        throw Exception<std::runtime_error>("Failed to open file");
+    // file should be closed before we start playing
     file->close();
 
     d->src = file;
-    d->my_file = false;
 
-    return load();
+    load();
 }
 
-bool Player::load()
+void Player::load()
 {
-    
-    for (unsigned deci=0; deci < d->registeredDecoders.size(); deci++)
+    try
     {
-        DecoderPlugin &decoder = *d->registeredDecoders[deci];
-        if (decoder.canDecode(d->src))
+        for (DecoderPlugin *const decoder : d->registeredDecoders)
         {
-            d->frame_decoder = decoder.openDecoder(d->src);
-            break;
+            if (decoder->canDecode(d->src.get()))
+            {
+                d->frame_decoder.reset(decoder->openDecoder(d->src.get()));
+                break;
+            }
         }
-    }
 
-    if (!d->frame_decoder)
+        if (!d->frame_decoder)
+            throw Exception<std::runtime_error>("Failed to open Decoder");
+
+        AudioFrame first_frame;
+
+        if (!d->frame_decoder->readFrame(&first_frame))
+            throw Exception<std::runtime_error>("Failed to decode first frame");
+
+        int state = d->sink->setAudioConfiguration(&first_frame);
+        if (state < 0)
+        {
+            throw Exception<std::runtime_error>("The sink could not be configured for this format");
+        }
+        else if (state > 0)
+        {
+            // Configuration not 100% accurate
+            d->sample_rate = d->sink->audioConfiguration()->sample_rate;
+            if (d->sample_rate != first_frame.sample_rate)
+            {
+                AKODE_DEBUG("Resampling to " << d->sample_rate);
+                d->resampler.reset(d->resampler_plugin->openResampler());
+                if (!d->resampler)
+                    throw Exception<std::runtime_error>("The resampler failed to load");
+                d->resampler->setSampleRate(d->sample_rate);
+            }
+            int out_channels = d->sink->audioConfiguration()->channels;
+            int in_channels = first_frame.channels;
+            if (in_channels != out_channels)
+            {
+                // ### We don't do mixing yet
+                throw Exception<std::runtime_error>("Sample has wrong number of channels");
+            }
+            int out_width = d->sink->audioConfiguration()->sample_width;
+            int in_width = first_frame.sample_width;
+            if (in_width != out_width)
+            {
+                AKODE_DEBUG("Converting to " << out_width << "bits");
+                if (!d->converter)
+                    d->converter.reset(new Converter(out_width));
+                else
+                    d->converter->setSampleWidth(out_width);
+            }
+        }
+        else
+        {
+            d->resampler.reset();
+            d->converter.reset();
+        }
+
+        // connect the streams to play
+        d->buffered_decoder->setBlockingRead(true);
+        d->buffered_decoder->openDecoder(d->frame_decoder.get());
+        d->buffered_decoder->buffer()->put(&first_frame);
+
+        setState(Loaded);
+    }
+    catch (...)
     {
-        AKODE_DEBUG("Failed to open Decoder");
-        delete d->src;
-        d->src = 0;
-        return false;
+        d->resampler.reset();
+        d->converter.reset();
+        d->frame_decoder.reset();
+        d->src.reset();
+        
+        throw;
     }
-
-    AudioFrame first_frame;
-
-    if (!d->frame_decoder->readFrame(&first_frame))
-    {
-        AKODE_DEBUG("Failed to decode first frame");
-        delete d->frame_decoder;
-        d->frame_decoder = 0;
-        delete d->src;
-        d->src = 0;
-        return false;
-    }
-
-    if (!loadResampler()) {
-        AKODE_DEBUG("The resampler failed to load");
-        return false;
-    }
-
-    int state = d->sink->setAudioConfiguration(&first_frame);
-    if (state < 0) {
-        AKODE_DEBUG("The sink could not be configured for this format");
-        delete d->frame_decoder;
-        d->frame_decoder = 0;
-        delete d->src;
-        d->src = 0;
-        return false;
-    }
-    else
-    if (state > 0) {
-        // Configuration not 100% accurate
-        d->sample_rate = d->sink->audioConfiguration()->sample_rate;
-        if (d->sample_rate != first_frame.sample_rate) {
-            AKODE_DEBUG("Resampling to " << d->sample_rate);
-            d->resampler->setSampleRate(d->sample_rate);
-        }
-        int out_channels = d->sink->audioConfiguration()->channels;
-        int in_channels = first_frame.channels;
-        if (in_channels != out_channels) {
-            // ### We don't do mixing yet
-            AKODE_DEBUG("Sample has wrong number of channels");
-            delete d->frame_decoder;
-            d->frame_decoder = 0;
-            delete d->src;
-            d->src = 0;
-            return false;
-        }
-        int out_width = d->sink->audioConfiguration()->sample_width;
-        int in_width = first_frame.sample_width;
-        if (in_width != out_width) {
-            AKODE_DEBUG("Converting to " << out_width << "bits");
-            if (!d->converter)
-                d->converter = new Converter(out_width);
-            else
-                d->converter->setSampleWidth(out_width);
-        }
-    }
-    else
-    {
-        delete d->resampler;
-        delete d->converter;
-        d->resampler = 0;
-        d->converter = 0;
-    }
-
-    // connect the streams to play
-    d->buffered_decoder.setBlockingRead(true);
-    d->buffered_decoder.openDecoder(d->frame_decoder);
-    d->buffered_decoder.buffer()->put(&first_frame);
-
-    setState(Loaded);
-
-    return true;
 }
 
-bool Player::loadResampler()
+void Player::unload()
 {
-    if (!d->resampler)
-    {
-        d->resampler = d->resampler_plugin->openResampler();
-    }
-    return d->resampler != 0;
-}
+    if (state() == Open) return;
+    stop();
+    if (state() != Loaded)
+        throw Exception<std::logic_error>("Player::unload called when not loaded");
 
-void Player::unload() {
-    if (state() == Closed || state() == Open) return;
-    if (state() == Paused || state() == Playing)
-        stop();
+    d->buffered_decoder->closeDecoder();
 
-    assert(state() == Loaded);
+    d->frame_decoder.reset();
+    d->src.reset();
 
-    d->buffered_decoder.closeDecoder();
-
-    delete d->frame_decoder;
-    if (d->my_file)
-        delete d->src;
-
-    d->frame_decoder = 0;
-    d->src = 0;
-
-    delete d->resampler;
-    delete d->converter;
-    d->resampler = 0;
-    d->converter = 0;
-
+    d->resampler.reset();
+    d->converter.reset();
+    
     setState(Open);
 }
 
 void Player::play()
 {
-    if (state() == Closed || state() == Open) return;
-    if (state() == Playing) return;
-
-    if (state() == Paused) {
-        return resume();
-    }
-
-    assert(state() == Loaded);
+    if (state() != Loaded)
+        throw Exception<std::logic_error>("Player::play called when not loaded");
 
     d->frame_decoder->seek(0);
 
     // Start buffering
-    d->buffered_decoder.start();
+    d->buffered_decoder->start();
 
     d->halt = d->pause = false;
 
-    if (pthread_create(&d->player_thread, 0, run_player, d) == 0) {
+    try
+    {
+        d->player_thread.reset(new std::thread(std::bind(&private_data::runThread, d)));
         d->running = true;
         setState(Playing);
-    } else {
-        d->running = false;
+    }
+    catch (...)
+    {
         setState(Loaded);
     }
 }
 
-void Player::detach() {
-    if (state() == Closed || state() == Open) return;
-    if (state() == Loaded) return;
-
-    if (state() == Paused) resume();
-
-    assert(state() == Playing);
-
-    if (d->running) {
-        pthread_detach(d->player_thread);
-        d->running = false;
-    }
-
-    private_data * d_new  = new private_data;
-    d_new->sink = d->sink;
-    d_new->volume_filter = d->volume_filter;
-    d_new->sample_rate = d->sample_rate;
-    d_new->state = d->state;
-
-    d->detached = true;
-    d = d_new;
-
-    setState(Open);
-}
-
-
-void Player::stop() {
-    if (state() == Closed || state() == Open) return;
-    if (state() == Loaded) return;
+void Player::stop()
+{
+    if (state() == Open || state() == Loaded) return;
+    if (state() != Playing && state() != Paused)
+        throw Exception<std::logic_error>("Player::stop called when not playing or paused");
 
     // Needs to set halt first to avoid the paused thread playing a soundbite
     d->halt = true;
@@ -527,46 +386,34 @@ void Player::stop() {
 
     assert(state() == Playing);
 
-    d->buffered_decoder.stop();
+    d->buffered_decoder->stop();
 
-    if (d->running) {
-        pthread_join(d->player_thread, 0);
+    if (d->running)
+    {
+        d->player_thread->join();
+        d->player_thread.reset();
         d->running = false;
     }
 
     setState(Loaded);
 }
 
-// Much like stop except we don't send a halt signal
-void Player::wait() {
-    if (state() == Closed || state() == Open) return;
-    if (state() == Loaded) return;
-
-    if (state() == Paused) resume();
-
-    assert(state() == Playing);
-
-    if (d->running) {
-        pthread_join(d->player_thread, 0);
-        d->running = false;
-    }
-
-    setState(Loaded);
-}
-
-void Player::pause() {
-    if (state() == Closed || state() == Open || state() == Loaded) return;
+void Player::pause()
+{
     if (state() == Paused) return;
-
-    assert(state() == Playing);
+    if (state() != Playing)
+        throw Exception<std::logic_error>("Player::pause called when not playing");
 
     //d->buffer->pause();
     d->pause = true;
     setState(Paused);
 }
 
-void Player::resume() {
-    if (state() != Paused) return;
+void Player::resume()
+{
+    if (state() == Playing) return;
+    if (state() != Paused)
+        throw Exception<std::logic_error>("Player::resume called when not paused");
 
     d->pause = false;
     sem_post(&d->pause_sem);
@@ -575,47 +422,58 @@ void Player::resume() {
 }
 
 
-void Player::setVolume(float f) {
+void Player::setVolume(float f)
+{
     if (f < 0.0 || f > 1.0) return;
 
-    if (f != 1.0 && !d->volume_filter) {
-        VolumeFilter *vf = new VolumeFilter();
+    std::shared_ptr<VolumeFilter> vf = d->volume_filter;
+    
+    if (f != 1.0 && !vf)
+    {
+        vf = std::make_shared<VolumeFilter>();
         vf->setVolume(f);
         d->volume_filter = vf;
     }
-    else if (f != 1.0) {
-        d->volume_filter->setVolume(f);
+    else if (f != 1.0)
+    {
+        vf->setVolume(f);
     }
-    else if (d->volume_filter) {
-        VolumeFilter *f = d->volume_filter;
-        d->volume_filter = 0;
-        delete f;
+    else if (vf)
+    {
+        vf.reset();
     }
 }
 
-float Player::volume() const {
-    if (!d->volume_filter) return 1.0;
+float Player::volume() const
+{
+    if (std::shared_ptr<VolumeFilter> vf = d->volume_filter)
+        return vf->volume();
     else
-        return d->volume_filter->volume();
+        return 1.0;
 }
 
-File* Player::file() const {
+std::shared_ptr<File> Player::file() const 
+{
     return d->src;
 }
 
-Sink* Player::sink() const {
+std::shared_ptr<Sink> Player::sink() const
+{
     return d->sink;
 }
 
-Decoder* Player::decoder() const {
-    return &d->buffered_decoder;
+std::shared_ptr<Decoder> Player::decoder() const
+{
+    return d->buffered_decoder;
 }
 
-Resampler* Player::resampler() const {
+std::shared_ptr<Resampler> Player::resampler() const
+{
     return d->resampler;
 }
 
-Player::State Player::state() const {
+Player::State Player::state() const
+{
     return d->state;
 }
 
@@ -624,20 +482,26 @@ void Player::registerDecoderPlugin(DecoderPlugin *decoder)
     d->registeredDecoders.push_back(decoder);
 }
 
-void Player::setResamplerPlugin(ResamplerPlugin *resampler) {
+void Player::setResamplerPlugin(std::shared_ptr<ResamplerPlugin> resampler)
+{
     d->resampler_plugin = resampler;
 }
 
-void Player::setManager(Manager *manager) {
+void Player::setManager(std::shared_ptr<Manager> manager)
+{
     d->manager = manager;
 }
 
-void Player::setMonitor(Monitor *monitor) {
+void Player::setMonitor(std::shared_ptr<Monitor> monitor)
+{
     d->monitor = monitor;
 }
 
-void Player::setState(Player::State state) {
-    d->setState(state);
+void Player::setState(Player::State state)
+{
+    d->state = state;
+    if (d->manager)
+        d->manager->stateChangeEvent(state);
 }
 
 

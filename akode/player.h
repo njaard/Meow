@@ -24,6 +24,9 @@
 #include "akode_export.h"
 #include "file.h"
 
+#include <mutex>
+#include <memory>
+
 namespace aKode {
 
 class File;
@@ -33,6 +36,32 @@ class ResamplerPlugin;
 class Resampler;
 class AudioFrame;
 class DecoderPlugin;
+
+class ExceptionBase
+{
+public:
+    virtual ~ExceptionBase() noexcept { }
+    virtual const char* what() const noexcept =0;
+};
+
+template<class Type>
+class Exception : public ExceptionBase, public Type
+{
+public:
+    template<typename ...Args>
+    Exception(const Args ...a)
+        : Type(a...)
+    { }
+    
+    Exception() = delete;
+    Exception(const Exception &o)
+        : Type(o)
+    { }
+    virtual const char* what() const noexcept
+    {
+        return Type::what();
+    }
+};
 
 
 //! An implementation of a multithreaded aKode-player
@@ -50,12 +79,11 @@ public:
 
     /*!
      * Opens a player that outputs to the sink \a sink
-     * Returns false if the device cannot be opened.
      *
      * The object is owned by and should be destroyed by the owner after close()
      * State: \a Closed -> \a Open
      */
-    bool open(Sink* sink);
+    void open(std::shared_ptr<Sink> sink);
 
     /*!
      * Closes the player and releases the sink
@@ -71,17 +99,17 @@ public:
      *
      * State: \a Open -> \a Loaded
      */
-    bool load(const FileName &filename);
+    void load(const FileName &filename);
 
     /*!
      * Loads the file \a file and prepares for playing.
      * Returns false if the file cannot be loaded or decoded.
      *
-     * This version allows for overloaded aKode::File objects; usefull for streaming.
+     * This version allows for overloaded aKode::File objects; useful for streaming.
      *
      * State: \a Open -> \a Loaded
      */
-    bool load(File* file);
+    void load(std::shared_ptr<File> file);
 
     /*!
      * Unload the file and release any resources allocated while loaded
@@ -103,20 +131,6 @@ public:
      *        \a Paused -> \a Loaded
      */
     void stop();
-    /*!
-     * Waits for the file to finish playing (eof or error) and calls stop.
-     * This blocks the calling thread, possibly indefinitely if the source is a radio stream.
-     *
-     * State: \a Playing -> \a Loaded
-     */
-    void wait();
-    /* Not implemented!
-     * Detach the playing file, and bring the player back to Open state.
-     * The detached file will stop and unload by itself when finished
-     *
-     * State: \a Playing -> \a Open
-     */
-    void detach();
     /*!
      * Pause the player.
      *
@@ -143,18 +157,18 @@ public:
      */
     float volume() const;
 
-    File* file() const;
-    Sink* sink() const;
+    std::shared_ptr<File> file() const;
+    std::shared_ptr<Sink> sink() const;
     /*!
      * Returns the current decoder interface.
      * Used for seek, position and length.
      */
-    Decoder* decoder() const;
+    std::shared_ptr<Decoder> decoder() const;
     /*!
      * Returns the current resampler interface.
      * Used for adjusting playback speed.
      */
-    Resampler* resampler() const;
+    std::shared_ptr<Resampler> resampler() const;
 
     enum State { Closed  = 0,
                  Open    = 2,
@@ -175,37 +189,36 @@ public:
      */
     class Manager
     {
-        Player* m_player;
     public:
         virtual ~Manager() { }
         /*!
          * Called for all user-generated state changes (User thread)
          */
-        virtual void stateChangeEvent(Player::State) {}
+        virtual void stateChangeEvent(Player::State)=0;
         /*!
          * Called when a decoder halts because it has reached end of file (Local thread).
          * The callee should effect a Player::stop()
          */
-        virtual void eofEvent() {}
+        virtual void eofEvent()=0;
         /*!
          * Called when a decoder halts because of a fatal error (Local thread).
          * The callee should effect a Player::stop()
          */
-        virtual void errorEvent() {}
+        virtual void errorEvent()=0;
     };
 
     /*!
      * Sets an associated callback interface.
      * Can only be set before open() is called.
      */
-    void setManager(Manager *manager);
+    void setManager(std::shared_ptr<Manager> manager);
 
     void registerDecoderPlugin(DecoderPlugin *decoder);
 
     /*!
      * Sets the resampler plugin to use. Default is "fast".
      */
-    void setResamplerPlugin(ResamplerPlugin *resampler);
+    void setResamplerPlugin(std::shared_ptr<ResamplerPlugin> resampler);
 
     /*!
      * A Monitor is sink-like device.
@@ -221,16 +234,14 @@ public:
      * Sets a secondary sink to monitor output
      * Can only be set before play() is called.
      */
-    void setMonitor(Monitor *monitor);
+    void setMonitor(std::shared_ptr<Monitor> monitor);
 
-
-    struct private_data;
 private:
+    struct private_data;
     private_data *d;
 
-    bool load();
+    void load();
     void setState(State state);
-    bool loadResampler();
 };
 
 } // namespace

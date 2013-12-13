@@ -85,44 +85,51 @@ Player::State PlayerPrivate::convertState(aKode::Player::State s)
 
 void PlayerPrivate::initAvKode()
 {
-	if (akPlayer)
-		return;
-	akPlayer = new aKode::Player;
-#ifdef _WIN32
-	akPlayer->open( aKode::dsound_sink().openSink(device) );
-#elif __linux__
-	akPlayer->open( aKode::alsa_sink().openSink(device) );
-#else
-#error No sink
-#endif
-	akPlayer->registerDecoderPlugin(&aKode::mpg123_decoder());
-	akPlayer->registerDecoderPlugin(&aKode::vorbis_decoder());
-#ifdef AKODE_WITH_OPUS
-	akPlayer->registerDecoderPlugin(&aKode::opus_decoder());
-#endif
-	akPlayer->registerDecoderPlugin(&aKode::flac_decoder());
-#ifdef AKODE_WITH_MUSEPACK
-	akPlayer->registerDecoderPlugin(&aKode::mpc_decoder());
-#endif
-	akPlayer->setManager(this);
+	try
+	{
+		if (akPlayer)
+			return;
+		akPlayer = new aKode::Player;
+	#ifdef _WIN32
+		akPlayer->open( aKode::dsound_sink().openSink(device) );
+	#elif __linux__
+		akPlayer->open( aKode::alsa_sink().openSink(device) );
+	#else
+	#error No sink
+	#endif
+		akPlayer->registerDecoderPlugin(&aKode::mpg123_decoder());
+		akPlayer->registerDecoderPlugin(&aKode::vorbis_decoder());
+	#ifdef AKODE_WITH_OPUS
+		akPlayer->registerDecoderPlugin(&aKode::opus_decoder());
+	#endif
+		akPlayer->registerDecoderPlugin(&aKode::flac_decoder());
+	#ifdef AKODE_WITH_MUSEPACK
+		akPlayer->registerDecoderPlugin(&aKode::mpc_decoder());
+	#endif
+		akPlayer->setManager(shared_from_this());
 
-	q->setVolume(volumePercent);
-	
-	QObject::connect(
-			q, SIGNAL(stStateChangeEvent(int)),
-			q, SLOT(tStateChangeEvent(int)),
-			Qt::QueuedConnection
-		);
-	QObject::connect(
-			q, SIGNAL(stEofEvent()),
-			q, SLOT(tEofEvent()),
-			Qt::QueuedConnection
-		);
-	QObject::connect(
-			q, SIGNAL(stErrorEvent()),
-			q, SLOT(tErrorEvent()),
-			Qt::QueuedConnection
-		);
+		q->setVolume(volumePercent);
+		
+		QObject::connect(
+				q, SIGNAL(stStateChangeEvent(int)),
+				q, SLOT(tStateChangeEvent(int)),
+				Qt::QueuedConnection
+			);
+		QObject::connect(
+				q, SIGNAL(stEofEvent()),
+				q, SLOT(tEofEvent()),
+				Qt::QueuedConnection
+			);
+		QObject::connect(
+				q, SIGNAL(stErrorEvent()),
+				q, SLOT(tErrorEvent()),
+				Qt::QueuedConnection
+			);
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 }
 
 void PlayerPrivate::stateChangeEvent(aKode::Player::State state)
@@ -142,34 +149,41 @@ void PlayerPrivate::errorEvent()
 
 void PlayerPrivate::tStateChangeEvent(int newState)
 {
-	switch (newState)
+	try
 	{
-	case aKode::Player::Playing:
-		emit q->playing();
-		emit q->playing(true);
-		timer->start(500);
-		break;
-	case aKode::Player::Paused:
-		emit q->playing(false);
-		emit q->paused();
-		timer->stop();
-		break;
-	case aKode::Player::Loaded:
-		if (nowLoading)
+		switch (newState)
 		{
-			nowLoading = false;
-			akPlayer->play();
-		}
-		else
-		{
+		case aKode::Player::Playing:
+			emit q->playing();
+			emit q->playing(true);
+			timer->start(500);
+			break;
+		case aKode::Player::Paused:
 			emit q->playing(false);
-			emit q->stopped();
+			emit q->paused();
 			timer->stop();
+			break;
+		case aKode::Player::Loaded:
+			if (nowLoading)
+			{
+				nowLoading = false;
+				akPlayer->play();
+			}
+			else
+			{
+				emit q->playing(false);
+				emit q->stopped();
+				timer->stop();
+			}
+		default:
+			break;
 		}
-	default:
-		break;
+		emit q->stateChanged(convertState(aKode::Player::State(newState)));
 	}
-	emit q->stateChanged(convertState(aKode::Player::State(newState)));
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 }
 
 void PlayerPrivate::tEofEvent()
@@ -184,10 +198,17 @@ void PlayerPrivate::tErrorEvent()
 
 void PlayerPrivate::tick()
 {
-	if (aKode::Decoder *dec = akPlayer->decoder())
+	try
 	{
-		emit q->positionChanged(dec->length());
-		emit q->lengthChanged(dec->position());
+		if (std::shared_ptr<aKode::Decoder> dec = akPlayer->decoder())
+		{
+			emit q->positionChanged(dec->length());
+			emit q->lengthChanged(dec->position());
+		}
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
 	}
 }
 
@@ -215,7 +236,6 @@ Player::Player()
 Player::~Player()
 {
 	delete d->akPlayer;
-	delete d;
 }
 
 std::vector<std::pair<std::string,std::string>> Player::devices() const
@@ -235,16 +255,22 @@ std::string Player::currentDevice() const
 void Player::setCurrentDevice(const std::string &name)
 {
 	if (d->device == name) return;
-	
-	d->device = name;
-	std::cerr << "Opening device " << name << std::endl;
+	try
+	{
+		d->device = name;
+		std::cerr << "Opening device " << name << std::endl;
 #ifdef _WIN32
-	if (d->akPlayer)
-		d->akPlayer->open( aKode::dsound_sink().openSink(name) );
+		if (d->akPlayer)
+			d->akPlayer->open( aKode::dsound_sink().openSink(name) );
 #elif __linux__
-	if (d->akPlayer)
-		d->akPlayer->open( aKode::alsa_sink().openSink(name) );
+		if (d->akPlayer)
+			d->akPlayer->open( aKode::alsa_sink().openSink(name) );
 #endif
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 }
 
 Player::State Player::state() const
@@ -284,7 +310,14 @@ void Player::stop()
 {
 	if (isStopped())
 		return;
-	d->akPlayer->stop();
+	try
+	{
+		d->akPlayer->stop();
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 	d->currentItem.reset();
 	emit currentItemChanged(File());
 }
@@ -294,21 +327,35 @@ void Player::pause()
 {
 	if (!isPlaying())
 		return;
-	d->akPlayer->pause();
+	try
+	{
+		d->akPlayer->pause();
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 }
 
 
 void Player::play()
 {
-	Player::State st = state();
-	if (d->nowLoading)
-		d->akPlayer->play();
-	else if (st == Player::PlayingState)
-		return;
-	else if (st == Player::PausedState)
-		d->akPlayer->play(); // unpause
-	else if (d->currentItem.get())
-		play(*d->currentItem);
+	try
+	{
+		Player::State st = state();
+		if (d->nowLoading)
+			d->akPlayer->play();
+		else if (st == Player::PlayingState)
+			return;
+		else if (st == Player::PausedState)
+			d->akPlayer->play(); // unpause
+		else if (d->currentItem.get())
+			play(*d->currentItem);
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 }
 
 namespace
@@ -334,14 +381,22 @@ void Player::play(const File &item)
 		return;
 
 	std::cerr << "Starting to play new current track" << std::endl;
-	d->currentItem.reset(new File(item));
-	d->nowLoading = true;
-#ifdef _WIN32
-	dirty_trick<sizeof(wchar_t) == sizeof(ushort)>();
-	d->akPlayer->load( (wchar_t*)item.file().utf16() );
-#else
-	d->akPlayer->load( QFile::encodeName(item.file()).data() );
-#endif
+	try
+	{
+		d->akPlayer->stop();
+		d->currentItem.reset(new File(item));
+		d->nowLoading = true;
+	#ifdef _WIN32
+		dirty_trick<sizeof(wchar_t) == sizeof(ushort)>();
+		d->akPlayer->load( (wchar_t*)item.file().utf16() );
+	#else
+		d->akPlayer->load( QFile::encodeName(item.file()).data() );
+	#endif
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 	emit currentItemChanged(*d->currentItem);
 }
 
@@ -356,26 +411,43 @@ void Player::playpause()
 
 void Player::playpause(bool p)
 {
-	if (p)
-		play();
-	else
-		pause();
+	try
+	{
+		if (p)
+			play();
+		else
+			pause();
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
 }
 
 void Player::setPosition(unsigned int msec)
 {
-	if (d->akPlayer && d->akPlayer->decoder())
+	try
 	{
-		d->akPlayer->decoder()->seek(msec);
+		if (d->akPlayer)
+		{
+			if (std::shared_ptr<aKode::Decoder> dec = d->akPlayer->decoder())
+				dec->seek(msec);
+		}
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
 	}
 }
 
 unsigned int Player::position() const
 {
-	if (d->akPlayer && d->akPlayer->decoder())
-		return d->akPlayer->decoder()->position();
-	else
-		return 0;
+	if (d->akPlayer)
+	{
+		if (std::shared_ptr<aKode::Decoder> dec = d->akPlayer->decoder())
+			return dec->position();
+	}
+	return 0;
 }
 
 static QString formatDuration(int duration)
@@ -439,10 +511,17 @@ QString Player::positionString() const
 
 unsigned int Player::currentLength() const
 {
-	if (d->akPlayer && d->akPlayer->decoder())
-		return d->akPlayer->decoder()->length();
-	else
-		return 0;
+	try
+	{
+		if (d->akPlayer)
+			if (std::shared_ptr<aKode::Decoder> dec = d->akPlayer->decoder())
+				return dec->length();
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
+	return 0;
 }
 
 QString Player::lengthString() const
@@ -457,11 +536,18 @@ int Player::volume() const
 
 void Player::setVolume(int percent)
 {
-	percent = qBound(0, percent, 100);
-	double vol = (std::pow(10,percent*.01)-1)/(std::pow(10, 1)-1);
-	if (d->akPlayer)
-		d->akPlayer->setVolume(vol);
-	
+	try
+	{
+		percent = qBound(0, percent, 100);
+		double vol = (std::pow(10,percent*.01)-1)/(std::pow(10, 1)-1);
+		if (d->akPlayer)
+			d->akPlayer->setVolume(vol);
+	}
+	catch (aKode::ExceptionBase &e)
+	{
+		std::cerr << "akode error: " << e.what() << std::endl;
+	}
+
 	if (d->volumePercent != percent)
 	{
 		d->volumePercent = percent;

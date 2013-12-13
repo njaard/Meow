@@ -352,9 +352,9 @@ class ALSASinkPlugin : public SinkPlugin
 {
 public:
     ALSASinkPlugin() : SinkPlugin("alsa") { }
-    virtual ALSASink* openSink(const std::string &deviceName)
+    virtual std::shared_ptr<Sink> openSink(const std::string &deviceName)
     {
-        return new ALSASink(deviceName);
+        return std::make_shared<ALSASink>(deviceName);
     }
     virtual std::vector<std::pair<std::string, std::string>> deviceNames()
     {

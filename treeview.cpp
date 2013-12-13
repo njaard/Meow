@@ -605,9 +605,9 @@ void Meow::TreeView::playAt(QTreeWidgetItem *_item)
 
 #ifdef _WIN32
 #if QT_VERSION!=0x040703
-#error This line might need to be removed with a Qt update
+//#error This line might need to be removed with a Qt update
 #endif
-	delete itemWidget(mCurrent, 0);
+//	delete itemWidget(mCurrent, 0);
 #endif
 	removeItemWidget(mCurrent, 0);
 	mCurrent = cur;

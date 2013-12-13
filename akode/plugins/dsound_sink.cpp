@@ -355,9 +355,9 @@ class DSoundSinkPlugin : public SinkPlugin
 {
 public:
     DSoundSinkPlugin() : SinkPlugin("dsound") { }
-    virtual DSoundSink* openSink(const std::string &device)
+    virtual std::shared_ptr<Sink> openSink(const std::string &device)
     {
-        return new DSoundSink(device);
+        return std::make_shared<DSoundSink>(device);
     }
     virtual std::vector<std::pair<std::string, std::string> > deviceNames()
     {

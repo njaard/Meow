@@ -2,6 +2,10 @@
 #include "file.h"
 #include "sqlt.h"
 
+#ifdef _WIN32
+#define TAGLIB_STATIC
+#endif
+
 #include <taglib/tag.h>
 #include <taglib/fileref.h>
 

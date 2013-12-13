@@ -26,6 +26,7 @@
 #include "akode_export.h"
 
 #include <vector>
+#include <memory>
 
 namespace aKode
 {
@@ -91,7 +92,7 @@ public:
      * Asks the plugin to open a Sink, returns 0 if the
      * plugin could not.
      */
-    virtual Sink* openSink(const std::string &deviceName) = 0;
+    virtual std::shared_ptr<Sink> openSink(const std::string &deviceName) = 0;
     
     /**
      * asks the plugin for a list of available device names,

@@ -755,8 +755,10 @@ void Meow::MainWindow::itemProperties()
 		in.fMask = SEE_MASK_INVOKEIDLIST;
 		in.hwnd = effectiveWinId();
 		in.lpVerb = L"properties";
-		std::cerr << "file: " << files[0].file().toUtf8().constData() << std::endl;
-		in.lpFile = (const WCHAR*)files[0].file().utf16();
+		QString f = files[0].file();
+		f.replace('/', '\\');
+		std::cerr << "file: " << f.toUtf8().constData() << std::endl;
+		in.lpFile = (const WCHAR*)f.utf16();
 		ShellExecuteExW(&in);
 #endif
 	}

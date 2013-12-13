@@ -895,7 +895,8 @@ void Meow::Scrobble::lastSongFinishedPlaying()
 	}
 	else
 	{
-		std::cerr << "Didn't play that last song long enough to submit it" << std::endl;
+		if (isEnabled())
+			std::cerr << "Didn't play that last song long enough to submit it" << std::endl;
 	}
 	d->currentlyPlaying = File();
 

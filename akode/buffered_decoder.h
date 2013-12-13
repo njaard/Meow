@@ -29,7 +29,8 @@ namespace aKode {
 class AudioBuffer;
 class AudioConfiguration;
 
-class AKODE_EXPORT BufferedDecoder : public Decoder {
+class AKODE_EXPORT BufferedDecoder : public Decoder
+{
 public:
     BufferedDecoder();
     virtual ~BufferedDecoder();

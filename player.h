@@ -32,6 +32,7 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 namespace Meow
 {
@@ -265,7 +266,7 @@ Q_SIGNALS:
 	Q_SCRIPTABLE void finished();
 
 private:
-	PlayerPrivate * const d;
+	const std::shared_ptr<PlayerPrivate> d;
 
 private:
 	Q_PRIVATE_SLOT(d, void tStateChangeEvent(int))

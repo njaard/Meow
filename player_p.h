@@ -42,7 +42,7 @@ namespace Meow
 {
 
 
-class PlayerPrivate : public aKode::Player::Manager
+class PlayerPrivate : public std::enable_shared_from_this<PlayerPrivate>, public aKode::Player::Manager
 {
 public:
 	virtual ~PlayerPrivate() { }
