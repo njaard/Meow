@@ -44,7 +44,7 @@ int main( int argc, char **argv )
 	for (int i=0; i < args->count(); i++)
 		files.push_back(args->url(i));
 
-	Meow::MainWindow *dlg = new Meow::MainWindow(files.size());
+	Meow::MainWindow *dlg = new Meow::MainWindow(!files.empty() || app.isSessionRestored());
 	for (unsigned i=0; i < files.size(); ++i)
 	{
 		if (i == 0)
@@ -90,7 +90,7 @@ int main( int argc, char **argv )
 		files.push_back(QUrl::fromLocalFile(QFile::decodeName(argv[i])));
 	}
 	
-	Meow::MainWindow *dlg = new Meow::MainWindow(!files.empty());
+	Meow::MainWindow *dlg = new Meow::MainWindow(!files.empty() || app.isSessionRestored());
 	for (unsigned i=0; i < files.size(); ++i)
 	{
 		if (i == 0)

@@ -54,8 +54,8 @@ namespace aKode
 struct Player::private_data
 {
     private_data()
-        : resampler_plugin(&fast_resampler())
-        , buffered_decoder(std::make_shared<BufferedDecoder>())
+        : buffered_decoder(std::make_shared<BufferedDecoder>())
+        , resampler_plugin(&fast_resampler())
     {}
 
     std::shared_ptr<File> src;
