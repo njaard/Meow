@@ -1,0 +1,12 @@
+For windows, I cross-compiled Qt with the following flags:
+./configure -xplatform win32-g++  -prefix $PWD/install -nomake examples -nomake demos -nomake docs -nomake translations  -no-dbus -no-cups -no-nis  -qt-zlib  -no-declarative-debug  -no-scripttools  -no-script  -no-svg  -no-webkit  -no-phonon  -no-audio-backend -no-multimedia  -no-xmlpatterns  -no-exceptions -fast -opensource   -device-option CROSS_COMPILE=i686-w64-mingw32- -graphicssystem raster -release -static -confirm-license -ltcg
+
+But first I modified mkspecs/win32-g++/qmake.conf to use -Os as the build flags instead of -O2
+
+Modify  src/corelib/global/qfeatures.h uncomment:
+#define QT_NO_BIG_CODECS
+#define QT_NO_COP
+#define QT_NO_CSSPARSER
+#define QT_NO_DIRECTPAINTER
+
+

@@ -1,6 +1,7 @@
 /*  aKode: MMapFile
 
     Copyright (C) 2004 Allan Sandfeld Jensen <kde@carewolf.com>
+    Copyright (C) 2013 Charles Samuels <charles@kde.org>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
