@@ -192,11 +192,6 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
         d->config.sample_width = config->sample_width;
         exact = 1;
     }
-    if (config->sample_rate!=44100)
-    {
-        d->config.sample_rate = 44100;
-        exact = 1;
-    }
 
     WAVEFORMATEX wfx; 
     memset(&wfx, 0, sizeof(WAVEFORMATEX)); 
