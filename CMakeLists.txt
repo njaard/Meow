@@ -83,14 +83,22 @@ else()
 		DOC "taglib library"
 	)
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(TAGLIB DEFAULT_MSG TAGLIB_LIBRARY TAGLIB_INCLUDE_DIR)
+
 	find_path(MPG123_INCLUDE_DIR NAMES mpg123.h
 		DOC "mpg123 decoder include directory"
 	)
 	find_library(MPG123_LIBRARY NAMES mpg123
 		DOC "mpg123 decoder library"
 	)
-
 	FIND_PACKAGE_HANDLE_STANDARD_ARGS(MPG123 DEFAULT_MSG MPG123_LIBRARY MPG123_INCLUDE_DIR)
+
+	find_path(SPEEX_INCLUDE_DIR NAMES speex/speex.h
+		DOC "speex decoder include directory"
+	)
+	find_library(SPEEX_LIBRARY NAMES speex
+		DOC "speex decoder library"
+	)
+	FIND_PACKAGE_HANDLE_STANDARD_ARGS(SPEEX DEFAULT_MSG SPEEX_LIBRARY SPEEX_INCLUDE_DIR)
 
 	find_path(VORBIS_INCLUDE_DIR NAMES vorbisfile.h
 		PATH_SUFFIXES vorbis
@@ -174,6 +182,7 @@ else()
 			${TAGLIB_INCLUDE_DIR}
 			${ALSA_INCLUDE_DIR}
 			${MPG123_INCLUDE_DIR}
+			${SPEEX_INCLUDE_DIR}
 			${VORBIS_INCLUDE_DIR}
 			${OPUS_INCLUDE_DIR}
 			${FLAC113_INCLUDE_DIR}
@@ -216,6 +225,7 @@ set(
 	akode/plugins/mpg123_decoder.cpp
 	akode/plugins/vorbis_decoder.cpp
 	akode/plugins/opus_decoder.cpp
+	akode/plugins/speex_decoder.cpp
 	akode/plugins/flac113_decoder.cpp
 	akode/plugins/mpc_decoder.cpp
 	${platform_sources}
@@ -249,7 +259,7 @@ elseif(${MEOW_QT})
 	target_link_libraries(meow-qt
 		pthread
 		${ALSA_LIBRARY} ${SQLITE3_LIBRARY}
-		${TAGLIB_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
+		${TAGLIB_LIBRARY} ${SPEEX_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
 		${FLAC113_LIBRARY}  ${X11_LIBRARY}
 		${QT_LIBRARIES}
 		${MPC_LIBRARY}
@@ -263,7 +273,7 @@ else()
 	install(TARGETS meow ${INSTALL_TARGETS_DEFAULT_ARGS})
 	target_link_libraries(meow ${CMAKE_THREAD_LIBS_INIT}
 		${ALSA_LIBRARY} ${SQLITE_LIBRARIES} ${KDE4_KDEUI_LIBS} ${KDE4_KFILE_LIBS}
-		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
+		${KDE4_KIO_LIBS} ${TAGLIB_LIBRARIES} ${SPEEX_LIBRARY} ${MPG123_LIBRARY} ${VORBIS_LIBRARY} ${OPUS_LIBRARY}
 		${FLAC113_LIBRARY} ${X11_LIBRARY}
 		${MPC_LIBRARY}
 	)

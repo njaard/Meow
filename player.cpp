@@ -53,6 +53,7 @@
 #endif
 #include "akode/plugins/mpc_decoder.h"
 #include "akode/plugins/flac113_decoder.h"
+#include "akode/plugins/speex_decoder.h"
 
 #ifdef _WIN32
 #include "akode/plugins/dsound_sink.h"
@@ -106,6 +107,7 @@ void PlayerPrivate::initAvKode()
 	#ifdef AKODE_WITH_MUSEPACK
 		akPlayer->registerDecoderPlugin(&aKode::mpc_decoder());
 	#endif
+		akPlayer->registerDecoderPlugin(&aKode::speex_decoder());
 		akPlayer->setManager(shared_from_this());
 
 		q->setVolume(volumePercent);
@@ -445,7 +447,11 @@ unsigned int Player::position() const
 	if (d->akPlayer)
 	{
 		if (std::shared_ptr<aKode::Decoder> dec = d->akPlayer->decoder())
-			return dec->position();
+		{
+			unsigned int p = dec->position();
+			//std::cerr << "pos: " << p << std::endl;
+			return p;
+		}
 	}
 	return 0;
 }
@@ -515,7 +521,11 @@ unsigned int Player::currentLength() const
 	{
 		if (d->akPlayer)
 			if (std::shared_ptr<aKode::Decoder> dec = d->akPlayer->decoder())
-				return dec->length();
+			{
+				unsigned int l = dec->length();
+				// std::cerr << "len: " << l << std::endl;
+				return l;
+			}
 	}
 	catch (aKode::ExceptionBase &e)
 	{
@@ -590,6 +600,7 @@ QStringList Player::mimeTypes() const
 	m << "audio/flac";
 	m << "audio/x-flac";
 	m << "audio/x-musepack";
+	m << "audio/speex";
 	return m;
 }
 

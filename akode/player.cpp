@@ -352,9 +352,14 @@ void Player::unload()
 
 void Player::play()
 {
-    if (state() != Loaded)
+    if (state() != Loaded && state() != Paused)
         throw Exception<std::logic_error>("Player::play called when not loaded");
 
+    if (state() == Paused)
+    {
+        resume();
+        return;
+    }
     d->frame_decoder->seek(0);
 
     // Start buffering
