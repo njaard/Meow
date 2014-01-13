@@ -38,6 +38,8 @@
 
 #include "player.h"
 
+#undet NDEBUG
+
 #ifndef NDEBUG
 #include <iostream>
 #define AKODE_DEBUG(x) {std::cerr << "akode: " << x << "\n";}
