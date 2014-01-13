@@ -33,7 +33,7 @@ tar --exclude-vcs -c meow_$version | bzip2 -9 > packages/meow_$version.tar.bz2
 rm -rf meow_$version
 cd meow
 
-sudo bash releasetools/release-tools.sh 
+sudo bash releasetools/release-tools.sh $version
 
 #make apt repository
 dpkg-sig -m 'release@meowplayer.org' -s origin $THERE/packages/*.deb

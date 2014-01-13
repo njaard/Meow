@@ -2,6 +2,7 @@
 
 platform="$1"
 packagefmt="$2"
+version="$3"
 
 if [[ $packagefmt == "deb" ]]
 then
@@ -11,11 +12,13 @@ then
 	meow_package=RPM
 fi
 
+echo "Building package for $i"
+
 if [[ $platform == "debian-unstable-win32-x86_64" ]];
 then
 	mkdir build-win32
 	cd build-win32
-	cmake .. -DEXTRALIBS=/home/charles/dev/dlls -DCMAKE_TOOLCHAIN_FILE=../releasetools/Toolchain-mingw32.cmake
+	cmake .. -DEXTRALIBS=/home/charles/dlls -DCMAKE_TOOLCHAIN_FILE=../releasetools/Toolchain-mingw32.cmake
 	make -j4
 
 	mv meow.exe meow_$version.exe
