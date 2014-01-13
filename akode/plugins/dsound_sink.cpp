@@ -184,10 +184,15 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
 {
     close();
     if (d->error) return -1;
+    d->config = *config;
+    
     if (config->sample_width!=16)
         return -1;
     if (config->channels!=2)
         return -1;
+    if (config->sample_rate!=44100)
+    {
+        d->config.sample_rate = 44100;
 
     WAVEFORMATEX wfx; 
     memset(&wfx, 0, sizeof(WAVEFORMATEX)); 
@@ -197,7 +202,7 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
         wfx.wBitsPerSample = 16;
     }
     wfx.nChannels = 2; 
-    wfx.nSamplesPerSec = config->sample_rate; 
+    wfx.nSamplesPerSec = d->config.sample_rate; 
     wfx.nBlockAlign = 4; 
     wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign; 
     
@@ -219,8 +224,7 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     
     resume();
 
-    d->config = *config;
-    return 0;
+    return d->config = *config;
 }
 
 const AudioConfiguration* DSoundSink::audioConfiguration() const
