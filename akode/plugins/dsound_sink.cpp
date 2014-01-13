@@ -245,8 +245,8 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
     int atSample=0;
     
     // bps=4
-    const UINT bytesPerSample = frame->sample_width/8*channels;
-    if (sizeof(T) != frame->sample_width/8)
+    const UINT bytesPerSample = d->config.sample_width/8*channels;
+    if (sizeof(T) != d->config.sample_width/8)
     {
         std::cerr << "wrong sample width" << std::endl;
         return false;
