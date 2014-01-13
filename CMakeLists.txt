@@ -45,7 +45,6 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -flto -DNOMINMAX -DPTW32_STATIC_LIB-DHAVE_STRUCT_TIMESPEC")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Os -flto -DNOMINMAX -DPTW32_STATIC_LIB -std=c++11 -DHAVE_STRUCT_TIMESPEC")
-	set(CMAKE_EXE_LINKER_FLAGS "-Os -flto")
 else()
 	set(platform_sources akode/plugins/alsa_sink.cpp akode/localfile.cpp)
 
