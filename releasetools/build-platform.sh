@@ -12,7 +12,6 @@ then
 	meow_package=RPM
 fi
 
-echo "Building package for $i"
 
 if [[ $platform == "debian-unstable-win32-x86_64" ]];
 then
