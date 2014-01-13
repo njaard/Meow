@@ -11,9 +11,9 @@ do
 	umount /var/meow-builds/$i/home
 	umount /var/meow-builds/$i/proc
 	umount /var/meow-builds/$i/dev
-	umount /var/meow-builds/home/charles/dlls
+	umount /var/meow-builds/$i/home/charles/dlls
 	mount --bind /var/meow-builds/home /var/meow-builds/$i/home/
-	mount --bind /home/charles/dev/dlls /var/meow-builds/home/charles/dlls
+	mount --bind /home/charles/dev/dlls /var/meow-builds/$i/home/charles/dlls
 	mount proc -t proc /var/meow-builds/$i/proc/
 	mount udev -t devtmpfs /var/meow-builds/$i/dev
 
@@ -25,10 +25,10 @@ do
 	$arch chroot /var/meow-builds/$i su - charles -c \
 		"cd ~/meow; bash releasetools/build-platform.sh $i $package_fmt $version 2> build-$i.log"
 
-	umount /var/meow-builds/$i/home
-	umount /var/meow-builds/$i/proc
-	umount /var/meow-builds/$i/dev
-	umount /var/meow-builds/home/charles/dlls
+	#umount /var/meow-builds/$i/home
+	#umount /var/meow-builds/$i/proc
+	#umount /var/meow-builds/$i/dev
+	#umount /var/meow-builds/$i/home/charles/dlls
 
 	if [[ $i == "debian-unstable-win32-x86_64" ]]
 	then
