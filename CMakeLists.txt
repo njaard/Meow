@@ -1,8 +1,8 @@
 #the following lines are used by releasetools
 SET(MAJOR_VERSION 0)
 SET(MINOR_VERSION 9)
-SET(PATCH_VERSION 16)
-SET(PACKAGE_VERSION 3)
+SET(PATCH_VERSION 17)
+SET(PACKAGE_VERSION 1)
 
 # this version
 
@@ -33,7 +33,8 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 		${QT_LIBRARY_DIR}/libqtmain.a
 		${EXTRALIBS}/lib/libmpg123.a
 		${EXTRALIBS}/lib/libvorbisfile.a ${EXTRALIBS}/lib/libvorbis.a
-		#${EXTRALIBS}/lib/libopusfile.a ${EXTRALIBS}/lib/libopus.a
+		${EXTRALIBS}/lib/libopusfile.a ${EXTRALIBS}/lib/libopus.a
+		${EXTRALIBS}/lib/libspeex.a
 		${EXTRALIBS}/lib/libogg.a
 		${EXTRALIBS}/lib/libFLAC.a
 		${EXTRALIBS}/lib/libmpcdec_static.a
@@ -317,13 +318,13 @@ IF(DEFINED MEOW_PACKAGE)
 
 		SET(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 		if(${MEOW_QT})
-			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
+			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libstdc++6 (>= 4.1.1), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libspeex1 (>= 1.2), libogg0 (>= 1.3.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
 			SET(PROJECT_NAME_SUFFIX "-qt")
 			SET(CPACK_DEBIAN_PACKAGE_SECTION "sound")
 			SET(CPACK_STRIP_FILES "bin/meow-qt")
 			SET(CPACK_PACKAGE_NAME "meow-qt")
 		else()
-			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.1.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
+			SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libkdeui5 (>= 4:4.4.0), libstdc++6 (>= 4.1.1), libkdecore5 (>= 4:4.4.0), libqtcore4 (>= 4.5.0), libc6 (>= 2.2), libqtcore4 (>= 4:4.6.0), libasound2 (>= 1.0.23), libvorbis0a (>= 1.3.0), libogg0 (>= 1.3.0), libmpg123-0 (>= 1.14.0), libflac8 (>= 1.2.0), libtag1-vanilla (>= ${TAGLIB_PKG_VERSION}), libsqlite3-0 (>= 3.7.0), libvorbisfile3 (>= 1.3.0), libspeex1 (>= 1.2), libogg0 (>= 1.3.0), libmpcdec6 (>= 0.1)${OPUS_DEBIAN_PKG_EXTRA}")
 			SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
 			SET(CPACK_DEBIAN_PACKAGE_SECTION "kde")
 			SET(CPACK_STRIP_FILES "bin/meow")
@@ -353,10 +354,11 @@ IF(DEFINED MEOW_PACKAGE)
 			SET(PROJECT_NAME_SUFFIX "-qt")
 			SET(CPACK_STRIP_FILES "bin/meow-qt")
 			SET(CPACK_PACKAGE_NAME "meow-qt")
+			SET(CPACK_RPM_PACKAGE_REQUIRES "qt >= 4.8, alsa-lib >= 1.0.27, libogg >= 1.2, speex >= 1.1, libvorbis >= 1.3.3, libmpg123 >= 1.15.0, flac-libs >= 1.3.0, taglib >= 1.9.1, sqlite >= 3.7.0")
 		else()
 			SET(CPACK_INSTALL_DIRECTORIES "/usr/share/kde4/apps/meow")
 			SET(CPACK_STRIP_FILES "bin/meow")
-			SET(CPACK_RPM_PACKAGE_REQUIRES "kdelibs >= 4.10, qt >= 4.8, alsa-lib >= 1.0.27, libvorbis >= 1.3.3, libmpg123 >= 1.15.0, flac-libs >= 1.3.0, taglib >= 1.9.1, sqlite >= 3.7.0")
+			SET(CPACK_RPM_PACKAGE_REQUIRES "kdelibs >= 4.10, qt >= 4.8, alsa-lib >= 1.0.27, libogg >= 1.2, speex >= 1.1, libvorbis >= 1.3.3, libmpg123 >= 1.15.0, flac-libs >= 1.3.0, taglib >= 1.9.1, sqlite >= 3.7.0")
 		endif()
 
 		SET(CPACK_PACKAGE_VENDOR "Charles Samuels <charles@meowplayer.org>")

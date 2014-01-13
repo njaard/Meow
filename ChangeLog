@@ -1,12 +1,13 @@
-meow (0.9.25)
+meow (0.9.17)
     * Various code cleanups, and C++-2012 changes now requiring gcc 4.8
     * Certain race condition fixed
     * Don't play on startup when starting due to Session Management
     * add this changelog file
+    * Speex support
 
  -- Charles Samuels <charles@meowplayer.org> 2013-12-14 12:58:00 -0800
 
-meow (0.9.24)
+meow (0.9.16)
     * Files specified on the command line are now loaded, and the first one is
       played
 

@@ -33,24 +33,7 @@ tar --exclude-vcs -c meow_$version | bzip2 -9 > packages/meow_$version.tar.bz2
 rm -rf meow_$version
 cd meow
 
-# make windows build
-(
-	mkdir build-win32
-	cd build-win32
-	cmake .. -DEXTRALIBS=/home/charles/dev/dlls -DCMAKE_TOOLCHAIN_FILE=/home/charles/dev/Toolchain-mingw32.cmake
-	make -j4
-
-	mv meow.exe meow_$version.exe
-	i686-w64-mingw32-strip meow_$version.exe
-	zip -9 meow_$version.zip meow_$version.exe
-	upx --ultra-brute meow_$version.exe
-
-	mv meow_$version.exe meow_$version.zip ../../packages
-) &
-
 sudo bash releasetools/release-tools.sh 
-
-wait
 
 #make apt repository
 dpkg-sig -m 'release@meowplayer.org' -s origin $THERE/packages/*.deb
