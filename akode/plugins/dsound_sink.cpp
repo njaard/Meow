@@ -224,7 +224,7 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     
     resume();
 
-    return d->config = *config;
+    return d->config == *config ? 0 : 1;
 }
 
 const AudioConfiguration* DSoundSink::audioConfiguration() const
