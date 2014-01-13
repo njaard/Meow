@@ -189,14 +189,15 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     
     if (config->sample_width!=16)
     {
-        d->config.sample_width = config->sample_width;
+        d->config.sample_width = 16;
         exact = 1;
     }
-    if (config->sample_rate!=44100)
+/*    if (config->sample_rate!=44100)
     {
         d->config.sample_rate = 44100;
         exact = 1;
     }
+*/
 
     WAVEFORMATEX wfx; 
     memset(&wfx, 0, sizeof(WAVEFORMATEX)); 
