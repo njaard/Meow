@@ -22,7 +22,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows)
 	if (NOT IS_DIRECTORY ${EXTRALIBS})
 		MESSAGE( FATAL_ERROR "Specify -DEXTRALIBS with the path to the win32 library toolchain.")
 	endif()
-	set(CMAKE_EXE_LINKER_FLAGS "-mwindows -static" )
+	set(CMAKE_EXE_LINKER_FLAGS "-mwindows -static -static-libgcc -static-libstdc++" )
 	set(platform_sources akode/plugins/dsound_sink.cpp mainwindow-qt.cpp md5.c)
 	
 	include_directories(${EXTRALIBS}/include/taglib ${EXTRALIBS}/include)
