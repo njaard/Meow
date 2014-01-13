@@ -192,18 +192,17 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
         d->config.sample_width = 16;
         exact = 1;
     }
-/*    if (config->sample_rate!=44100)
+    if (config->sample_rate!=44100)
     {
         d->config.sample_rate = 44100;
         exact = 1;
     }
-*/
 
     WAVEFORMATEX wfx; 
     memset(&wfx, 0, sizeof(WAVEFORMATEX)); 
     wfx.wFormatTag = WAVE_FORMAT_PCM;
     wfx.wBitsPerSample = d->config.sample_width;
-    wfx.nChannels = std::min<int>(2, config->channels);
+    wfx.nChannels = 2;
     wfx.nSamplesPerSec = d->config.sample_rate; 
     wfx.nBlockAlign = 4; 
     wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign; 
@@ -240,6 +239,7 @@ template<class T>
 bool DSoundSink::_writeFrame(AudioFrame* frame)
 {
     const int channels = d->config.channels;
+    const int inChannels = frame->channels;
     const T*const * data = (T**)frame->data;
     
     int atSample=0;
@@ -293,7 +293,7 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
             for (unsigned long i=0; i < l_bytes1/bytesPerSample; i++)
             {
                 for(int j=0; j<channels; j++)
-                    out[i*channels + j] = data[j][atSample];
+                    out[i*channels + j] = data[std::min(j,inChannels-1)][atSample];
                 atSample++;
             }
         }
@@ -302,7 +302,7 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
             for (unsigned long i=0; i < l_bytes2/bytesPerSample; i++)
             {
                 for(int j=0; j<channels; j++)
-                    out[i*channels + j] = data[j][atSample];
+                    out[i*channels + j] = data[std::min(j,inChannels-1)][atSample];
                 atSample++;
             }
         }
