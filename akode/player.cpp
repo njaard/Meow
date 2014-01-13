@@ -38,7 +38,7 @@
 
 #include "player.h"
 
-#undet NDEBUG
+#undef NDEBUG
 
 #ifndef NDEBUG
 #include <iostream>
