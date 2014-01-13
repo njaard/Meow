@@ -25,24 +25,10 @@ do
 	$arch chroot /var/meow-builds/$i su - charles -c \
 		"cd ~/meow; bash releasetools/build-platform.sh $i $package_fmt $version 2> build-$i.log"
 
-	#umount /var/meow-builds/$i/home
-	#umount /var/meow-builds/$i/proc
-	#umount /var/meow-builds/$i/dev
-	#umount /var/meow-builds/$i/home/charles/dlls
-
-	if [[ $i == "debian-unstable-win32-x86_64" ]]
-	then
-		{
-			p="build-win32"
-			mv $p/meow.exe $p/meow_$version.exe
-			i686-w64-mingw32-strip $p/meow_$version.exe
-			zip -9 $p/meow_$version.zip $p/meow_$version.exe
-			#upx --ultra-brute $p/meow_$version.exe
-			upx -1 $p/meow_$version.exe
-
-			mv $p/meow_$version.exe $p/meow_$version.zip ../../packages
-		} &
-	fi
+	umount /var/meow-builds/$i/home
+	umount /var/meow-builds/$i/proc
+	umount /var/meow-builds/$i/dev
+	umount /var/meow-builds/$i/home/charles/dlls
 done
 
 wait
