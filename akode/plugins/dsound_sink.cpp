@@ -104,6 +104,7 @@ struct DSoundSink::private_data
 
     AudioConfiguration config;
     std::string device;
+    int myChannels=2;
     
     int writingInBlocksOf; // samples
     
@@ -186,7 +187,7 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     if (d->error) return -1;
     d->config = *config;
     int exact = 0;
-    
+
     if (config->sample_width!=16)
     {
         d->config.sample_width = 16;
@@ -238,7 +239,7 @@ const AudioConfiguration* DSoundSink::audioConfiguration() const
 template<class T>
 bool DSoundSink::_writeFrame(AudioFrame* frame)
 {
-    const int channels = d->config.channels;
+    const int channels = d->myChannels;
     const int inChannels = frame->channels;
     const T*const * data = (T**)frame->data;
     
