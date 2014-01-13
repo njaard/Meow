@@ -20,13 +20,6 @@ then
 	cmake .. -DEXTRALIBS=/home/charles/dlls -DCMAKE_TOOLCHAIN_FILE=../releasetools/Toolchain-mingw32.cmake
 	make -j4
 
-	mv meow.exe meow_$version.exe
-	i686-w64-mingw32-strip meow_$version.exe
-	zip -9 meow_$version.zip meow_$version.exe
-	upx --ultra-brute meow_$version.exe
-
-	mv meow_$version.exe meow_$version.zip ../../packages
-
 else
 	mkdir build-$platform-kde
 	cd build-$platform-kde

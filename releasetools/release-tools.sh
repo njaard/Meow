@@ -37,7 +37,8 @@ do
 			mv $p/meow.exe $p/meow_$version.exe
 			i686-w64-mingw32-strip $p/meow_$version.exe
 			zip -9 $p/meow_$version.zip $p/meow_$version.exe
-			upx --ultra-brute $p/meow_$version.exe
+			#upx --ultra-brute $p/meow_$version.exe
+			upx -1 $p/meow_$version.exe
 
 			mv $p/meow_$version.exe $p/meow_$version.zip ../../packages
 		} &
