@@ -131,6 +131,7 @@ bool MMapFile::seek(long to, int whence) {
         default:
             return false;
     }
+    std::cerr << "seeking to " << newpos << " of " << len << std::endl;
     if (newpos > len || newpos < 0)
         return false;
     pos = newpos;
