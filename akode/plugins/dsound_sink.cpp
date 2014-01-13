@@ -203,7 +203,7 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     memset(&wfx, 0, sizeof(WAVEFORMATEX)); 
     wfx.wFormatTag = WAVE_FORMAT_PCM;
     wfx.wBitsPerSample = d->config.sample_width;
-    wfx.nChannels = std::max<int>(2, config->channels);
+    wfx.nChannels = std::min<int>(2, config->channels);
     wfx.nSamplesPerSec = d->config.sample_rate; 
     wfx.nBlockAlign = 4; 
     wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign; 
