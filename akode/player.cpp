@@ -138,6 +138,8 @@ void Player::private_data::runThread()
                 if (volumeFilter)
                     volumeFilter->doFrame(out_frame);
             }
+            
+            out_frame->pos = frame.pos;
 
             no_error = sink->writeFrame(out_frame);
 
