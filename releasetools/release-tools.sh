@@ -1,7 +1,7 @@
 #!/bin/sh
 
-#platforms="fedora-i386 fedora-x86_64 stable-i386 stable-x86_64 debian-unstable-win32-x86_64"
-platforms="debian-unstable-win32-x86_64"
+platforms="fedora-i386 fedora-x86_64 stable-i386 stable-x86_64 debian-unstable-win32-x86_64"
+#platforms="debian-unstable-win32-x86_64"
 version="$1"
 
 for i in $platforms;
