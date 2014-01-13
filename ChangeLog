@@ -1,0 +1,60 @@
+meow (0.9.25)
+    * Various code cleanups, and C++-2012 changes now requiring gcc 4.8
+    * Certain race condition fixed
+    * Don't play on startup when starting due to Session Management
+    * add this changelog file
+
+ -- Charles Samuels <charles@meowplayer.org> 2013-12-14 12:58:00 -0800
+
+meow (0.9.24)
+    * Files specified on the command line are now loaded, and the first one is
+      played
+
+ -- Charles Samuels <charles@meowplayer.org> 2013-11-24 12:00:00 -0800
+
+meow (0.9.15)
+    * Opus support in source release
+    * UI to let you pick the output device
+    * Have tray icon disappear on exit properly on Windows
+    * Don't try to scrobble if scrobbling is enabled but username is not
+      available
+
+ -- Charles Samuels <charles@meowplayer.org> 2013-11-16 12:00:00 -0800
+
+meow (0.9.14)
+    * Fix drag-n-drop on Windows (bug reproduced on Windows 7 but not Vista)
+
+ -- Charles Samuels <charles@meowplayer.org> 2013-10-26 12:00:00 -0800
+
+meow (0.9.13)
+    * Don't crash when switching songs in newer versions of Qt (Linux only)
+
+ -- Charles Samuels <charles@meowplayer.org> 2013-05-24 12:00:00 -0800
+
+meow (0.9.12)
+    * MP3 decoder is now mpg123, it apparently is slightly more standards
+      compliant, and the code is more readable.
+    * Non-KDE version: Configure keyboard shortcuts from the UI
+    * Support for gapless playback on all formats, including mp3
+      (mp3: when the LAME tag is present, only)
+    * Understands and uses ReplayGain tags in files.
+
+ -- Charles Samuels <charles@meowplayer.org> 2013-03-10 12:00:00 -0800
+
+meow (0.9.11)
+    * More aggressive mp3 parsing makes it more likely to play certain malformed
+      files
+    * Non-KDE version: you can now replace all the icons (in KDE, the normal
+      icon theme applies.
+    * Data and config is stored in ~/.config/meowplayer.org (Unix) and
+      c:\users\whatever\meowplayer.org (Windows) instead of the old location
+      (the directory is "meow"). Also collections are stored in a new
+      "collections" subfolder. This is a backwards incompatible change, but you
+      can manually move the files if you want
+
+    * Qt version on Unix: "media" keys now work globally. In later versions,
+      you'll be able to configure them
+    * Non-KDE version: Cosmetic changes to the About box
+    * Restore the volume level properly
+
+ -- Charles Samuels <charles@meowplayer.org> 2013-01-19 12:00:00 -0800
