@@ -287,7 +287,6 @@ public:
 	}
 	virtual bool seek(long to)
 	{
-		std::cerr << "trying to seek to " << to << std::endl;
 		if (to < position())
 		{
 			file->seek(0);

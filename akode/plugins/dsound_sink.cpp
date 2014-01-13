@@ -239,6 +239,7 @@ const AudioConfiguration* DSoundSink::audioConfiguration() const
 template<class T>
 bool DSoundSink::_writeFrame(AudioFrame* frame)
 {
+	std::cerr << "writing frame" << std::endl;
     const int channels = d->myChannels;
     const int inChannels = frame->channels;
     const T*const * data = (T**)frame->data;
