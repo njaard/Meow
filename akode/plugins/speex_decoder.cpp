@@ -116,6 +116,7 @@ public:
 	
 	template<class DecoderFn>
 	void read(const DecoderFn& fn)
+	try
 	{
 		while (1)
 		{
@@ -234,6 +235,10 @@ public:
 			packetCount++;
 		}
 	}
+	catch (std::exception &e)
+	{
+		std::cerr << "Error reading from speex stream: " << e.what() << std::endl;
+	}
 		
 	virtual bool readFrame(AudioFrame* frame)
 	{
@@ -270,6 +275,7 @@ public:
 			}
 		};
 		
+		
 		frame->length=0;
 		read(decoder);
 		return !eof();
@@ -287,18 +293,26 @@ public:
 	}
 	virtual bool seek(long to)
 	{
-		if (to < position())
 		{
-			file->seek(0);
-			mPosition=0;
-			hasPage=false;
+			ogg_sync_state oy;
+			ogg_sync_init(&oy);
+			ogg_page og;
+			if (to < position())
+			{
+				file->seek(0);
+				mPosition=0;
+				hasPage=false;
+			}
+			auto nothing = [](const ogg_packet&) { };
+			while (position() < to)
+			{
+				hasPage=false;
+				read(nothing);
+			}
+			ogg_sync_clear(&oy);
 		}
-		auto nothing = [](const ogg_packet&) { };
-		while (position() < to)
-		{
-			read(nothing);
-			hasPage=false;
-		}
+		ogg_stream_reset(&os);
+		ogg_sync_reset(&oy);
 		
 		return true;
 	}

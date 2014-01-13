@@ -20,6 +20,7 @@
 
 #include <pthread.h>
 #include <assert.h>
+#include <iostream>
 
 #include "audioframe.h"
 #include "audiobuffer.h"
