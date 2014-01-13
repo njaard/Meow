@@ -191,7 +191,6 @@ int DSoundSink::setAudioConfiguration(const AudioConfiguration* config)
     if (config->channels!=2)
         return -1;
     if (config->sample_rate!=44100)
-    {
         d->config.sample_rate = 44100;
 
     WAVEFORMATEX wfx; 
