@@ -245,7 +245,7 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
     int atSample=0;
     
     // bps=4
-    const UINT bytesPerSample = frame->sample_width/8*frame->channels;
+    const UINT bytesPerSample = frame->sample_width/8*channels;
     if (sizeof(T) != frame->sample_width/8)
     {
         std::cerr << "wrong sample width" << std::endl;
@@ -279,7 +279,7 @@ bool DSoundSink::_writeFrame(AudioFrame* frame)
                 &p_write_position,
                 &l_bytes1,
                 &p_wrap_around,           // Buffer address (if wrap around)
-                &l_bytes2,               // Count of bytes after wrap around
+                &l_bytes2,               // Count of bytes after wrap around	
                 0
             );
         if( dsresult != DS_OK )
