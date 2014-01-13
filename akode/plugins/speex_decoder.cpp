@@ -301,7 +301,7 @@ public:
 			hasPage=false;
 		}
 		
-		return false;
+		return true;
 	}
 	virtual bool seekable() { return true; }
 	virtual bool eof() { return !hasPage && file->eof(); }
